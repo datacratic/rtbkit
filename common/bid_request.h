@@ -233,7 +233,7 @@ struct Location {
     std::string countryCode;
     std::string regionCode;
     UtfString cityName;
-    std::string postalCode;
+    UtfString postalCode;
 
     int dma;
     int metro;
@@ -401,7 +401,7 @@ struct BidRequest {
     parse(const std::string & source, const std::string & bidRequest);
 
     static BidRequest *
-    parse(const std::string & source, const Utf8String & bidRequest);
+    parse(const std::string & source, const UtfString & bidRequest);
 
     void serialize(ML::DB::Store_Writer & store) const;
     void reconstitute(ML::DB::Store_Reader & store);
