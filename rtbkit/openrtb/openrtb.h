@@ -709,7 +709,7 @@ struct Impression {
     Optional<Banner> banner;           ///< If it's a banner ad
     Optional<Video> video;             ///< If it's a video ad
     UtfString displaymanager;          ///< What renders the ad
-    UtfString displaymanagerver        ///< What version of that thing
+    UtfString displaymanagerver;        ///< What version of that thing
     TaggedBoolDef<0> instl;            ///< Is it interstitial
     UtfString tagid;                   ///< ad tag ID for auction
     TaggedDoubleDef<0> bidfloor;        ///< CPM bid floor
