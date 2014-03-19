@@ -17,13 +17,24 @@
 
 namespace RTBKIT {
 
+
+struct HttpAdServerResponse 
+{
+    HttpAdServerResponse() : valid(true) {
+    }
+
+    bool valid;
+    std::string error;
+    std::string details;
+};
+
 /****************************************************************************/
 /* HTTPADSERVERCONNECTIONHANDLER                                            */
 /****************************************************************************/
 
 class HttpAdServerHttpEndpoint;
 
-typedef std::function<void (const HttpHeader & header,
+typedef std::function<HttpAdServerResponse (const HttpHeader & header,
                             const Json::Value & json,
                             const std::string & jsonStr)>
     HttpAdServerRequestCb;
@@ -36,6 +47,8 @@ struct HttpAdServerConnectionHandler
     virtual void handleJson(const HttpHeader & header,
                             const Json::Value & json,
                             const std::string & jsonStr);
+
+    virtual void sendErrorResponse(const std::string & error, const std::string & details);
 
 private:
     HttpAdServerHttpEndpoint & endpoint_;

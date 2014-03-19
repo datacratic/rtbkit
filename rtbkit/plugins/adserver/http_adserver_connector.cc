@@ -43,11 +43,17 @@ handleJson(const HttpHeader & header, const Json::Value & json,
     };
 
     try {
-        requestCb_(header, json, jsonStr);
-        resultMsg = ("HTTP/1.1 200 OK\r\n"
+        HttpAdServerResponse returnValue = requestCb_(header, json, jsonStr);
+        if(returnValue.valid) {
+            resultMsg = ("HTTP/1.1 200 OK\r\n"
                      "Content-Type: none\r\n"
                      "Content-Length: 0\r\n"
                      "\r\n");
+        }
+        else {
+            endpoint_.doEvent("error.rqParsingError");
+            sendErrorResponse(returnValue.error, returnValue.details);
+        }
     }
     catch (const exception & exc) {
         cerr << "error parsing adserver request " << json << ": "
@@ -72,6 +78,13 @@ handleJson(const HttpHeader & header, const Json::Value & json,
          onSendFinished);
 }
 
+
+void
+HttpAdServerConnectionHandler::
+sendErrorResponse(const std::string & error, const std::string & details)
+{
+    putResponseOnWire( HttpResponse( 400 , error, details));
+}
 
 /****************************************************************************/
 /* HTTPADSERVERHTTPENDPOINT                                                 */
@@ -185,3 +198,4 @@ start()
     }
     AdServerConnector::start();
 }
+
