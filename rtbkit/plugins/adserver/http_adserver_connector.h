@@ -48,9 +48,9 @@ struct HttpAdServerConnectionHandler
                             const Json::Value & json,
                             const std::string & jsonStr);
 
-    virtual void sendErrorResponse(const std::string & error, const std::string & details);
-
 private:
+    std::string sendErrorResponse(const std::string & error, const std::string & details, const Json::Value & json);
+    
     HttpAdServerHttpEndpoint & endpoint_;
     const HttpAdServerRequestCb & requestCb_;
 };
