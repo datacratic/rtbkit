@@ -86,7 +86,7 @@ initEventType(const Json::Value &json) {
         auto items = item.getMemberNames();
         
         for(auto i=items.begin(); i!=items.end(); ++i) {
-            eventType[*i] = json[*i].asString();
+            eventType[*i] = item[*i].asString();
         }
     }
 }
