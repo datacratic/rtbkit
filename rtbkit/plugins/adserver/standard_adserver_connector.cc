@@ -221,7 +221,7 @@ handleDeliveryRq(const HttpHeader & header,
     
     Date timestamp = Date::fromSecondsSinceEpoch(json["timestamp"].asDouble());
 
-    if (!json.isMember("auctionId") && !json.isMember("adSpotId")) {
+    if (!json.isMember("auctionId") || !json.isMember("adSpotId")) {
         response.valid = false;
         response.error = "MISSING_ID";
         response.details = "A conversion notice requires the auctionId and adSpotId field";
