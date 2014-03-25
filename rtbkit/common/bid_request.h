@@ -232,8 +232,8 @@ struct Location {
 
     std::string countryCode;
     std::string regionCode;
-    UtfString cityName;
-    UtfString postalCode;
+    Datacratic::UnicodeString cityName;
+    Datacratic::UnicodeString postalCode;
 
     int dma;
     int metro;
@@ -242,7 +242,7 @@ struct Location {
     static Location createFromJson(const Json::Value & json);
 
     /** Return a location string with COUNTRY:REGION:CITY:POSTAL:DMA */
-    UtfString fullLocationString() const;
+    Datacratic::UnicodeString fullLocationString() const;
 
     /** Return a canonical JSON version of the bid request. */
     Json::Value toJson() const;
@@ -311,11 +311,11 @@ struct BidRequest {
        optimization algorithm can make use of them.
     */
        
-    UtfString language;   ///< User's language.
+    Datacratic::UnicodeString language;   ///< User's language.
     Location location;      ///< Best available location information
     Url url;
     std::string ipAddress;
-    UtfString userAgent;
+    Datacratic::UnicodeString userAgent;
 
     /** This field should be used to indicate what User IDs are available
         in the bid request.  These are normally used by the augmentors to
