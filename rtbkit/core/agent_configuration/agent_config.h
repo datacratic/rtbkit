@@ -406,22 +406,6 @@ struct AgentConfig {
         ML::Lightweight_Hash<uint64_t, int> languageFilter;
         ML::Lightweight_Hash<uint64_t, int> locationFilter;
     };
-
-    typedef std::function<void(const char*)> FilterStatFn;
-
-    /** Returns the biddable imp (see canBid) if the agent can bid on the
-        given bid request.
-
-        Before the function returns false, doFilterStat will be called with the
-        cause of the filtering and the appropriate member of AgentStats will be
-        incremented.
-    */
-    BiddableSpots
-    isBiddableRequest(const ExchangeConnector * exchange,
-                      const BidRequest& request,
-                      AgentStats& stats,
-                      RequestFilterCache& cache,
-                      const FilterStatFn & doFilterStat = FilterStatFn()) const;
 };
 
 
