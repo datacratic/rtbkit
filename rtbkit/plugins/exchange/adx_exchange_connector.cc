@@ -20,6 +20,8 @@
 #include "rtbkit/plugins/exchange/http_auction_handler.h"
 #include "rtbkit/plugins/exchange/realtime-bidding.pb.h"
 #include "rtbkit/core/agent_configuration/agent_config.h"
+#include "rtbkit/core/router/filters/generic_filters.h"
+#include "rtbkit/core/router/filters/priority.h"
 #include "rtbkit/openrtb/openrtb_parsing.h"
 #include "soa/types/json_printing.h"
 
@@ -44,11 +46,137 @@ registerConnector() {
 
 } // anonymous namespace
 
+
+/** \todo Find a way to write an efficient version of this. */
+struct AdXCreativeExchangeFilter : public IterativeFilter<AdXCreativeExchangeFilter> {
+    static constexpr const char* name = "AdXMoPubCreativeExchange";
+    unsigned priority() const {
+        return Priority::CreativeExchange;
+    }
+
+    void filter(FilterState& state) const {
+        // no exchange connector means evertyhing gets filtered out.
+        if (!state.exchange) {
+            state.narrowAllCreatives(CreativeMatrix());
+            return;
+        }
+
+        CreativeMatrix creatives;
+
+        for (size_t cfgId = state.configs().next();
+                cfgId < state.configs().size();
+                cfgId = state.configs().next(cfgId+1)) {
+            const auto& config = *configs[cfgId];
+
+            for (size_t crId = 0; crId < config.creatives.size(); ++crId) {
+                const auto& creative = config.creatives[crId];
+
+                auto exchangeInfo = getExchangeInfo(state, creative);
+                if (!exchangeInfo.first) continue;
+
+                const Datacratic::EventRecorder* rec = state.exchange;
+                bool ret = this->bidreqCreativeFilter(
+                               state.request, config, exchangeInfo.second, rec);
+
+                if (ret) creatives.set(crId, cfgId);
+
+            }
+        }
+
+        state.narrowAllCreatives(creatives);
+    }
+
+  private:
+
+    const std::pair<bool, void*>
+    getExchangeInfo(const FilterState& state, const Creative& creative) const {
+        auto it = creative.providerData.find(state.exchange->exchangeName());
+
+        if (it == creative.providerData.end())
+            return std::make_pair(false, nullptr);
+        return std::make_pair(true, it->second.get());
+    }
+
+    bool
+    bidreqCreativeFilter(const BidRequest & request,
+                         const AgentConfig & config,
+                         const void * info,
+                         const Datacratic::EventRecorder* rec) const {
+        const auto crinfo = reinterpret_cast<const AdXExchangeConnector::CreativeInfo*>(info);
+
+        // This function is called once per BidRequest.
+        // However a bid request can return multiple AdSlot.
+        // The creative restrictions do apply per AdSlot.
+        // We then check that *all* the AdSlot present in this BidRequest
+        // do pass the filter.
+        // TODO: verify performances of the implementation.
+        for (const auto& spot: request.imp) {
+
+            const auto& excluded_attribute_seg = spot.restrictions.get("excluded_attribute");
+            for (auto atr: crinfo->attribute_)
+                if (excluded_attribute_seg.contains(atr)) {
+                    rec->recordHit ("attribute_excluded");
+                    return false ;
+                }
+
+            const auto& excluded_sensitive_category_seg =
+                spot.restrictions.get("excluded_sensitive_category");
+            for (auto atr: crinfo->category_)
+                if (excluded_sensitive_category_seg.contains(atr)) {
+                    rec->recordHit ("sensitive_category_excluded");
+                    return false ;
+                }
+
+            const auto& allowed_vendor_type_seg =
+                spot.restrictions.get("allowed_vendor_type");
+            if (!allowed_vendor_type_seg.empty()) {
+                for (auto atr: crinfo->vendor_type_)
+                    if (!allowed_vendor_type_seg.contains(atr)) {
+                        rec->recordHit ("vendor_type_not_allowed");
+                        return false ;
+                    }
+            }
+
+            const auto& allowed_adgroup_seg =
+                spot.restrictions.get("allowed_adgroup");
+            if (!allowed_adgroup_seg.contains(crinfo->adgroup_id_)
+                    && !allowed_adgroup_seg.empty()
+                    && !crinfo->adgroup_id_.empty()) {
+                rec->recordHit ("adgroup_not_allowed");
+                return false ;
+            }
+
+            const auto& allowed_restricted_category_seg =
+                spot.restrictions.get("allowed_restricted_category");
+            for (auto atr: crinfo->restricted_category_)
+                if ((!allowed_restricted_category_seg.contains(atr)
+                        && !allowed_restricted_category_seg.empty())
+                        ||
+                        (allowed_restricted_category_seg.empty()
+                         && !crinfo->restricted_category_.empty())
+                   ) {
+                    rec->recordHit ("restricted_category_not_allowed");
+                    return false ;
+                }
+        }
+        return true;
+    }
+};
+
+namespace {
+
+struct InitFilters {
+    InitFilters()     {
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::AdXCreativeExchangeFilter>();
+    }
+} initFilters;
+
+} // namespace anonymous
+
 AdXExchangeConnector::
 AdXExchangeConnector(ServiceBase & owner, const std::string & name)
     : HttpExchangeConnector(name, owner)
-    , configuration_("adx")
-{
+    , configuration_("adx") {
     init();
 }
 
@@ -56,8 +184,7 @@ AdXExchangeConnector::
 AdXExchangeConnector(const std::string & name,
                      std::shared_ptr<ServiceProxies> proxies)
     : HttpExchangeConnector(name, proxies)
-    , configuration_("adx")
-{
+    , configuration_("adx") {
     // useless?
     this->auctionResource = "/auctions";
     this->auctionVerb = "POST";
@@ -65,8 +192,7 @@ AdXExchangeConnector(const std::string & name,
     init();
 }
 
-static std::vector<int> stringsToInts(const Json::Value& value)
-{
+static std::vector<int> stringsToInts(const Json::Value& value) {
     const std::string & data = value.asString();
     std::vector<std::string> strings;
     std::vector<int> ints;
@@ -83,74 +209,69 @@ static std::vector<int> stringsToInts(const Json::Value& value)
 }
 
 void
-AdXExchangeConnector::init()
-{
+AdXExchangeConnector::init() {
     configuration_.addField(
         "externalId",
-        [](const Json::Value & value, CreativeInfo & info) {
-            Datacratic::jsonDecode(value, info.buyer_creative_id_);
-            return true;
-        }
+    [](const Json::Value & value, CreativeInfo & info) {
+        Datacratic::jsonDecode(value, info.buyer_creative_id_);
+        return true;
+    }
     );
 
     configuration_.addField(
         "htmlTemplate",
-        [](const Json::Value & value, CreativeInfo & info) {
-            Datacratic::jsonDecode(value, info.html_snippet_);
-            if (info.html_snippet_.find("%%WINNING_PRICE%%") == std::string::npos) {
-                throw std::invalid_argument("%%WINNING_PRICE%% price macro expected");
-            }
-            return true;
+    [](const Json::Value & value, CreativeInfo & info) {
+        Datacratic::jsonDecode(value, info.html_snippet_);
+        if (info.html_snippet_.find("%%WINNING_PRICE%%") == std::string::npos) {
+            throw std::invalid_argument("%%WINNING_PRICE%% price macro expected");
         }
+        return true;
+    }
     ).snippet();
 
     configuration_.addField(
         "clickThroughUrl",
-        [](const Json::Value & value, CreativeInfo & info) {
-            Datacratic::jsonDecode(value, info.click_through_url_);
-            return true;
-        }
+    [](const Json::Value & value, CreativeInfo & info) {
+        Datacratic::jsonDecode(value, info.click_through_url_);
+        return true;
+    }
     ).snippet();
 
     //     according to the .proto file this could also be set
     //     to 1 if nothing has been provided in the providerConfig
     configuration_.addField(
         "agencyId",
-        [](const Json::Value & value, CreativeInfo & info)
-        {
-            Datacratic::jsonDecode(value, info.agency_id_);
-            return true;
-        }
+    [](const Json::Value & value, CreativeInfo & info) {
+        Datacratic::jsonDecode(value, info.agency_id_);
+        return true;
+    }
     ).defaultTo(1);
 
     configuration_.addField(
         "vendorType",
-        [](const Json::Value & value, CreativeInfo & info)
-        {
-            auto ints = stringsToInts(value);
-            info.vendor_type_ = { std::begin(ints), std::end(ints) };
-            return true;
-        }
+    [](const Json::Value & value, CreativeInfo & info) {
+        auto ints = stringsToInts(value);
+        info.vendor_type_ = { std::begin(ints), std::end(ints) };
+        return true;
+    }
     );
 
     configuration_.addField(
         "attribute",
-        [](const Json::Value & value, CreativeInfo & info)
-        {
-            auto ints = stringsToInts(value);
-            info.attribute_ = { std::begin(ints), std::end(ints) };
-            return true;
-        }
+    [](const Json::Value & value, CreativeInfo & info) {
+        auto ints = stringsToInts(value);
+        info.attribute_ = { std::begin(ints), std::end(ints) };
+        return true;
+    }
     );
 
     configuration_.addField(
         "sensitiveCategory",
-        [](const Json::Value & value, CreativeInfo & info)
-        {
-            auto ints = stringsToInts(value);
-            info.category_ = { std::begin(ints), std::end(ints) };
-            return true;
-        }
+    [](const Json::Value & value, CreativeInfo & info) {
+        auto ints = stringsToInts(value);
+        info.category_ = { std::begin(ints), std::end(ints) };
+        return true;
+    }
     );
 
     /*
@@ -159,14 +280,13 @@ AdXExchangeConnector::init()
           BidRequest.AdSlot.matching_ad_data
     */
     configuration_.addField(
-            "adGroupId",
-            [](const Json::Value & value, CreativeInfo & info)
-            {
-                int64_t adGroupId = 0;
-                Datacratic::jsonDecode(value, adGroupId);
-                info.adgroup_id_ = std::to_string(adGroupId);
-                return true;
-            }
+        "adGroupId",
+    [](const Json::Value & value, CreativeInfo & info) {
+        int64_t adGroupId = 0;
+        Datacratic::jsonDecode(value, adGroupId);
+        info.adgroup_id_ = std::to_string(adGroupId);
+        return true;
+    }
     ).optional();
 
 
@@ -177,18 +297,17 @@ AdXExchangeConnector::init()
 
     configuration_.addField(
         "restrictedCategories",
-        [](const Json::Value & value, CreativeInfo & info)
-        {
-            auto ints = stringsToInts(value);
-            info.restricted_category_ = { std::begin(ints), std::end(ints) };
+    [](const Json::Value & value, CreativeInfo & info) {
+        auto ints = stringsToInts(value);
+        info.restricted_category_ = { std::begin(ints), std::end(ints) };
 
-            if(info.restricted_category_.size() == 1
-                && *info.restricted_category_.begin() == 0){
-                info.restricted_category_.clear();
-            }
-
-            return true;
+        if(info.restricted_category_.size() == 1
+                && *info.restricted_category_.begin() == 0) {
+            info.restricted_category_.clear();
         }
+
+        return true;
+    }
     );
 
 }
@@ -209,8 +328,7 @@ namespace {
  *
  */
 void
-ParseGbrMobile (const GoogleBidRequest& gbr, BidRequest& br)
-{
+ParseGbrMobile (const GoogleBidRequest& gbr, BidRequest& br) {
     if (!br.device)
         br.device.emplace();
     auto& dev = *br.device;
@@ -219,8 +337,7 @@ ParseGbrMobile (const GoogleBidRequest& gbr, BidRequest& br)
         dev.os    = mobile.platform() ;
     if (mobile.has_brand()) dev.make  = mobile.brand() ;
     if (mobile.has_model()) dev.model = mobile.model() ;
-    if (mobile.has_os_version())
-    {
+    if (mobile.has_os_version()) {
         dev.osv = "";
         if (mobile.os_version().has_os_version_major())
             dev.osv += to_string(mobile.os_version().os_version_major());
@@ -231,17 +348,13 @@ ParseGbrMobile (const GoogleBidRequest& gbr, BidRequest& br)
     }
 
     if (mobile.has_carrier_id()) dev.carrier = to_string(mobile.carrier_id()) ;
-    if (mobile.is_app())
-    {
+    if (mobile.is_app()) {
         if (!br.app) br.app.emplace();
         //
-        if (mobile.has_app_id())
-        {
+        if (mobile.has_app_id()) {
             br.app->id = Id(mobile.app_id (), Id::STR);
             br.app->bundle = mobile.app_id();
-        }
-        else
-        {
+        } else {
             // According to the proto file, this case is possible.
             // However, I never saw such bid requests.
             assert (gbr.has_anonymous_id());
@@ -249,17 +362,13 @@ ParseGbrMobile (const GoogleBidRequest& gbr, BidRequest& br)
             br.app->id = Id(gbr.anonymous_id(),Id::STR);
             br.app->bundle = gbr.anonymous_id();
         }
-    }
-    else
-    {
+    } else {
         //
         if (!br.site) br.site.emplace();
     }
 
-    if (mobile.has_mobile_device_type())
-    {
-        switch  (mobile.mobile_device_type())
-        {
+    if (mobile.has_mobile_device_type()) {
+        switch  (mobile.mobile_device_type()) {
         case BidRequest_Mobile_MobileDeviceType_HIGHEND_PHONE:
         case BidRequest_Mobile_MobileDeviceType_TABLET:
             br.device->devicetype.val = OpenRTB::DeviceType::MOBILE_OR_TABLET ;
@@ -304,8 +413,7 @@ ParseGbrMobile (const GoogleBidRequest& gbr, BidRequest& br)
  *    Will create a OpenRTB::Device and an OpenRTB::Site
  */
 void
-ParseGbrOtherDevice (const GoogleBidRequest& gbr, BidRequest& br)
-{
+ParseGbrOtherDevice (const GoogleBidRequest& gbr, BidRequest& br) {
     if (!br.device)
         br.device.emplace();
     if (!br.site)
@@ -325,8 +433,7 @@ ParseGbrOtherDevice (const GoogleBidRequest& gbr, BidRequest& br)
  *   TODO: handle all possible cases.
  */
 bool
-GbrIsHandled (const GoogleBidRequest& gbr)
-{
+GbrIsHandled (const GoogleBidRequest& gbr) {
     // ping request are of course handled
     if (gbr.has_is_ping() && gbr.is_ping())
         return true ;
@@ -337,8 +444,7 @@ GbrIsHandled (const GoogleBidRequest& gbr)
 
     // a bid request originated from a device, should
     // either be from an app or a web site
-    if (gbr.has_mobile())
-    {
+    if (gbr.has_mobile()) {
         const auto& mob = gbr.mobile();
         if ((mob.has_is_app() && mob.is_app() && !mob.has_app_id()) ||
                 !(gbr.has_url() || gbr.has_anonymous_id()))
@@ -366,8 +472,7 @@ GbrIsHandled (const GoogleBidRequest& gbr)
  *  be as of OpenRTB 2.1),  we stick it on the ext attribute of the OpenRTB::Device
  */
 void
-ParseGbrGeoCriteria (const GoogleBidRequest& gbr, BidRequest& br)
-{
+ParseGbrGeoCriteria (const GoogleBidRequest& gbr, BidRequest& br) {
     if (false == gbr.has_geo_criteria_id())
         return ;
     assert (br.device);
@@ -376,8 +481,7 @@ ParseGbrGeoCriteria (const GoogleBidRequest& gbr, BidRequest& br)
     auto& ext = br.device->ext ;
     ext.atStr("geo_criteria_id") = gbr.geo_criteria_id() ;
 
-    if (gbr.has_postal_code())
-    {
+    if (gbr.has_postal_code()) {
         auto pcode = gbr.has_postal_code_prefix() ?
                      gbr.postal_code_prefix() : "";
         pcode += " " + gbr.postal_code();
@@ -388,21 +492,18 @@ ParseGbrGeoCriteria (const GoogleBidRequest& gbr, BidRequest& br)
 //
 void
 ParseGbrAdSlot (const std::string currency,
-               const CurrencyCode currencyCode,
-               const GoogleBidRequest& gbr,
-               BidRequest& br)
-{
+                const CurrencyCode currencyCode,
+                const GoogleBidRequest& gbr,
+                BidRequest& br) {
     auto& imp = br.imp;
     imp.clear ();
-    for (auto i: boost::irange(0, gbr.adslot_size()))
-    {
+    for (auto i: boost::irange(0, gbr.adslot_size())) {
         const auto& slot = gbr.adslot(i);
         imp.emplace_back();
         auto& spot = imp.back();
         spot.id = Id(slot.id());
         spot.banner.emplace();
-        for (auto i: boost::irange(0,slot.width_size()))
-        {
+        for (auto i: boost::irange(0,slot.width_size())) {
             spot.banner->w.push_back (slot.width(i));
             spot.banner->h.push_back (slot.height(i));
             spot.formats.push_back(Format(slot.width(i),slot.height(i)));
@@ -437,8 +538,8 @@ ParseGbrAdSlot (const std::string currency,
             spot.restrictions.addInts("excluded_sensitive_category", tmp);
 
             vector<std::string> adg_ids;
-            for (auto i: boost::irange(0,slot.matching_ad_data_size())){
-                if(slot.matching_ad_data(i).has_adgroup_id()){
+            for (auto i: boost::irange(0,slot.matching_ad_data_size())) {
+                if(slot.matching_ad_data(i).has_adgroup_id()) {
                     adg_ids.push_back(
                         boost::lexical_cast<std::string>(
                             slot.matching_ad_data(i).adgroup_id()));
@@ -452,10 +553,8 @@ ParseGbrAdSlot (const std::string currency,
             spot.restrictions.addInts("allowed_restricted_category", tmp);
         }
 
-        if (slot.has_slot_visibility())
-        {
-            switch (slot.slot_visibility())
-            {
+        if (slot.has_slot_visibility()) {
+            switch (slot.slot_visibility()) {
             case BidRequest_AdSlot_SlotVisibility_ABOVE_THE_FOLD:
                 spot.banner->pos.val = OpenRTB::AdPosition::ABOVE ;
                 break;
@@ -472,8 +571,7 @@ ParseGbrAdSlot (const std::string currency,
 
             for (auto const & matchingAdData : slot.matching_ad_data()) {
 
-                if (matchingAdData.has_adgroup_id())
-                {
+                if (matchingAdData.has_adgroup_id()) {
                     spot.pmp->ext["adgroup_id"] =
                         std::to_string(matchingAdData.adgroup_id());
                 }
@@ -482,11 +580,10 @@ ParseGbrAdSlot (const std::string currency,
 
                     double amountInCpm =
                         getAmountIn<CPM>(RTBKIT::createAmount<MicroCPM>(
-                            directDeal.fixed_cpm_micros(), currencyCode));
+                                             directDeal.fixed_cpm_micros(), currencyCode));
 
                     static const int SECOND_PRICE_AUCTION = 2;
-                    OpenRTB::Deal deal
-                    {
+                    OpenRTB::Deal deal {
                         Id(directDeal.direct_deal_id()),
                         amountInCpm,
                         currency,
@@ -508,28 +605,24 @@ std::shared_ptr<BidRequest>
 AdXExchangeConnector::
 parseBidRequest(HttpAuctionHandler & connection,
                 const HttpHeader & header,
-                const std::string & payload)
-{
+                const std::string & payload) {
 
     // protocol buffer
-    if (header.contentType != "application/octet-stream")
-    {
+    if (header.contentType != "application/octet-stream") {
         connection.sendErrorResponse("contentType not octet-stream");
         return std::shared_ptr<BidRequest> ();
     }
 
     // Try and parse the protocol buffer payload
     GoogleBidRequest gbr;
-    if (!gbr.ParseFromString (payload))
-    {
+    if (!gbr.ParseFromString (payload)) {
         connection.sendErrorResponse("couldn't decode BidRequest message");
         return std::shared_ptr<BidRequest> ();
     }
 
     // check if this BidRequest is handled by us;
     // or it's a ping.
-    if (!GbrIsHandled(gbr) || gbr.is_ping())
-    {
+    if (!GbrIsHandled(gbr) || gbr.is_ping()) {
         auto msg = gbr.is_ping() ? "pingRequest" : "requestNotHandled" ;
         connection.dropAuction (msg);
         this->recordHit(msg);
@@ -542,8 +635,7 @@ parseBidRequest(HttpAuctionHandler & connection,
     auto& br = *res ;
 
     // TODO: check reuse
-    auto binary_to_hexstr = [] (const std::string& str)
-    {
+    auto binary_to_hexstr = [] (const std::string& str) {
         std::ostringstream os;
         os << std::hex << std::setfill('0');
         const unsigned char* pc = reinterpret_cast<const unsigned char*>(str.c_str()) ;
@@ -562,12 +654,9 @@ parseBidRequest(HttpAuctionHandler & connection,
     br.provider = "Google";
 
     // deal with BidRequest.Mobile
-    if (gbr.has_mobile())
-    {
+    if (gbr.has_mobile()) {
         ParseGbrMobile (gbr, br);
-    }
-    else
-    {
+    } else {
         ParseGbrOtherDevice (gbr, br);
     }
 
@@ -577,32 +666,25 @@ parseBidRequest(HttpAuctionHandler & connection,
 
     // deal with things on BidRequest
     // BidRequest.ip
-    if (gbr.has_ip())
-    {
+    if (gbr.has_ip()) {
 
-        if (3==gbr.ip().length())
-        {
-            struct Ip
-            {
+        if (3==gbr.ip().length()) {
+            struct Ip {
                 unsigned char a;
                 unsigned char b;
                 unsigned char c;
 
-                operator std::string() const
-                {
+                operator std::string() const {
                     return std::to_string(uint32_t(a)) + "."
                            + std::to_string(uint32_t(b)) + "."
                            + std::to_string(uint32_t(c)) + ".0";
                 }
             } ip = *reinterpret_cast<const Ip*>(gbr.ip().data());
             device.ip = ip;
-        }
-        else if (6==gbr.ip().size())
-        {
+        } else if (6==gbr.ip().size()) {
             // TODO: proto says that 3 bytes will be transmitted
             // for IPv4 and 6 bytes for IPv6...
-            struct Ip
-            {
+            struct Ip {
                 unsigned char a;
                 unsigned char b;
                 unsigned char c;
@@ -610,8 +692,7 @@ parseBidRequest(HttpAuctionHandler & connection,
                 unsigned char e;
                 unsigned char f;
 
-                operator std::string() const
-                {
+                operator std::string() const {
                     return std::to_string(uint32_t(a)) + ":"
                            + std::to_string(uint32_t(b)) + ":"
                            + std::to_string(uint32_t(c)) + ":"
@@ -624,60 +705,51 @@ parseBidRequest(HttpAuctionHandler & connection,
         }
     }
 
-    if (!br.user)
-    {
+    if (!br.user) {
         // Always create an OpenRTB::User object, since it's recommended
         // in the spec. All top level recommended objects are always created.
-    	br.user.emplace();
+        br.user.emplace();
     }
 
     bool has_google_user_id = gbr.has_google_user_id();
     bool has_user_agent = gbr.has_user_agent();
 
-    if (has_google_user_id)
-    {
-    	// google_user_id
+    if (has_google_user_id) {
+        // google_user_id
         // TODO: fix Id() so that it can parse 27 char Google ID into GOOG128
         // for now, fall back on STR type
-    	br.user->id = Id (gbr.google_user_id());
+        br.user->id = Id (gbr.google_user_id());
         br.userIds.add(br.user->id, ID_EXCHANGE);
     }
 
-    if (gbr.has_hosted_match_data())
-    {
+    if (gbr.has_hosted_match_data()) {
         br.user->buyeruid = Id(binary_to_hexstr(gbr.hosted_match_data()));
         // Provider ID is needed to map different bid requests to the same user
         br.userIds.add(br.user->buyeruid, ID_PROVIDER);
-    }
-    else
-    {
+    } else {
         if(has_google_user_id) {
             // We'll use the google user id for the provider ID
             br.userIds.add(br.user->id, ID_PROVIDER);
-        }
-        else if (gbr.has_ip() && has_user_agent){
+        } else if (gbr.has_ip() && has_user_agent) {
             // Use a hashing function of IP + User Agent concatenation
             br.userAgentIPHash = Id(CityHash64((gbr.ip() + gbr.user_agent()).c_str(),(gbr.ip() + gbr.user_agent()).length()));
             br.userIds.add(br.userAgentIPHash, ID_PROVIDER);
-        }
-        else {
+        } else {
             // Set provider ID to 0
             br.userIds.add(Id(0), ID_PROVIDER);
         }
     }
 
-    if (gbr.has_cookie_age_seconds())
-    {
+    if (gbr.has_cookie_age_seconds()) {
         br.user->ext.atStr("cookie_age_seconds") = gbr.cookie_age_seconds();
     }
 
     // TODO: BidRequest.cookie_version
-    if (has_user_agent)
-    {
+    if (has_user_agent) {
 
 #if 0
-    	// we need to strip funny spurious strings inserted
-    	//   ... ,gzip(gfe)[,gzip(gfe)]
+        // we need to strip funny spurious strings inserted
+        //   ... ,gzip(gfe)[,gzip(gfe)]
         static sregex oe = sregex::compile("(,gzip\\(gfe\\))+$") ;
         device.ua = regex_replace (gbr.user_agent(), oe, string());
 #else
@@ -695,13 +767,11 @@ parseBidRequest(HttpAuctionHandler & connection,
     if (gbr.has_timezone_offset())
         device.ext.atStr("timezone_offset") = gbr.timezone_offset();
 
-    if (br.site)
-    {
+    if (br.site) {
         assert (gbr.has_url()||gbr.has_anonymous_id());
         br.url = Url(gbr.has_url() ? gbr.url() : gbr.anonymous_id());
         br.site->page = br.url;
-        if (gbr.has_seller_network_id())
-        {
+        if (gbr.has_seller_network_id()) {
             if (!br.site->publisher) br.site->publisher.emplace();
             br.site->publisher->id = Id(gbr.seller_network_id());
             br.site->id = Id(gbr.seller_network_id());
@@ -711,14 +781,13 @@ parseBidRequest(HttpAuctionHandler & connection,
     // parse Impression array
     ParseGbrAdSlot(getCurrencyAsString(), getCurrency(), gbr, br);
 
-    if (gbr.detected_language_size())
-    {   // TODO when gbr.detected_language_size()>1
+    if (gbr.detected_language_size()) {
+        // TODO when gbr.detected_language_size()>1
         device.language = gbr.detected_language(0);
     }
 
     // detected verticals:
-    if (gbr.detected_vertical_size() > 0)
-    {
+    if (gbr.detected_vertical_size() > 0) {
         vector<pair<int,float>> segs;
         for (auto i: boost::irange(0,gbr.detected_vertical_size()))
             segs.emplace_back(make_pair(gbr.detected_vertical(i).id(),
@@ -738,8 +807,7 @@ HttpResponse
 AdXExchangeConnector::
 getResponse(const HttpAuctionHandler & connection,
             const HttpHeader & requestHeader,
-            const Auction & auction) const
-{
+            const Auction & auction) const {
     const Auction::Data * current = auction.getCurrentData();
 
     if (current->hasError())
@@ -751,8 +819,7 @@ getResponse(const HttpAuctionHandler & connection,
     auto en = exchangeName();
 
     // Create a spot for each of the bid responses
-    for (auto spotNum: boost::irange(0UL, current->responses.size()))
-    {
+    for (auto spotNum: boost::irange(0UL, current->responses.size())) {
 
         if (!current->hasValidResponse(spotNum))
             continue ;
@@ -787,16 +854,17 @@ getResponse(const HttpAuctionHandler & connection,
 
         // populate, substituting whenever necessary
         ad->set_html_snippet(
-                configuration_.expand(crinfo->html_snippet_, ctx));
+            configuration_.expand(crinfo->html_snippet_, ctx));
         ad->add_click_through_url(
-                configuration_.expand(crinfo->click_through_url_, ctx));
+            configuration_.expand(crinfo->click_through_url_, ctx));
 
         for(auto vt : crinfo->vendor_type_)
             ad->add_vendor_type(vt);
         adslot->set_max_cpm_micros(getAmountIn<MicroCPM>(resp.price.maxPrice));
         adslot->set_id(auction.request->imp[spotNum].id.toInt());
 
-        { // handle direct deals
+        {
+            // handle direct deals
             auto imp = br.imp[spotNum];
             if (imp.pmp) {
                 auto const & pmp = *imp.pmp;
@@ -806,9 +874,9 @@ getResponse(const HttpAuctionHandler & connection,
                     Json::Reader reader;
                     if (!reader.parse(resp.meta, meta)) {
                         return getErrorResponse(
-                                connection,
-                                auction,
-                                "Cannot decode meta information");
+                                   connection,
+                                   auction,
+                                   "Cannot decode meta information");
                     }
 
                     if (meta.isMember("deal_id")) {
@@ -839,8 +907,7 @@ getResponse(const HttpAuctionHandler & connection,
 HttpResponse
 AdXExchangeConnector::
 getDroppedAuctionResponse(const HttpAuctionHandler & connection,
-                          const std::string & reason) const
-{
+                          const std::string & reason) const {
     //
     GoogleBidResponse resp ;
     // AdX requires us to set the processing time on an empty BidResponse
@@ -854,8 +921,7 @@ HttpResponse
 AdXExchangeConnector::
 getErrorResponse(const HttpAuctionHandler & connection,
                  const Auction & auction,
-                 const std::string & errorMessage) const
-{
+                 const std::string & errorMessage) const {
     Json::Value response;
     response["error"] = errorMessage;
     return HttpResponse(500, response);
@@ -864,82 +930,8 @@ getErrorResponse(const HttpAuctionHandler & connection,
 ExchangeConnector::ExchangeCompatibility
 AdXExchangeConnector::
 getCreativeCompatibility(const Creative & creative,
-                         bool includeReasons) const
-{
+                         bool includeReasons) const {
     return configuration_.handleCreativeCompatibility(creative, includeReasons);
-}
-
-bool
-AdXExchangeConnector::
-bidRequestCreativeFilter(const BidRequest & request,
-                         const AgentConfig & config,
-                         const void * info) const
-{
-    const auto crinfo = reinterpret_cast<const CreativeInfo*>(info);
-
-    // This function is called once per BidRequest.
-    // However a bid request can return multiple AdSlot.
-    // The creative restrictions do apply per AdSlot.
-    // We then check that *all* the AdSlot present in this BidRequest
-    // do pass the filter.
-    // TODO: verify performances of the implementation.
-    for (const auto& spot: request.imp)
-    {
-
-        const auto& excluded_attribute_seg = spot.restrictions.get("excluded_attribute");
-        for (auto atr: crinfo->attribute_)
-            if (excluded_attribute_seg.contains(atr))
-            {
-                this->recordHit ("attribute_excluded");
-                return false ;
-            }
-
-        const auto& excluded_sensitive_category_seg =
-            spot.restrictions.get("excluded_sensitive_category");
-        for (auto atr: crinfo->category_)
-            if (excluded_sensitive_category_seg.contains(atr))
-            {
-                this->recordHit ("sensitive_category_excluded");
-                return false ;
-            }
-
-        const auto& allowed_vendor_type_seg =
-            spot.restrictions.get("allowed_vendor_type");
-	if (!allowed_vendor_type_seg.empty())
-        {
-            for (auto atr: crinfo->vendor_type_)
-                if (!allowed_vendor_type_seg.contains(atr))
-                {
-                    this->recordHit ("vendor_type_not_allowed");
-                    return false ;
-                }
-	}
-
-        const auto& allowed_adgroup_seg =
-            spot.restrictions.get("allowed_adgroup");
-        if (!allowed_adgroup_seg.contains(crinfo->adgroup_id_) 
-                 && !allowed_adgroup_seg.empty()
-                 && !crinfo->adgroup_id_.empty())
-        {
-            this->recordHit ("adgroup_not_allowed");
-            return false ;
-        }
-
-        const auto& allowed_restricted_category_seg =
-            spot.restrictions.get("allowed_restricted_category");
-        for (auto atr: crinfo->restricted_category_)
-            if (    (!allowed_restricted_category_seg.contains(atr) 
-                  && !allowed_restricted_category_seg.empty())
-                ||
-                    (allowed_restricted_category_seg.empty()
-                  && !crinfo->restricted_category_.empty())
-                )
-            {
-                this->recordHit ("restricted_category_not_allowed");
-                return false ;
-            }
-    }
-    return true;
 }
 
 } // namespace RTBKIT

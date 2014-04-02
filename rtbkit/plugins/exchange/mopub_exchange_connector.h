@@ -81,10 +81,7 @@ struct MoPubExchangeConnector: public OpenRTBExchangeConnector {
     getCreativeCompatibility(const Creative & creative,
                              bool includeReasons) const;
 
-    virtual bool
-    bidRequestCreativeFilter(const BidRequest & request,
-                             const AgentConfig & config,
-                             const void * info) const;
+
 
     // MoPub win price decoding function.
     static float decodeWinPrice(const std::string & sharedSecret,
