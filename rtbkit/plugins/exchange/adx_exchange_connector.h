@@ -108,11 +108,6 @@ struct AdXExchangeConnector: public HttpExchangeConnector {
                         restricted_category_;       ///< Restricted category
     };
 
-    virtual bool
-    bidRequestCreativeFilter(const BidRequest & request,
-                             const AgentConfig & config,
-                             const void * info) const;
-
     virtual ExchangeCompatibility
     getCreativeCompatibility(const Creative & creative,
                              bool includeReasons) const;

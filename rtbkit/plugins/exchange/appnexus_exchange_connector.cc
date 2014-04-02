@@ -11,11 +11,103 @@
 #include "appnexus_exchange_connector.h"
 #include "rtbkit/plugins/bid_request/appnexus_bid_request.h"
 #include "rtbkit/plugins/exchange/http_auction_handler.h"
+#include "rtbkit/core/router/filters/generic_filters.h"
+#include "rtbkit/core/router/filters/priority.h"
 
 using namespace std ;
 using namespace Datacratic;
 
 namespace RTBKIT {
+
+/** \todo Find a way to write an efficient version of this. */
+struct AppNexusCreativeExchangeFilter : public IterativeFilter<AppNexusCreativeExchangeFilter>
+{
+    static constexpr const char* name = "AppNexusCreativeExchange";
+    unsigned priority() const { return Priority::CreativeExchange; }
+
+    void filter(FilterState& state) const
+    {
+        // no exchange connector means everything gets filtered out.
+        if (!state.exchange) {
+            state.narrowAllCreatives(CreativeMatrix());
+            return;
+        }
+
+        CreativeMatrix creatives;
+
+        for (size_t cfgId = state.configs().next();
+             cfgId < state.configs().size();
+             cfgId = state.configs().next(cfgId+1))
+        {
+            const auto& config = *configs[cfgId];
+
+            for (size_t crId = 0; crId < config.creatives.size(); ++crId) {
+                const auto& creative = config.creatives[crId];
+
+                auto exchangeInfo = getExchangeInfo(state, creative);
+                if (!exchangeInfo.first) continue;
+
+                const Datacratic::EventRecorder* rec = state.exchange;
+                bool ret = this->bidreqCreativeFilter(
+                        state.request, config, exchangeInfo.second, rec);
+
+                if (ret) creatives.set(crId, cfgId);
+
+            }
+        }
+
+        state.narrowAllCreatives(creatives);
+    }
+
+private:
+
+    const std::pair<bool, void*>
+    getExchangeInfo(const FilterState& state, const Creative& creative) const
+    {
+        auto it = creative.providerData.find(state.exchange->exchangeName());
+
+        if (it == creative.providerData.end())
+            return std::make_pair(false, nullptr);
+        return std::make_pair(true, it->second.get());
+    }
+
+    bool
+    bidreqCreativeFilter(const BidRequest & request,
+                         const AgentConfig & config,
+                         const void * info,
+                         const Datacratic::EventRecorder* rec) const {
+        const auto crinfo = reinterpret_cast<const AppNexusExchangeConnector::CreativeInfo*>(info);
+
+        // 1. filter attributes
+        const auto& excluded_attribute_seg = request.restrictions.get("excluded_attributes");
+        for (auto atr: crinfo->attrs_)
+            if (excluded_attribute_seg.contains(atr))
+            {
+                rec->recordHit ("attribute_excluded");
+                return false ;
+            }
+
+        // 2. filter member etc.
+        const auto& member_list = request.restrictions.get("members");
+        if (!member_list.contains(crinfo->member_id_))
+        {
+        	rec->recordHit ("unlisted_member: " + to_string(crinfo->member_id_));
+        	return false;
+        }
+        return true;
+    }
+};
+
+namespace {
+
+struct InitFilters {
+    InitFilters()     {
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::AppNexusCreativeExchangeFilter>();
+    }
+} initFilters;
+
+} // namespace anonymous
+
 
 /*****************************************************************************/
 /* OPENRTB EXCHANGE CONNECTOR                                                */
@@ -253,33 +345,6 @@ AppNexusExchangeConnector::getCreativeCompatibility(
 	}
 out:
 	return result;
-}
-
-bool
-AppNexusExchangeConnector::
-bidRequestCreativeFilter(const BidRequest & request,
-                         const AgentConfig & config,
-                         const void * info) const
-{
-    const auto crinfo = reinterpret_cast<const CreativeInfo*>(info);
-
-    // 1. filter attributes
-    const auto& excluded_attribute_seg = request.restrictions.get("excluded_attributes");
-    for (auto atr: crinfo->attrs_)
-        if (excluded_attribute_seg.contains(atr))
-        {
-            this->recordHit ("attribute_excluded");
-            return false ;
-        }
-
-    // 2. filter member etc.
-    const auto& member_list = request.restrictions.get("members");
-    if (!member_list.contains(crinfo->member_id_))
-    {
-    	this->recordHit ("unlisted_member: " + to_string(crinfo->member_id_));
-    	return false;
-    }
-    return true;
 }
 
 } // namespace RTBKIT

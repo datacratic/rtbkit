@@ -11,6 +11,8 @@
 #include "rtbkit/plugins/exchange/http_auction_handler.h"
 #include "rtbkit/core/agent_configuration/agent_config.h"
 #include "rtbkit/openrtb/openrtb_parsing.h"
+#include "rtbkit/core/router/filters/generic_filters.h"
+#include "rtbkit/core/router/filters/priority.h"
 #include "soa/types/json_printing.h"
 #include <boost/any.hpp>
 #include <boost/lexical_cast.hpp>
@@ -25,6 +27,103 @@ using namespace std;
 using namespace Datacratic;
 
 namespace RTBKIT {
+
+/** \todo Find a way to write an efficient version of this. */
+struct MoPubCreativeExchangeFilter : public IterativeFilter<MoPubCreativeExchangeFilter>
+{
+    static constexpr const char* name = "MoPubCreativeExchange";
+    unsigned priority() const { return Priority::CreativeExchange; }
+
+    void filter(FilterState& state) const
+    {
+        // no exchange connector means evertyhing gets filtered out.
+        if (!state.exchange) {
+            state.narrowAllCreatives(CreativeMatrix());
+            return;
+        }
+
+        CreativeMatrix creatives;
+
+        for (size_t cfgId = state.configs().next();
+             cfgId < state.configs().size();
+             cfgId = state.configs().next(cfgId+1))
+        {
+            const auto& config = *configs[cfgId];
+
+            for (size_t crId = 0; crId < config.creatives.size(); ++crId) {
+                const auto& creative = config.creatives[crId];
+
+                auto exchangeInfo = getExchangeInfo(state, creative);
+                if (!exchangeInfo.first) continue;
+
+                const Datacratic::EventRecorder* rec = state.exchange;
+                bool ret = this->bidreqCreativeFilter(
+                        state.request, config, exchangeInfo.second, rec);
+
+                if (ret) creatives.set(crId, cfgId);
+
+            }
+        }
+
+        state.narrowAllCreatives(creatives);
+    }
+
+private:
+
+    const std::pair<bool, void*>
+    getExchangeInfo(const FilterState& state, const Creative& creative) const
+    {
+        auto it = creative.providerData.find(state.exchange->exchangeName());
+
+        if (it == creative.providerData.end())
+            return std::make_pair(false, nullptr);
+        return std::make_pair(true, it->second.get());
+    }
+
+    bool
+    bidreqCreativeFilter(const BidRequest & request,
+                         const AgentConfig & config,
+                         const void * info,
+                         const Datacratic::EventRecorder* rec) const {
+        const auto crinfo = reinterpret_cast<const MoPubExchangeConnector::CreativeInfo*>(info);
+
+        // 1) we first check for blocked content categories
+        const auto& blocked_categories = request.restrictions.get("blockedCategories");
+        for (const auto& cat: crinfo->cat)
+            if (blocked_categories.contains(cat)) {
+                rec->recordHit ("blockedCategory");
+                return false;
+            }
+
+        // 2) now go throught the spots.
+        for (const auto& spot: request.imp) {
+            const auto& blocked_types = spot.restrictions.get("blockedTypes");
+            for (const auto& t: crinfo->type)
+                if (blocked_types.contains(t)) {
+                    rec->recordHit ("blockedType");
+                    return false;
+                }
+            const auto& blocked_attr = spot.restrictions.get("blockedAttrs");
+            for (const auto& a: crinfo->attr)
+                if (blocked_attr.contains(a)) {
+                    rec->recordHit ("blockedAttr");
+                    return false;
+                }
+        }
+
+        return true;
+    }
+};
+
+namespace {
+
+struct InitFilters {
+    InitFilters()     {
+        RTBKIT::FilterRegistry::registerFilter<RTBKIT::MoPubCreativeExchangeFilter>();
+    }
+} initFilters;
+
+} // namespace anonymous
 
 /*****************************************************************************/
 /* MOPUB EXCHANGE CONNECTOR                                                */
@@ -307,39 +406,8 @@ bool disjoint (const set<T>& s1, const set<T>& s2) {
     }
     return true;
 }
-bool
-MoPubExchangeConnector::
-bidRequestCreativeFilter(const BidRequest & request,
-                         const AgentConfig & config,
-                         const void * info) const {
-    const auto crinfo = reinterpret_cast<const CreativeInfo*>(info);
 
-    // 1) we first check for blocked content categories
-    const auto& blocked_categories = request.restrictions.get("blockedCategories");
-    for (const auto& cat: crinfo->cat)
-        if (blocked_categories.contains(cat)) {
-            this->recordHit ("blockedCategory");
-            return false;
-        }
 
-    // 2) now go throught the spots.
-    for (const auto& spot: request.imp) {
-        const auto& blocked_types = spot.restrictions.get("blockedTypes");
-        for (const auto& t: crinfo->type)
-            if (blocked_types.contains(t)) {
-                this->recordHit ("blockedType");
-                return false;
-            }
-        const auto& blocked_attr = spot.restrictions.get("blockedAttrs");
-        for (const auto& a: crinfo->attr)
-            if (blocked_attr.contains(a)) {
-                this->recordHit ("blockedAttr");
-                return false;
-            }
-    }
-
-    return true;
-}
 
 } // namespace RTBKIT
 
