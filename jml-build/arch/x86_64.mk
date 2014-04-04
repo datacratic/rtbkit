@@ -14,7 +14,7 @@ CDEDEBUGFLAGS := -O0 -g -UNDEBUG
 FC ?= gfortran
 FFLAGS ?= -I. -fPIC
 
-PYTHON_ENABLED ?= 1
+PYTHON_ENABLED = 1
 
 VALGRIND ?= valgrind
 VALGRINDFLAGS ?= --error-exitcode=1 --leak-check=full

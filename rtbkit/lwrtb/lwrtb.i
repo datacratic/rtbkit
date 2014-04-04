@@ -2,7 +2,7 @@
 %include "std_string.i"
 %include "std_vector.i"
 %{
-   #include "lwrtb/bidder.h"
+   #include "rtbkit/lwrtb/bidder.h"
 %}
 %feature("director")   BidRequestCb;
 %feature("director")   DeliveryCb;

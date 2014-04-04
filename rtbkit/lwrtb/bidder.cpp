@@ -8,9 +8,9 @@
 #include <string>
 #include <memory>
 
-#include "lwrtb/bidder.h"
+#include "rtbkit/lwrtb/bidder.h"
 #include "soa/jsoncpp/value.h"
-#include "plugins/bidding_agent/bidding_agent.h"
+#include "rtbkit/plugins/bidding_agent/bidding_agent.h"
 
 using namespace std;
 using namespace RTBKIT;

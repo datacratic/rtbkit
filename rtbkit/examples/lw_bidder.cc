@@ -3,8 +3,8 @@
 #include <chrono>
 #include <string>
 
-#include "lwrtb/lwrtb.h"
-#include "common/bids.h"
+#include "rtbkit/lwrtb/lwrtb.h"
+#include "rtbkit/common/bids.h"
 
 using namespace std;
 using namespace RTBKIT;

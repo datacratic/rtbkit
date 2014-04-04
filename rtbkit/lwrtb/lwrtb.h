@@ -8,7 +8,7 @@
 #ifndef LWRTB_H_
 #define LWRTB_H_
 
-#include "lwrtb/bidder.h"
+#include "rtbkit/lwrtb/bidder.h"
 
 
 
