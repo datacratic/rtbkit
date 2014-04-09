@@ -366,46 +366,6 @@ struct AgentConfig {
     /** Message formats */
     BidResultFormat winFormat, lossFormat, errorFormat;
 
-    /** Returns a list of (adspot, [creatives]) pairs compatible with this
-        agent.
-    */
-    BiddableSpots
-    canBid(const ExchangeConnector * exchangeConnector,
-           const BidRequest& request,
-           const Utf8String & language,
-           const Utf8String & location, uint64_t locationHash,
-           ML::Lightweight_Hash<uint64_t, int> & locationCache) const;
-
-
-    /** Cache used to speed up successive calls to isBiddableRequest() for a
-        given request.
-    */
-    struct RequestFilterCache
-    {
-        RequestFilterCache(const BidRequest& request) :
-            urlHash(hashString(request.url.c_str())),
-
-            language(!request.language.empty() ?
-                     request.language : Utf8String("unspecified")),
-            languageHash(hashString(request.language)),
-
-            location(request.location.fullLocationString()),
-            locationHash(hashString(location))
-        {}
-
-        uint64_t urlHash;
-
-        Utf8String language;
-        uint64_t languageHash;
-
-        Utf8String location;
-        uint64_t locationHash;
-
-        // Cache of regex -> bool
-        ML::Lightweight_Hash<uint64_t, int> urlFilter;
-        ML::Lightweight_Hash<uint64_t, int> languageFilter;
-        ML::Lightweight_Hash<uint64_t, int> locationFilter;
-    };
 };
 
 

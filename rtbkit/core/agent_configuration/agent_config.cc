@@ -812,52 +812,6 @@ toJson(bool includeCreatives) const
     return result;
 }
 
-BiddableSpots
-AgentConfig::
-canBid(const ExchangeConnector * exchangeConnector,
-       const BidRequest& request,
-       const Utf8String & language,
-       const Utf8String & location, uint64_t locationHash,
-       ML::Lightweight_Hash<uint64_t, int> & locationCache) const
-{
-    BiddableSpots result;
-
-    if (exchangeConnector) {
-        // TODO: do a lookup, not an exhaustive scan
-        for (unsigned i = 0;  i < request.imp.size();  ++i) {
-            auto & item = request.imp[i];
-
-            // Check that the fold position matches
-            if (!foldPositionFilter.isIncluded(item.position))
-                continue;
-
-            SmallIntVector matching;
-            for (unsigned j = 0;  j < creatives.size();  ++j) {
-                auto & creative = creatives[j];
-                std::lock_guard<ML::Spinlock> guard(creative.lock);
-                auto it = creative.providerData.find(exchangeConnector->exchangeName());
-                if (it == creative.providerData.end()) {
-                    continue;
-                }
-
-                const void * exchangeInfo = it->second.get();
-                if (exchangeConnector->bidRequestCreativeFilter(request, *this, exchangeInfo) 
-                        && creative.compatible(item)
-                        && creative.biddable(request.exchange, request.protocolVersion)
-                        && creative.exchangeFilter.isIncluded(request.exchange)
-                        && creative.languageFilter.isIncluded(language.rawString())
-                        && creative.locationFilter.isIncluded(location, locationHash, locationCache))
-                    matching.push_back(j);
-            }
-
-            if (!matching.empty())
-                result.push_back(make_pair(i, matching));
-        }
-    }
-    
-    return result;
-}
-
 void
 AgentConfig::
 addAugmentation(const std::string & name, Json::Value config)
