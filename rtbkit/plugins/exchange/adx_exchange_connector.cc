@@ -49,7 +49,7 @@ registerConnector() {
 
 /** \todo Find a way to write an efficient version of this. */
 struct AdXCreativeExchangeFilter : public IterativeFilter<AdXCreativeExchangeFilter> {
-    static constexpr const char* name = "AdXMoPubCreativeExchange";
+    static constexpr const char* name = "AdXCreativeExchange";
     unsigned priority() const {
         return Priority::CreativeExchange;
     }
