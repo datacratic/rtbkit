@@ -139,6 +139,22 @@ public:
     virtual void call(Bidder& , const ErrorEvent&) {}
 };
 
+//
+//     BYEBYE
+//
+struct ByeEvent {
+    std::string               fromRouter;
+    double                    timestamp;
+};
+class ByeCb
+{
+public:
+	ByeCb() {}
+    virtual ~ByeCb() {}
+    virtual void call(Bidder& , const ByeEvent&) {}
+};
+
+
 
 class Bidder
 {
@@ -206,10 +222,17 @@ public:
      */
     std::function<void(const ErrorEvent&)>         error_cb_;
 
+    /**
+     * the following callback if set, will be used
+     * i/o notify us that the router has excluded us.
+     */
+    std::function<void(const ByeEvent&)>         bye_cb_;
+
     void setBidRequestCb  (BidRequestCb&);
     void setDeliveryCb    (DeliveryCb&);
     void setBidResultCb   (BidResultCb&);
     void setErrorCb       (ErrorCb&);
+    void setByeCb         (ByeCb&);
 
 private:
     const std::string     name_;
@@ -221,6 +244,7 @@ private:
     DeliveryCb*           swig_devr_cb_ ;
     ErrorCb*              swig_err_cb_  ;
     BidRequestCb*         swig_breq_cb_ ;
+    ByeCb*                swig_bye_cb_ ;
 
     // unwanted.
     Bidder(const Bidder&);

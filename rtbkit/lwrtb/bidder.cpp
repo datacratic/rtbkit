@@ -32,6 +32,7 @@ Bidder::Bidder(const string& name,
     , swig_devr_cb_ (nullptr)
     , swig_err_cb_  (nullptr)
     , swig_breq_cb_ (nullptr)
+    , swig_bye_cb_  (nullptr)
 {
     pimpl_->prx_.reset (new ServiceProxies);
     if (svc_prx_config.length())
@@ -79,6 +80,16 @@ Bidder::init()
             this->bid_request_cb_ (res);
         };
     }
+
+    if (bye_cb_) {
+        pimpl_->bidding_agent_->onByebye = [this](const std::string& fromRouter,
+        		                          Date timestamp) {
+
+            lwrtb::ByeEvent res { fromRouter, timestamp.secondsSinceEpoch() };
+            this->bye_cb_(res);
+        };
+    }
+
 
     if (error_cb_) {
         pimpl_->bidding_agent_->onError = [this](double timestamp,
