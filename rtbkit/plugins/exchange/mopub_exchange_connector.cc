@@ -168,7 +168,7 @@ getCreativeCompatibility(const Creative & creative,
 
     // 4.  Must have Ad Markup in HTML in mopub.adm
     getAttr(result, pconf, "adm", crinfo->adm, includeReasons);
-    if (!crinfo->adm)
+    if (crinfo->adm.empty())
         result.setIncompatible
         ("creative[].providerConfig.mopub.adm is null",
          includeReasons);
