@@ -10,7 +10,8 @@ from os import getenv
 # WARNING: security risk; don't do this for anything that might be installed
 sys.path.append(getenv("BIN"))
 
-from lwrtb import lwrtb
+# from lwrtb import lwrtb
+import lwrtb
 
 
 agent_config = "{\"lossFormat\":\"lightweight\",\"winFormat\":\"full\",\"test\":false,\"minTimeAvailableMs\":5,\"account\":[\"hello\",\"world\"],\"bidProbability\":0.1000000014901161,\"creatives\":[{\"format\":\"728x90\",\"id\":2,\"name\":\"LeaderBoard\"},{\"format\":\"160x600\",\"id\":0,\"name\":\"LeaderBoard\"},{\"format\":\"300x250\",\"id\":1,\"name\":\"BigBox\"}],\"errorFormat\":\"lightweight\",\"externalId\":0}";

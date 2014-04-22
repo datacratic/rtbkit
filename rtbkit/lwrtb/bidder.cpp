@@ -221,4 +221,13 @@ void Bidder::setErrorCb  (ErrorCb& cb)
     };
 }
 
+void Bidder::setByeCb  (ByeCb& cb)
+{
+    this->swig_bye_cb_ = &cb ;
+    bye_cb_ = [&] (const ByeEvent& err) {
+        this->swig_bye_cb_->call (*this,err);
+    };
+}
+
+
 } /* namespace lwrtb */
