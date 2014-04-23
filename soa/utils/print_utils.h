@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "jml/arch/format.h"
 
 
@@ -58,12 +61,20 @@ printPct(double value)
 
 /** Generates an easily printable random string of a given size. */
 inline std::string
-randomString(size_t size) 
+randomString(size_t size)
 {
     const std::string chars =
         "0123456789"
         "abcdefghijklmnopqrstuvwxyz"
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    /* provide some randomness based on time and pid */
+    static struct AtInit {
+        AtInit()
+        {
+            ::srandom((::getpid() << 16 | 0xffff) ^ ::time(NULL));
+        }
+    } atInit;
 
     std::string s;
     for (size_t i = 0; i < size; ++i)

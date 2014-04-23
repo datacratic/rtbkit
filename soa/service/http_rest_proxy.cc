@@ -40,7 +40,7 @@ perform(const std::string & verb,
         const Content & content,
         const RestParams & queryParams,
         const RestParams & headers,
-        int timeout) const
+        double timeout) const
 {
     string responseHeaders;
     string body;
@@ -76,7 +76,7 @@ perform(const std::string & verb,
 
         myRequest.setOpt<ErrorBuffer>((char *)0);
         if (timeout != -1)
-            myRequest.setOpt<Timeout>(timeout);
+            myRequest.setOpt<curlpp::OptionTrait<long, CURLOPT_TIMEOUT_MS> >(timeout * 1000);
         else myRequest.setOpt<Timeout>(0);
         myRequest.setOpt<NoSignal>(1);
 
@@ -85,11 +85,11 @@ perform(const std::string & verb,
             myRequest.setOpt<SslVerifyPeer>(false);
         }
 
-        auto onData = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
-            {
-                //cerr << "called onData for " << ofs1 << " " << ofs2 << endl;
-                return 0;
-            };
+        // auto onData = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
+        //     {
+        //         //cerr << "called onData for " << ofs1 << " " << ofs2 << endl;
+        //         return 0;
+        //     };
 
         auto onWriteData = [&] (char * data, size_t ofs1, size_t ofs2) -> size_t
             {
@@ -173,6 +173,8 @@ perform(const std::string & verb,
 
         return response;
     } catch (const curlpp::LibcurlRuntimeError & exc) {
+        if (exc.whatCode() == CURLE_OPERATION_TIMEDOUT)
+            throw;
         cerr << "libCurl returned an error with code " << exc.whatCode()
              << endl;
         cerr << "error is " << curl_easy_strerror(exc.whatCode())

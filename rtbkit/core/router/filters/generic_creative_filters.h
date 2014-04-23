@@ -4,7 +4,6 @@
 
     Generic filters for creatives.
 
-
     \todo Really need to find a way to merge the generic_filters.h header with
     this one somehow. It's pretty silly to have 2 sets of class that are almost
     but not quite the same.
@@ -22,9 +21,12 @@ namespace RTBKIT {
 /* CREATIVE FILTER                                                            */
 /******************************************************************************/
 
+/** Convenience base class for creative filters. */
 template<typename Filter>
 struct CreativeFilter : public FilterBaseT<Filter>
 {
+
+    // Same semantics as addConfig but called for every creatives.
     virtual void addCreative(
             unsigned cfgIndex, unsigned crIndex, const Creative& creative) = 0;
 
@@ -35,6 +37,7 @@ struct CreativeFilter : public FilterBaseT<Filter>
             addCreative(cfgIndex, i, config->creatives[i]);
     }
 
+    // Same semantics as removeConfig but called for every creatives.
     virtual void removeCreative(
             unsigned cfgIndex, unsigned crIndex, const Creative& creative) = 0;
 
@@ -45,6 +48,7 @@ struct CreativeFilter : public FilterBaseT<Filter>
             removeCreative(cfgIndex, i, config->creatives[i]);
     }
 
+    // Same semantics as filter but called for every impressions.
     virtual void filterImpression(
             FilterState& state, unsigned impId, const AdSpot& imp) const
     {
@@ -57,6 +61,65 @@ struct CreativeFilter : public FilterBaseT<Filter>
             filterImpression(state, i, state.request.imp[i]);
             if (state.configs().empty()) break;
         }
+    }
+
+};
+
+
+/******************************************************************************/
+/* ITERATIVE CREATIVE FILTER                                                  */
+/******************************************************************************/
+
+/** Simplified filter base class at the cost of runtime performance. The filter
+    should overide and implemen the filterCreative or filterImpression functions.
+
+ */
+template<typename Filter>
+struct IterativeCreativeFilter : public IterativeFilter<Filter>
+{
+
+    virtual void filter(FilterState& state) const
+    {
+        for (size_t impId = 0; impId < state.request.imp.size(); ++impId) {
+            const auto& imp = state.request.imp[impId];
+            auto mask = filterImpression(state, impId, imp);
+            state.narrowCreativesForImp(impId, mask);
+        }
+    }
+
+    // Same semantics as filter but called for every impressions.
+    virtual CreativeMatrix
+    filterImpression(FilterState& state, size_t impId, const AdSpot& imp)
+    {
+        CreativeMatrix mask;
+        auto active = state.creatives(impId);
+
+        ConfigSet matches = state.configs();
+        for (size_t cfgId = matches.next();
+             cfgId < matches.size();
+             cfgId = matches.next(cfgId+1))
+        {
+            const auto& cfg = *this->configs[cfgId];
+
+            for (size_t crId = 0; crId < cfg.creatives.size(); ++crId) {
+                if (!active[crId][cfgId]) continue;
+
+                if (filterCreative(state, imp, cfg, cfg.creatives[crId]))
+                    mask.set(crId, cfgId);
+            }
+        }
+
+        return mask;
+    }
+
+    // Same semantics as filter but called for every impression, agent config,
+    // creatives combinations.
+    virtual bool
+    filterCreative(
+            FilterState&, const AdSpot&, const AgentConfig&, const Creative&)
+    {
+        ExcAssert(false);
+        return false;
     }
 
 };

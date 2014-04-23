@@ -123,6 +123,32 @@ struct HttpRestProxy {
         {
         }
 
+        static std::string urlEncode(const std::string & str)
+        {
+            std::string result;
+            for (auto c: str) {
+                
+                if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+                    result += c;
+                else result += ML::format("%%%02X", c);
+            }
+            return result;
+        }
+        
+        Content(const RestParams & form)
+        {
+            for (auto p: form) {
+                if (!str.empty())
+                    str += "&";
+                str += urlEncode(p.first) + "=" + urlEncode(p.second);
+            }
+
+            data = str.c_str();
+            size = str.size();
+            hasContent = true;
+            contentType = "application/x-www-form-urlencoded";
+        }
+
         std::string str;
 
         const char * data;
@@ -138,7 +164,7 @@ struct HttpRestProxy {
                   const Content & content = Content(),
                   const RestParams & queryParams = RestParams(),
                   const RestParams & headers = RestParams(),
-                  int timeout = -1) const
+                  double timeout = -1) const
     {
         return perform("POST", resource, content, queryParams, headers,
                        timeout);
@@ -149,7 +175,7 @@ struct HttpRestProxy {
                  const Content & content = Content(),
                  const RestParams & queryParams = RestParams(),
                  const RestParams & headers = RestParams(),
-                 int timeout = -1) const
+                 double timeout = -1) const
     {
         return perform("PUT", resource, content, queryParams, headers,
                        timeout);
@@ -159,7 +185,7 @@ struct HttpRestProxy {
     Response get(const std::string & resource,
                  const RestParams & queryParams = RestParams(),
                  const RestParams & headers = RestParams(),
-                 int timeout = -1) const
+                 double timeout = -1) const
     {
         return perform("GET", resource, Content(), queryParams, headers,
                        timeout);
@@ -171,7 +197,7 @@ struct HttpRestProxy {
                      const Content & content = Content(),
                      const RestParams & queryParams = RestParams(),
                      const RestParams & headers = RestParams(),
-                     int timeout = -1) const;
+                     double timeout = -1) const;
 
     /** URI that will be automatically prepended to resources passed in to
         the perform() methods

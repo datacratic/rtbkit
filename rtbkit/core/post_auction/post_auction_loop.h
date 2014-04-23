@@ -41,7 +41,7 @@ struct SubmissionInfo {
     }
 
     std::shared_ptr<BidRequest> bidRequest;
-    Utf8String bidRequestStr;
+    Datacratic::UnicodeString bidRequestStr;
     std::string bidRequestStrFormat;
     JsonHolder augmentations;
     Auction::Response  bid;               ///< Bid we passed on
@@ -82,7 +82,7 @@ struct FinishedInfo {
     Id adSpotId;          ///< Spot ID from host
     int spotIndex;
     std::shared_ptr<BidRequest> bidRequest;  ///< What we bid on
-    Utf8String bidRequestStr;
+    Datacratic::UnicodeString bidRequestStr;
     std::string bidRequestStrFormat;
     JsonHolder augmentations;
     std::set<Id> uids;                ///< All UIDs for this user
@@ -374,6 +374,9 @@ struct PostAuctionLoop : public ServiceBase, public MonitorProvider
        	//std::cerr << "********* setting Auction Timeout to " << auctionTimeout << std::endl;
 	}
 
+    void addSource(std::string name, AsyncEventSource & source, int priority = 0) {
+        loop.addSource(std::move(name), source, priority);
+    }
 
 private:
     /** Initialize all of our connections, hooking everything in to the
