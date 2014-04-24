@@ -1,4 +1,4 @@
-#
+`#
 # bidder.py
 # 
 #
@@ -24,14 +24,14 @@ class BCB(lwrtb.BidRequestCb):
     def __init__(self):
         super(BCB, self).__init__()    
     def call (self, agent, br):
-	bidreq = ujson.loads(br.bidRequest)
-	bids = ujson.loads(br.bids)
-	for bid in bids['bids']:
-		bid['price']='100USD/1M'
-		bid['creative']=bid['availableCreatives'][0]
-	agent.doBid(br.id, ujson.dumps(bids))
-	print 'BIDREQ bid on id=%s'%(br.id)
-	pass
+        bidreq = ujson.loads(br.bidRequest)
+        bids = ujson.loads(br.bids)
+        for bid in bids['bids']:
+                bid['price']='100USD/1M'
+                bid['creative']=bid['availableCreatives'][0]
+        agent.doBid(br.id, ujson.dumps(bids))
+        print 'BIDREQ bid on id=%s'%(br.id)
+        pass
 
 # called back upon error
 class ECB(lwrtb.ErrorCb):
@@ -39,8 +39,8 @@ class ECB(lwrtb.ErrorCb):
         super(ECB, self).__init__()    
         pass
     def call (self, agent, msg, msgvec):
-	print 'ERROR', msg
-	pass
+        print 'ERROR', msg
+        pass
 
 # called back upon delivery callback 
 class DCB(lwrtb.DeliveryCb):
@@ -48,7 +48,7 @@ class DCB(lwrtb.DeliveryCb):
         super(DCB, self).__init__()    
         pass
     def call (self, agent, dlv):
-	pass
+        pass
 
 # called back upon bid result
 class RCB(lwrtb.BidResultCb):
@@ -56,15 +56,15 @@ class RCB(lwrtb.BidResultCb):
         super(RCB, self).__init__()    
         pass
     def call (self, agent, res):
-	if res.result == lwrtb.WIN: r='WIN'
-	elif res.result == lwrtb.LOSS: r='LOSS'
-	elif res.result == lwrtb.TOOLATE: r='TOOLATE'
-	elif res.result == lwrtb.LOSTBID: r='LOSTBID'
-	elif res.result == lwrtb.DROPPEDBID: r='DROPPEDBID'
-	elif res.result == lwrtb.NOBUDGET: r='NOBUDGET'
+        if res.result == lwrtb.WIN: r='WIN'
+        elif res.result == lwrtb.LOSS: r='LOSS'
+        elif res.result == lwrtb.TOOLATE: r='TOOLATE'
+        elif res.result == lwrtb.LOSTBID: r='LOSTBID'
+        elif res.result == lwrtb.DROPPEDBID: r='DROPPEDBID'
+        elif res.result == lwrtb.NOBUDGET: r='NOBUDGET'
         else: r='BUG'
         print 'RESULT: %s  (auctionId=%s)'%(r,res.auctionId)
-	pass
+        pass
 
 # create bob
 bob = lwrtb.Bidder("BOB", proxy_config)
