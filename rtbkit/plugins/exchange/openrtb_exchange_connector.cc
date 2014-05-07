@@ -230,7 +230,13 @@ OpenRTBExchangeConnector::
 getResponseExt(const HttpAuctionHandler & connection,
                const Auction & auction) const
 {
-    return {};
+    auto json = this->getServices()->config->jsonDump();
+    Json::Value rc ;
+    if (json.isMember("location"))
+    	rc["location"] = json["location"];
+    if (json.isMember("installation"))
+    	rc["installation"] = json["installation"];
+    return rc;
 }
 
 HttpResponse
