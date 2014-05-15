@@ -417,6 +417,47 @@ struct ShadowAccount {
         : attachedBids(0), detachedBids(0)
         {}
 
+    ShadowAccount(ShadowAccount&&) = default;
+    ShadowAccount& operator=(ShadowAccount&&) = default;
+
+    ShadowAccount(const ShadowAccount & other) :
+        netBudget(other.netBudget),
+        commitmentsRetired(other.commitmentsRetired),
+        commitmentsMade(other.commitmentsMade),
+        spent(other.spent),
+        balance(other.balance),
+        lineItems(other.lineItems),
+
+        // intentionally left out for performance reasons.
+        // commitments(other.commitments),
+
+        attachedBids(other.attachedBids),
+        detachedBids(other.detachedBids),
+        lastExpiredCommitments(other.lastExpiredCommitments)
+    {}
+
+
+    ShadowAccount& operator=(const ShadowAccount & other)
+    {
+        if (&other == this) return *this;
+
+        netBudget = other.netBudget;
+        commitmentsRetired = other.commitmentsRetired;
+        commitmentsMade = other.commitmentsMade;
+        spent = other.spent;
+        balance = other.balance;
+        lineItems = other.lineItems;
+
+        // intentionally left out for performance reasons.
+        // commitments = other.commitments;
+
+        attachedBids = other.attachedBids;
+        detachedBids = other.detachedBids;
+        lastExpiredCommitments = other.lastExpiredCommitments;
+
+        return *this;
+    }
+
     // credit
     CurrencyPool netBudget;          ///< net of fields not mentioned here
     CurrencyPool commitmentsRetired;
