@@ -10,6 +10,7 @@
 #include "jml/utils/environment.h"
 #include "jml/utils/file_functions.h"
 #include "jml/arch/timers.h"
+#include <boost/filesystem.hpp>
 #include <fstream>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -179,6 +180,10 @@ private:
             char const * envp[] = { logs.c_str(), (char *) 0 };
 
             std::cerr << "running zookeeper from " << file << std::endl;
+
+            // 14.04 -- runs zk from OS package
+            if (!boost::filesystem::exists(path))
+                path = "/usr/share/zookeeper/bin/zkServer.sh";
 
             res = execvpe(path.c_str(), (char **) args, (char **) envp);
             if (res == -1) {

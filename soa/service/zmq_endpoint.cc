@@ -128,6 +128,7 @@ handleSyncMessage(const std::vector<std::string> & message)
 }
     
 
+#if ZMQ_VERSION_MAJOR < 4
 /*****************************************************************************/
 /* ZMQ SOCKET MONITOR                                                        */
 /*****************************************************************************/
@@ -284,6 +285,7 @@ handleEvent(const zmq_event_t & event)
         return doEvent(defaultHandler, "", -1);
     }
 }
+#endif
 
 
 /*****************************************************************************/

@@ -1,9 +1,9 @@
-$(eval $(call test,named_endpoint_test,services,boost manual))
-$(eval $(call test,zmq_named_pub_sub_test,services,boost manual))
+$(eval $(call test,named_endpoint_test,services boost_filesystem,boost manual))
+$(eval $(call test,zmq_named_pub_sub_test,services boost_filesystem,boost manual))
 $(eval $(call test,zmq_endpoint_test,services,boost manual))
 $(eval $(call test,message_channel_test,services,boost))
-$(eval $(call test,rest_service_endpoint_test,services,boost))
-$(eval $(call test,multiple_service_test,services,boost manual))
+$(eval $(call test,rest_service_endpoint_test,services boost_filesystem,boost))
+$(eval $(call test,multiple_service_test,services boost_filesystem,boost manual))
 
 $(eval $(call test,zookeeper_test,cloud,boost manual))
 $(eval $(call test,aws_test,cloud,boost))
@@ -26,7 +26,7 @@ $(eval $(call test,endpoint_periodic_test,endpoint,boost))
 $(eval $(call test,endpoint_closed_connection_test,endpoint,boost))
 $(eval $(call test,http_long_header_test,endpoint,boost manual))
 $(eval $(call test,http_header_query_parser_test,endpoint,boost manual))
-$(eval $(call test,service_proxies_test,endpoint,boost manual))
+$(eval $(call test,service_proxies_test,endpoint boost_filesystem,boost manual))
 
 $(eval $(call test,message_loop_test,services,boost))
 

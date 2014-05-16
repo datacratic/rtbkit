@@ -42,9 +42,9 @@ export BUILD
 export TEST_TMP
 export TMP
 
-include $(JML_BUILD)/arch/$(ARCH).mk
-
 CXX_VERSION?=$(shell g++ --version | head -n1 | sed 's/.* //g')
+
+include $(JML_BUILD)/arch/$(ARCH).mk
 
 CFLAGS += -fno-strict-overflow -msse4.2
 
@@ -52,8 +52,14 @@ PKGINCLUDE_PACKAGES = sigc++-2.0 cairomm-1.0
 
 PKGCONFIG_INCLUDE:=$(shell pkg-config --cflags-only-I $(PKGINCLUDE_PACKAGES))
 
+CXXFLAGS += -Wno-deprecated -Winit-self -fno-omit-frame-pointer -fno-deduce-init-list -I$(NODE_PREFIX)/include/node -msse3 -Ileveldb/include -Wno-unused-but-set-variable -I$(LOCAL_INCLUDE_DIR) -I$(GEN) $(PKGCONFIG_INCLUDE) -Wno-psabi 
+ifeq ($(findstring 4.8,$(CXX_VERSION)), 4.8)
+CXXFLAGS += -std=c++11 -DHAVE_BOOST
+else
+CXXFLAGS += -std=c++0x -D__GXX_EXPERIMENTAL_CXX0X__=1
+endif
 
-CXXFLAGS += -Wno-deprecated -Winit-self -fno-omit-frame-pointer -std=c++0x -fno-deduce-init-list -I$(NODE_PREFIX)/include/node -msse3 -Ileveldb/include -Wno-unused-but-set-variable -I$(LOCAL_INCLUDE_DIR) -I$(GEN) $(PKGCONFIG_INCLUDE) -Wno-psabi -D__GXX_EXPERIMENTAL_CXX0X__=1
+
 CXXLINKFLAGS += -Wl,--copy-dt-needed-entries -Wl,--no-as-needed -L/usr/local/lib
 CFLAGS +=  -Wno-unused-but-set-variable
 
