@@ -18,6 +18,8 @@
 #include <mutex>
 #include <thread>
 #include "jml/arch/spinlock.h"
+#include "jml/arch/atomic_ops.h"
+#include "jml/arch/cmp_xchg.h"
 
 namespace Datacratic {
     struct EventRecorder;
@@ -68,7 +70,7 @@ extern const std::string AccountTypeToString(enum AccountType type);
 
 struct Account {
     Account()
-        : type(AT_NONE)
+        : type(AT_NONE), dirtyState(0)
     {
     }
 
@@ -259,6 +261,8 @@ public:
     */
     CurrencyPool recuperate()
     {
+        markDirty();
+
         auto result = balance;
         recycledOut += balance;
         balance.clear();
@@ -273,6 +277,7 @@ public:
     */
     void recycle(const CurrencyPool & recuperated)
     {
+        markDirty();
         ExcAssert(recuperated.isNonNegative());
 
         recycledIn += recuperated;
@@ -293,6 +298,7 @@ public:
     CurrencyPool setBalance(Account & parentAccount,
                             const CurrencyPool & newBalance)
     {
+        markDirty();
         checkInvariants("entry to setBalance");
 
         auto before = *this;
@@ -390,6 +396,8 @@ public:
 
     void recuperateTo(Account & parentAccount)
     {
+        markDirty();
+
         CurrencyPool amount = balance.nonNegative();
 
         recycledOut += amount;
@@ -400,6 +408,18 @@ public:
 
         checkInvariants("recuperateTo");
     }
+
+    size_t getDirtyState() const { return dirtyState; }
+    void clearDirtyState(size_t old) const
+    {
+        // if the cas failed then a modification took place since our original
+        // read and we're therfor still dirty. Yucky.
+        ML::cmp_xchg(dirtyState, old, size_t(0));
+    }
+
+private:
+    void markDirty() { ML::atomic_inc(dirtyState); }
+    mutable size_t dirtyState;
 };
 
 

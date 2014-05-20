@@ -51,6 +51,8 @@ void
 Account::
 setBudget(const CurrencyPool & newBudget)
 {
+    markDirty();
+
     /* totalBudget = budgetIncreases - budgetDecreases */
     CurrencyPool totalBudget = budgetIncreases - budgetDecreases;
     /* extraBudget = amount to add to members to obtain new total budget */
@@ -78,6 +80,8 @@ void
 Account::
 addAdjustment(const CurrencyPool & newAdjustment)
 {
+    markDirty();
+
     if (newAdjustment.isNonNegative()) {
         adjustmentsIn += newAdjustment;
     }
@@ -94,6 +98,7 @@ CurrencyPool
 Account::
 importSpend(const CurrencyPool & spend)
 {
+    markDirty();
     ExcAssert(type == AT_SPEND);
     ExcAssert(spend.isNonNegative());
 

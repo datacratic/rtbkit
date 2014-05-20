@@ -124,6 +124,8 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
     auto onAccount = [&] (const AccountKey & key,
                           const Account & account)
         {
+            if (!account.getDirtyState()) return;
+
             string keyStr = key.toString();
             keys.push_back(keyStr);
             fetchCommand.addArg("banker-" + keyStr);
@@ -145,6 +147,9 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
 
             Json::Value badAccounts(Json::arrayValue);
 
+            typedef std::pair<const Accounts::AccountInfo*, size_t> DirtyState;
+            std::vector<DirtyState> dirtyStates;
+
             /* All accounts known to the banker are fetched.
                We need to check them and restore them (if needed). */
             for (int i = 0; i < reply.length(); i++) {
@@ -157,6 +162,9 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                          << "' is out of sync and will not be saved" << endl;
                     continue;
                 }
+
+                dirtyStates.emplace_back(&bankerAccount, bankerAccount.getDirtyState());
+
                 Json::Value bankerValue = bankerAccount.toJson();
                 bool saveAccount(false);
 
@@ -254,6 +262,9 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                          onSaved(SUCCESS, "");
                      else
                          onSaved(BACKEND_ERROR, results.error());
+
+                     for (const auto& item : dirtyStates)
+                         item.first->clearDirtyState(item.second);
                  };
 
                  itl->redis->queueMulti(storeCommands, onPhase2Result, 5.0);
@@ -310,8 +321,7 @@ init(const shared_ptr<BankerPersistence> & storage)
     loadStateSync();
 
     addPeriodic("MasterBanker::saveState", 1.0,
-                bind(&MasterBanker::saveState, this),
-                true /* single threaded */);
+                bind(&MasterBanker::saveState, this));
 
     registerServiceProvider(serviceName(), { "rtbBanker" });
 
