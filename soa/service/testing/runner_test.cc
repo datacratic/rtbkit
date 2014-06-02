@@ -321,7 +321,7 @@ BOOST_AUTO_TEST_CASE( test_runner_missing_exe )
 }
 #endif
 
-#if 1
+#if 0
 /* test the "execute" function */
 BOOST_AUTO_TEST_CASE( test_runner_execute )
 {

@@ -376,6 +376,7 @@ struct ZmqTypedEventSource: public ZmqEventSource {
 };
 
 
+#if ZMQ_VERSION_MAJOR < 4
 /*****************************************************************************/
 /* ZMQ SOCKET MONITOR                                                        */
 /*****************************************************************************/
@@ -460,6 +461,7 @@ private:
     /// Address of connected socket
     zmq::socket_t * monitoredSocket;
 };
+#endif
 
 
 /*****************************************************************************/
