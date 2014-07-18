@@ -478,7 +478,6 @@ int main(int argc, char ** argv)
             shared_ptr<SlaveBanker> slave = static_pointer_cast<SlaveBanker>(banker);
             cerr << ("banker rqs : " + label + " "
                      + to_string(slave->getNumReauthorized())
-                     + " last delay: " + to_string(slave->getLastReauthorizeDelay())
                      + "\n");
         };
 

@@ -158,7 +158,8 @@ syncAccount(const ShadowAccount &account, const std::string &shadowStr,
 void
 HttpLayer::
 request(std::string method, const std::string &resource,
-        const RestParams &params, const std::string &content, OnRequestResult onResult)
+        const RestParams &params, const std::string &content,
+        const OnRequestResult & onResult)
 {
     std::transform(begin(method), end(method), begin(method), [](char c) { return ::tolower(c); });
 
@@ -315,7 +316,8 @@ syncAccount(const ShadowAccount &account, const std::string &shadowStr,
 void
 ZmqLayer::
 request(std::string method, const std::string &resource,
-        const RestParams &params, const std::string &content, OnRequestResult onResult)
+        const RestParams &params, const std::string &content,
+        const OnRequestResult & onResult)
 {
     proxy->push(onResult, method, resource, params, content);
 }

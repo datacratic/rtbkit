@@ -71,11 +71,10 @@ struct ApplicationLayer : public MessageLoop {
                                          Account &&)> onDone) = 0;
 
     /* CUSTOM */
-    virtual void request(
-                       std::string method, const std::string &resource,
-                       const RestParams &params,
-                       const std::string &content,
-                       OnRequestResult onResult) = 0;
+    virtual void request(std::string method, const std::string &resource,
+                         const RestParams &params,
+                         const std::string &content,
+                         const OnRequestResult & onResult) = 0;
 };
 
 /*****************************************************************************/
@@ -120,9 +119,9 @@ struct HttpLayer : public ApplicationLayer {
                                    Account &&)> onDone);
 
     void request(std::string method, const std::string &resource,
-               const RestParams &params,
-               const std::string &content,
-               OnRequestResult onResult);
+                 const RestParams &params,
+                 const std::string &content,
+                 const OnRequestResult & onResult);
 private:
     std::shared_ptr<HttpClient> httpClient;
 
@@ -172,9 +171,9 @@ struct ZmqLayer : public ApplicationLayer {
                      std::function<void (std::exception_ptr,
                                    Account &&)> onDone);
     void request(std::string method, const std::string &resource,
-               const RestParams &params,
-               const std::string &content,
-               OnRequestResult onResult);
+                 const RestParams &params,
+                 const std::string &content,
+                 const OnRequestResult & onResult);
 private:
     std::shared_ptr<RestProxy> proxy;
 

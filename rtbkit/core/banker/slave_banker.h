@@ -19,7 +19,6 @@
 
 namespace RTBKIT {
 
-
 /*****************************************************************************/
 /* SLAVE BUDGET CONTROLLER                                                   */
 /*****************************************************************************/
@@ -81,6 +80,7 @@ struct SlaveBudgetController
     budgetResultCallback(const SlaveBudgetController::OnBudgetResult & onResult);
 private:
     std::shared_ptr<ApplicationLayer> applicationLayer;
+
     //std::shared_ptr<HttpClient> httpClient;
 };
 
@@ -212,16 +212,9 @@ struct SlaveBanker : public Banker, public MessageLoop {
 
     void waitReauthorized() const;
 
-    size_t getNumReauthorized()
-        const
+    int getNumReauthorized() const
     {
         return numReauthorized;
-    }
-
-    double getLastReauthorizeDelay()
-        const
-    {
-        return lastReauthorizeDelay;
     }
 
     /* Logging */
@@ -246,16 +239,26 @@ private:
     mutable Lock syncLock;
     Datacratic::Date lastSync;
 
-    
     /** Periodically we report spend to the banker.*/
     void reportSpend(uint64_t numTimeoutsExpired);
     Date reportSpendSent;
 
     /** Periodically we ask the banker to re-authorize our budget. */
-    void reauthorizeBudget(uint64_t numTimeoutsExpired);
-    Date reauthorizeBudgetSent;
-    CurrencyPool spendRate;
+    void reauthorizeBudgetPeriodic(uint64_t numTimeoutsExpired);
 
+    typedef std::function<void()> OnReauthorizeBudgetDone;
+    void reauthorizeBudget(const OnReauthorizeBudgetDone & onDone = nullptr);
+
+    struct ReauthorizeOp {
+        Date start;
+
+        int numAccounts;
+        std::atomic<int> pending;
+
+        OnReauthorizeBudgetDone onDone;
+    };
+
+    CurrencyPool spendRate;
 
     /// Called when we get an account status back from the master banker
     /// after a synchrnonization
@@ -288,11 +291,8 @@ private:
 
     std::atomic<bool> shutdown_;
 
-    std::atomic<bool> reauthorizing;
-    Date reauthorizeDate;
-    double lastReauthorizeDelay;
-    size_t numReauthorized;
-    size_t accountsLeft;
+    bool reauthorizing;
+    int numReauthorized;
 };
 
 } // naemspace RTBKIT
