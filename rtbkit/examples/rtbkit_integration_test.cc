@@ -7,14 +7,13 @@
 
 #include <memory>
 
-#include "platform/utils/benchmarks.h"
-
 // #include "jml/utils/rng.h"
 // #include "jml/utils/pair_utils.h"
 // #include "jml/utils/environment.h"
 #include "jml/arch/timers.h"
 #include "jml/utils/testing/watchdog.h"
 #include "soa/service/testing/redis_temporary_server.h"
+#include "soa/utils/benchmarks.h"
 #include "rtbkit/core/router/router.h"
 #include "rtbkit/core/post_auction/post_auction_service.h"
 #include "rtbkit/core/agent_configuration/agent_configuration_service.h"
