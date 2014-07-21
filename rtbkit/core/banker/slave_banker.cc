@@ -441,6 +441,7 @@ reauthorizeBudget(const OnReauthorizeBudgetDone & onDone)
     auto reauthorizeOp = make_shared<ReauthorizeOp>();
     reauthorizeOp->start = Date::now();
     reauthorizeOp->numAccounts = 0;
+    reauthorizeOp->pending = 0;
     reauthorizeOp->onDone = onDone;
 
     auto onAccount
@@ -456,7 +457,9 @@ reauthorizeBudget(const OnReauthorizeBudgetDone & onDone)
             reauthorizeOp->pending--;
             if (reauthorizeOp->pending == 0) {
                 Date now = Date::now();
-                reauthorizeOp->onDone();
+                if (reauthorizeOp->onDone) {
+                    reauthorizeOp->onDone();
+                }
             }
         };
 
@@ -466,9 +469,10 @@ reauthorizeBudget(const OnReauthorizeBudgetDone & onDone)
                                   onAccountDone);
     };
     accounts.forEachInitializedAccount(onAccount);
-    
-    if (reauthorizeOp->numAccounts > 0) {
-        reauthorizing = true;
+    if (reauthorizeOp->numAccounts == 0) {
+        if (reauthorizeOp->onDone) {
+            reauthorizeOp->onDone();
+        }
     }
 }
 
