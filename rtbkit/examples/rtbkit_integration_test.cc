@@ -7,20 +7,19 @@
 
 #include <memory>
 
-#include "augmentor_ex.h"
-
+// #include "jml/utils/rng.h"
+// #include "jml/utils/pair_utils.h"
+// #include "jml/utils/environment.h"
+#include "jml/arch/timers.h"
+#include "jml/utils/testing/watchdog.h"
+#include "soa/service/testing/redis_temporary_server.h"
+#include "soa/utils/benchmarks.h"
 #include "rtbkit/core/router/router.h"
 #include "rtbkit/core/post_auction/post_auction_service.h"
 #include "rtbkit/core/agent_configuration/agent_configuration_service.h"
 #include "rtbkit/core/banker/master_banker.h"
 #include "rtbkit/core/banker/slave_banker.h"
 #include "rtbkit/core/monitor/monitor_endpoint.h"
-#include "jml/utils/rng.h"
-#include "jml/utils/pair_utils.h"
-#include "jml/utils/environment.h"
-#include "jml/arch/timers.h"
-#include "jml/utils/testing/watchdog.h"
-#include "soa/service/testing/redis_temporary_server.h"
 #include "rtbkit/testing/generic_exchange_connector.h"
 #include "rtbkit/testing/mock_exchange.h"
 #include "rtbkit/testing/test_agent.h"
@@ -29,10 +28,8 @@
 #include "rtbkit/plugins/adserver/mock_win_source.h"
 #include "rtbkit/plugins/adserver/mock_event_source.h"
 #include "rtbkit/plugins/bid_request/mock_bid_source.h"
-#include <boost/thread.hpp>
-#include <netdb.h>
-#include <memory>
 
+#include "augmentor_ex.h"
 
 using namespace std;
 using namespace ML;
@@ -40,8 +37,6 @@ using namespace Redis;
 using namespace Datacratic;
 using namespace RTBKIT;
 
-
-const size_t numAccounts(50); /* number of accounts and agents */
 
 #define ZMQ_APP_LAYER 1
 
@@ -222,7 +217,7 @@ struct Components
         cerr << "done shutdown" << endl;
     }
 
-    void init(size_t numAgents)
+    void init(Benchmarks & bm, size_t numAgents)
     {
         const string agentUri = "tcp://127.0.0.1:1234";
 
@@ -248,19 +243,24 @@ struct Components
         // various bidding agent accounts. The data contained in this service is
         // periodically persisted to redis.
         masterBanker.init(std::make_shared<RedisBankerPersistence>(redis));
-        auto bankerAddr = masterBanker.bindTcp().second;
+        masterBanker.bindTcp();
         masterBanker.start();
 
-        cerr << "bankerAddr: " + bankerAddr + "\n";
-        ML::sleep(5);
+        ML::sleep(1);
+
+        Json::Value value = proxies->config->getJson("masterBanker/http/tcp");
+        string bankerAddr = value[0]["httpUri"].asString();
+        cerr << "  bankerAddr: "  + bankerAddr + "\n";
 
         // Setup a slave banker that we can use to manipulate and peak at the
         // budgets during the test.
 #if ZMQ_APP_LAYER
         budgetController.setApplicationLayer(make_application_layer<ZmqLayer>(proxies->config));
 #else
-        auto appLayer = make_application_layer<HttpLayer>("http://127.0.0.1:15500");
-        budgetController.setApplicationLayer(appLayer);
+        {
+            auto appLayer = make_application_layer<HttpLayer>(bankerAddr);
+            budgetController.setApplicationLayer(appLayer);
+        }
 #endif
 
         budgetController.start();
@@ -272,8 +272,7 @@ struct Components
 #if ZMQ_APP_LAYER
             auto appLayer = make_application_layer<ZmqLayer>(proxies->config);
 #else
-            cerr << "bankerAddr: " + bankerAddr + "\n";
-            auto appLayer = make_application_layer<HttpLayer>("http://127.0.0.1:15500");
+            auto appLayer = make_application_layer<HttpLayer>(bankerAddr);
 #endif
             res->setApplicationLayer(appLayer);
             res->start();
@@ -331,24 +330,37 @@ struct Components
         // Our bidding agent which listens to the bid request stream from all
         // available routers and decide who gets to see your awesome pictures of
         // kittens.
+
         for (size_t i = 0; i < numAgents; i++) {
+            Benchmark agentBm(bm, "agent-setup");
+            shared_ptr<Benchmark> shortBm;
+
             AccountKey key{"testCampaign" + to_string(i),
                            "testStrategy" + to_string(i)};
+
+            shortBm.reset(new Benchmark(bm, "agent-constructor"));
+
             auto agent = make_shared<TestAgent>(proxies,
                                                 "testAgent" + to_string(i),
                                                 key);
             agents.push_back(agent);
-
+ 
+            shortBm.reset(new Benchmark(bm, "agent-init"));
             agent->init();
+            shortBm.reset(new Benchmark(bm, "agent-start"));
             agent->start();
+            shortBm.reset(new Benchmark(bm, "agent-configure"));
             agent->configure();
 
             // Some extra customization for our agent to make it extra
             // special. See setupAgent for more details.
+            shortBm.reset(new Benchmark(bm, "agent-setupAgent"));
             setupAgent(*agent);
 
+            shortBm.reset(new Benchmark(bm, "agent-budget"));
             // Setup an initial budgeting for the test.
             allocateBudget(budgetController, key, USD(1000));
+            shortBm.reset();
         }
 
         // Our augmentor which does frequency capping for our agent.
@@ -372,11 +384,21 @@ int main(int argc, char ** argv)
 {
     Watchdog watchdog(200.0);
 
+    size_t nAccounts(200);
+
     // Controls the length of the test.
     enum {
         nExchangeThreads = 10,
         nBidRequestsPerThread = 100
     };
+
+    {
+        char * envAccs = ::getenv("NUM_ACCOUNTS");
+        if (envAccs) {
+            nAccounts = stoi(envAccs);
+            cerr << " naccounts from env: " + to_string(nAccounts) + "\n";
+        }
+    }
 
     auto proxies = std::make_shared<ServiceProxies>();
 
@@ -389,12 +411,18 @@ int main(int argc, char ** argv)
     // we don't, ServiceProxies will just default to using a local equivalent.
     if (false) proxies->logToCarbon("carbon.rtbkit.org", "stats");
 
+    Benchmarks bm;
+    shared_ptr<Benchmark> componentsBm(new Benchmark(bm, {"components-constructor"}));
 
     Components components(proxies);
 
+    componentsBm.reset(new Benchmark(bm, {"components-init"}));
+
     // Setups up the various component of the RTBKit stack. See
     // Components::init for more details.
-    components.init(numAccounts);
+    components.init(bm, nAccounts);
+
+    componentsBm.reset();
 
     // Syncing is done periodically so we have to wait a bit before the router
     // will have a budget available. Necessary because the bid request stream
@@ -411,8 +439,11 @@ int main(int argc, char ** argv)
 
     ML::sleep(2.1);
 
+    bm.dumpTotals();
+    
     cerr << "testing budgets\n";
-    for (int i = 0; i < numAccounts; i++) {
+    for (int i = 0; i < nAccounts; i++) {
+        Benchmark budgetBm(bm, {"budget-tests"});
         AccountKey key{"testCampaign" + to_string(i),
                        "testStrategy" + to_string(i)};
         testBudget(components.budgetController, key);
@@ -446,7 +477,6 @@ int main(int argc, char ** argv)
             shared_ptr<SlaveBanker> slave = static_pointer_cast<SlaveBanker>(banker);
             cerr << ("banker rqs : " + label + " "
                      + to_string(slave->getNumReauthorized())
-                     + " last delay: " + to_string(slave->getLastReauthorizeDelay())
                      + "\n");
         };
 
@@ -456,6 +486,9 @@ int main(int argc, char ** argv)
     }
 
     cerr << "SHUTDOWN\n";
+
+    bm.dumpTotals();
+
     exit(0);
     // Test is done; clean up time.
     components.shutdown();

@@ -159,7 +159,7 @@ init(const std::string & accountSuffix, CurrencyPool spendRate)
                           std::placeholders::_1),
                 true /* single threaded */);
     addPeriodic("SlaveBanker::reauthorizeBudget", 1.0,
-                std::bind(&SlaveBanker::reauthorizeBudget,
+                std::bind(&SlaveBanker::reauthorizeBudgetPeriodic,
                           this,
                           std::placeholders::_1),
                 true /* single threaded */);
@@ -408,56 +408,78 @@ reportSpend(uint64_t numTimeoutsExpired)
 
 void
 SlaveBanker::
-reauthorizeBudget(uint64_t numTimeoutsExpired)
+reauthorizeBudgetPeriodic(uint64_t numTimeoutsExpired)
 {
     if (numTimeoutsExpired > 1) {
         cerr << "warning: slave banker missed " << numTimeoutsExpired
              << " timeouts" << endl;
     }
 
-    //std::unique_lock<Lock> guard(lock);
     if (reauthorizing) {
-        cerr << "warning: reauthorize budget still in progress" << endl;
+        cerr << "warning: reauthorize budget still in progress (skipping)\n";
         return;
     }
 
-    accountsLeft = 0;
+    auto onReauthorizedDone = [&] () {
+        reauthorizing = false;
+        numReauthorized++;
+    };
+    reauthorizing = true;
+    reauthorizeBudget(onReauthorizedDone);
+}
+
+
+void
+SlaveBanker::
+reauthorizeBudget(const OnReauthorizeBudgetDone & onDone)
+{
+    //std::unique_lock<Lock> guard(lock);
 
     // For each of our accounts, we report back what has been spent
     // and re-up to our desired float
-    auto onAccount = [&] (const AccountKey & key,
-                          const ShadowAccount & account)
-        {
-            Json::Value payload = spendRate.toJson();
 
-            auto onDone = std::bind(&SlaveBanker::onReauthorizeBudgetMessage, this,
-                                    key,
-                                    std::placeholders::_1, std::placeholders::_2,
-                                    std::placeholders::_3);
+    auto reauthorizeOp = make_shared<ReauthorizeOp>();
+    reauthorizeOp->start = Date::now();
+    reauthorizeOp->numAccounts = 0;
+    reauthorizeOp->pending = 0;
+    reauthorizeOp->onDone = onDone;
 
-            accountsLeft++;
+    auto onAccount
+        = [&] (const AccountKey & key, const ShadowAccount & account) {
+        reauthorizeOp->numAccounts++;
+        reauthorizeOp->pending++;
 
-            // Finally, send it out
-            applicationLayer->request(
-                            "POST", "/v1/accounts/" + getShadowAccountStr(key) + "/balance",
-                            { { "accountType", "spend" } },
-                            payload.toString(),
-                            onDone);
+        // Finally, send it out
+        Json::Value payload = spendRate.toJson();
+        auto onAccountDone = [=] (exception_ptr exc, int responseCode,
+                                  const string & payload) {
+            this->onReauthorizeBudgetMessage(key, exc, responseCode, payload);
+            reauthorizeOp->pending--;
+            if (reauthorizeOp->pending == 0) {
+                Date now = Date::now();
+                if (reauthorizeOp->onDone) {
+                    reauthorizeOp->onDone();
+                }
+            }
         };
+
+        applicationLayer->request("POST", "/v1/accounts/" + getShadowAccountStr(key) + "/balance",
+                                  { { "accountType", "spend" } },
+                                  payload.toString(),
+                                  onAccountDone);
+    };
     accounts.forEachInitializedAccount(onAccount);
-    
-    if (accountsLeft > 0) {
-        reauthorizing = true;
-        reauthorizeDate = Date::now();
+    if (reauthorizeOp->numAccounts == 0) {
+        if (reauthorizeOp->onDone) {
+            reauthorizeOp->onDone();
+        }
     }
 }
 
 void
 SlaveBanker::
-onReauthorizeBudgetMessage(const AccountKey & accountKey,
-                           std::exception_ptr exc,
-                           int responseCode,
-                           const std::string & payload)
+onReauthorizeBudgetMessage(const AccountKey & accountKey, exception_ptr exc,
+                           int responseCode, const string & payload)
 {
     if (exc) {
         cerr << "reauthorize budget got exception" << payload << endl;
@@ -468,13 +490,6 @@ onReauthorizeBudgetMessage(const AccountKey & accountKey,
     else if (responseCode == 200) {
         Account masterAccount = Account::fromJson(Json::parse(payload));
         accounts.syncFromMaster(accountKey, masterAccount);
-    }
-    reauthorizeBudgetSent = Date();
-    accountsLeft--;
-    if (accountsLeft == 0) {
-        lastReauthorizeDelay = Date::now() - reauthorizeDate;
-        numReauthorized++;
-        reauthorizing = false;
     }
 }
 
