@@ -101,6 +101,8 @@ Worker(MockExchange * exchange, Json::Value bid, Json::Value win, Json::Value ev
 
     winsDelay = win.get("delay", 0).asInt();
     eventsDelay = event.get("delay", 0).asInt();
+
+    lastSentWins = lastSentEvents = Date::now();
 }
 
 
@@ -150,14 +152,14 @@ MockExchange::Worker::bid() {
                 }
                 else {
                     eventsQueue.push_back(Event { Event::Click, br, bid });
-                    if (lastSentEvents.plusSeconds(eventsDelay) >= now) {
+                    if (now.secondsSince(lastSentEvents) >= eventsDelay) {
                         processEventsQueue();
                     }
                 }
             }
             else {
                 winsQueue.push_back(Win { br, bid, ret.second });
-                if (lastSentWins.plusSeconds(winsDelay) >= now) {
+                if (now.secondsSince(lastSentWins) >= winsDelay) {
                     processWinsQueue();
                 }
             }
@@ -183,7 +185,7 @@ MockExchange::Worker::processWinsQueue() {
             }
             else {
                 eventsQueue.push_back(Event { Event::Click, win.br, win.bid });
-                if (lastSentEvents.plusSeconds(eventsDelay) >= now) {
+                if (now.secondsSince(lastSentEvents) >= eventsDelay) {
                     processEventsQueue();
                 }
             }
