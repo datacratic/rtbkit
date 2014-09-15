@@ -102,6 +102,22 @@ dumpSpot(Id spot) const
     dumpAuction();  // TODO
 }
 
+/*****************************************************************************/
+/* ROUTER CONFIG                                                             */
+/*****************************************************************************/
+
+Router::Config::Config(double secondsUntilLossAssumed, bool connectPostAuctionLoop,
+                bool logAuctions, bool logBids, Amount maxBidAmount,
+                int secondsUntilSlowMode, Amount slowModeAuthorizedMoneyLimit)
+            : secondsUntilLossAssumed(secondsUntilLossAssumed),
+              connectPostAuctionLoop(connectPostAuctionLoop),
+              logAuctions(logAuctions),
+              logBids(logBids),
+              maxBidAmount(maxBidAmount),
+              secondsUntilSlowMode(secondsUntilSlowMode),
+              slowModeAuthorizedMoneyLimit(slowModeAuthorizedMoneyLimit) 
+{
+}
 
 /*****************************************************************************/
 /* ROUTER                                                                    */
@@ -110,13 +126,7 @@ dumpSpot(Id spot) const
 Router::
 Router(ServiceBase & parent,
        const std::string & serviceName,
-       double secondsUntilLossAssumed,
-       bool connectPostAuctionLoop,
-       bool logAuctions,
-       bool logBids,
-       Amount maxBidAmount,
-       int secondsUntilSlowMode,
-       Amount slowModeAuthorizedMoneyLimit)
+       const Config & config)
     : ServiceBase(serviceName, parent),
       shutdown_(false),
       postAuctionEndpoint(parent.getServices()),
@@ -129,29 +139,29 @@ Router(ServiceBase & parent,
       augmentationLoop(*this),
       loopMonitor(*this),
       loadStabilizer(loopMonitor),
-      secondsUntilLossAssumed_(secondsUntilLossAssumed),
+      secondsUntilLossAssumed_(config.secondsUntilLossAssumed),
       globalBidProbability(1.0),
       bidsErrorRate(0.0),
       budgetErrorRate(0.0),
-      connectPostAuctionLoop(connectPostAuctionLoop),
+      connectPostAuctionLoop(config.connectPostAuctionLoop),
       allAgents(new AllAgentInfo()),
       configListener(getZmqContext()),
       initialized(false),
       bridge(getZmqContext()),
-      logAuctions(logAuctions),
-      logBids(logBids),
+      logAuctions(config.logAuctions),
+      logBids(config.logBids),
       logger(getZmqContext()),
       doDebug(false),
       disableAuctionProb(false),
       numAuctions(0), numBids(0), numNonEmptyBids(0),
       numAuctionsWithBid(0), numNoPotentialBidders(0),
       numNoBidders(0),
-      monitorClient(getZmqContext(), secondsUntilSlowMode),
+      monitorClient(getZmqContext(), config.secondsUntilSlowMode),
       slowModeActive(false),
-      slowModeAuthorizedMoneyLimit(slowModeAuthorizedMoneyLimit),
+      slowModeAuthorizedMoneyLimit(config.slowModeAuthorizedMoneyLimit),
       accumulatedBidMoneyInThisSecond(0),
       monitorProviderClient(getZmqContext()),
-      maxBidAmount(maxBidAmount)
+      maxBidAmount(config.maxBidAmount)
 {
     monitorProviderClient.addProvider(this);
 }
@@ -159,13 +169,7 @@ Router(ServiceBase & parent,
 Router::
 Router(std::shared_ptr<ServiceProxies> services,
        const std::string & serviceName,
-       double secondsUntilLossAssumed,
-       bool connectPostAuctionLoop,
-       bool logAuctions,
-       bool logBids,
-       Amount maxBidAmount,
-       int secondsUntilSlowMode,
-       Amount slowModeAuthorizedMoneyLimit)
+       const Config & config)
     : ServiceBase(serviceName, services),
       shutdown_(false),
       postAuctionEndpoint(services),
@@ -178,29 +182,29 @@ Router(std::shared_ptr<ServiceProxies> services,
       augmentationLoop(*this),
       loopMonitor(*this),
       loadStabilizer(loopMonitor),
-      secondsUntilLossAssumed_(secondsUntilLossAssumed),
+      secondsUntilLossAssumed_(config.secondsUntilLossAssumed),
       globalBidProbability(1.0),
       bidsErrorRate(0.0),
       budgetErrorRate(0.0),
-      connectPostAuctionLoop(connectPostAuctionLoop),
+      connectPostAuctionLoop(config.connectPostAuctionLoop),
       allAgents(new AllAgentInfo()),
       configListener(getZmqContext()),
       initialized(false),
       bridge(getZmqContext()),
-      logAuctions(logAuctions),
-      logBids(logBids),
+      logAuctions(config.logAuctions),
+      logBids(config.logBids),
       logger(getZmqContext()),
       doDebug(false),
       disableAuctionProb(false),
       numAuctions(0), numBids(0), numNonEmptyBids(0),
       numAuctionsWithBid(0), numNoPotentialBidders(0),
       numNoBidders(0),
-      monitorClient(getZmqContext(), secondsUntilSlowMode),
+      monitorClient(getZmqContext(), config.secondsUntilSlowMode),
       slowModeActive(false),
-      slowModeAuthorizedMoneyLimit(slowModeAuthorizedMoneyLimit),
+      slowModeAuthorizedMoneyLimit(config.slowModeAuthorizedMoneyLimit),
       accumulatedBidMoneyInThisSecond(0),
       monitorProviderClient(getZmqContext()),
-      maxBidAmount(maxBidAmount)
+      maxBidAmount(config.maxBidAmount)
 {
     monitorProviderClient.addProvider(this);
 }

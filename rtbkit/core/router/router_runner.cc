@@ -21,6 +21,7 @@
 #include "soa/service/process_stats.h"
 #include "jml/arch/timers.h"
 #include "jml/utils/file_functions.h"
+#include "rtbkit/core/monitor/monitor_client.h"
 
 using namespace std;
 using namespace ML;
@@ -43,14 +44,11 @@ RouterRunner::
 RouterRunner() :
     exchangeConfigurationFile("rtbkit/examples/router-config.json"),
     bidderConfigurationFile("rtbkit/examples/bidder-config.json"),
-    lossSeconds(15.0),
     noPostAuctionLoop(false),
-    logAuctions(false),
-    logBids(false),
     maxBidPrice(200),
-    slowModeTimeout(MonitorClient::DefaultCheckTimeout),
     useHttpBanker(false),
-    slowModeMoneyLimit("")
+    slowModeMoneyLimit(""),
+    config()
 {
 }
 
@@ -63,9 +61,9 @@ doOptions(int argc, char ** argv,
 
     options_description router_options("Router options");
     router_options.add_options()
-        ("loss-seconds,l", value<float>(&lossSeconds),
+        ("loss-seconds,l", value<double>(&config.secondsUntilLossAssumed),
          "number of seconds after which a loss is assumed")
-        ("slowModeTimeout", value<int>(&slowModeTimeout),
+        ("slowModeTimeout", value<int>(&config.secondsUntilSlowMode),
          "number of seconds after which the system consider to be in SlowMode")
         ("no-post-auction-loop", bool_switch(&noPostAuctionLoop),
          "don't connect to the post auction loop")
@@ -77,9 +75,9 @@ doOptions(int argc, char ** argv,
          "configuration file with bidder interface data")
         ("use-http-banker", bool_switch(&useHttpBanker),
          "Communicate with the MasterBanker over http")
-        ("log-auctions", value<bool>(&logAuctions)->zero_tokens(),
+        ("log-auctions", value<bool>(&config.logAuctions)->zero_tokens(),
          "log auction requests")
-        ("log-bids", value<bool>(&logBids)->zero_tokens(),
+        ("log-bids", value<bool>(&config.logBids)->zero_tokens(),
          "log bid responses")
         ("max-bid-price", value(&maxBidPrice),
          "maximum bid price accepted by router")
@@ -119,14 +117,11 @@ init()
     exchangeConfig = loadJsonFromFile(exchangeConfigurationFile);
     bidderConfig = loadJsonFromFile(bidderConfigurationFile);
 
-    const auto amountSlowModeMoneyLimit = Amount::parse(slowModeMoneyLimit);
+    config.maxBidAmount = USD_CPM(maxBidPrice);
+    config.slowModeAuthorizedMoneyLimit = Amount::parse(slowModeMoneyLimit);
+    config.connectPostAuctionLoop = !noPostAuctionLoop;
 
-    auto connectPostAuctionLoop = !noPostAuctionLoop;
-    router = std::make_shared<Router>(proxies, serviceName, lossSeconds,
-                                      connectPostAuctionLoop,
-                                      logAuctions, logBids,
-                                      USD_CPM(maxBidPrice),
-                                      slowModeTimeout, amountSlowModeMoneyLimit);
+    router = std::make_shared<Router>(proxies, serviceName, config);
     router->initBidderInterface(bidderConfig);
     router->init();
 

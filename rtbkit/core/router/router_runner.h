@@ -29,12 +29,8 @@ struct RouterRunner {
 
     std::string exchangeConfigurationFile;
     std::string bidderConfigurationFile;
-
-    float lossSeconds;
+    
     bool noPostAuctionLoop;
-
-    bool logAuctions;
-    bool logBids;
 
     float maxBidPrice;
     std::string bankerUri;
@@ -44,6 +40,8 @@ struct RouterRunner {
     bool useHttpBanker;
 
     std::string slowModeMoneyLimit;
+
+    Router::Config config;
 
     void doOptions(int argc, char ** argv,
                    const boost::program_options::options_description & opts

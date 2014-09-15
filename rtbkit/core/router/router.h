@@ -102,25 +102,28 @@ struct AuctionDebugInfo {
 struct Router : public ServiceBase,
                 public MonitorProvider
 {
+    struct Config {
+        Config( double secondsUntilLossAssumed = 2.0, bool connectPostAuctionLoop = true,
+                bool logAuctions = false, bool logBids = false, Amount maxBidAmount = USD_CPM(200),
+                int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
+                Amount slowModeAuthorizedMoneyLimit = USD_CPM(100) );
+
+        double secondsUntilLossAssumed;
+        bool connectPostAuctionLoop;
+        bool logAuctions;
+        bool logBids;
+        Amount maxBidAmount;
+        int secondsUntilSlowMode;
+        Amount slowModeAuthorizedMoneyLimit;
+    };
+
     Router(ServiceBase & parent,
            const std::string & serviceName = "router",
-           double secondsUntilLossAssumed = 2.0,
-           bool connectPostAuctionLoop = true,
-           bool logAuctions = false,
-           bool logBids = false,
-           Amount maxBidAmount = USD_CPM(200),
-           int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
-           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100));
+           const Config & config = Config());
 
     Router(std::shared_ptr<ServiceProxies> services = std::make_shared<ServiceProxies>(),
            const std::string & serviceName = "router",
-           double secondsUntilLossAssumed = 2.0,
-           bool connectPostAuctionLoop = true,
-           bool logAuctions = false,
-           bool logBids = false,
-           Amount maxBidAmount = USD_CPM(200),
-           int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
-           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100));
+           const Config & config = Config());
 
     ~Router();
 
