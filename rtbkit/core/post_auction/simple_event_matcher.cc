@@ -339,6 +339,8 @@ doWinLoss(std::shared_ptr<PostAuctionEvent> event, bool isReplay)
           is completely unknown.
     */
     if (!submitted.count(key)) {
+        event->type = PAE_UNMATCHED_WIN; 
+        doUnmatchedEvent(std::make_shared<UnmatchedEvent>("unmatchedwin", *event));
         double timeGapMs = getTimeGapMs();
         if (timeGapMs < lossTimeout * 1000) {
             recordHit("bidResult.%s.noBidSubmitted", typeStr);
