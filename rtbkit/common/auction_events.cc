@@ -84,7 +84,6 @@ print(PostAuctionEventType type)
     case PAE_WIN: return "WIN";
     case PAE_LOSS: return "LOSS";
     case PAE_CAMPAIGN_EVENT: return "EVENT";
-    case PAE_UNMATCHED_WIN: return "UNMATCHEDWIN";
     default:
         return "UNKNOWN";
     }

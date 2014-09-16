@@ -62,8 +62,7 @@ enum PostAuctionEventType {
     PAE_INVALID,
     PAE_WIN,
     PAE_LOSS,
-    PAE_CAMPAIGN_EVENT,
-    PAE_UNMATCHED_WIN
+    PAE_CAMPAIGN_EVENT
 };
 
 const char * print(PostAuctionEventType type);
