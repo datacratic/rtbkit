@@ -139,7 +139,7 @@ MockExchange::Worker::bid() {
             ML::sleep(0.5);
 
             const Date now = Date::now();
-			bid.bidTimestamp = now;
+            bid.bidTimestamp = now;
             if (winsDelay == 0) {
                 wins->sendWin(br, bid, ret.second);
                 exchange->recordHit("wins");
