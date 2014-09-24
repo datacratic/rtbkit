@@ -245,7 +245,7 @@ topupTransfer(const std::string &accountStr,
               const BudgetController::OnBudgetResult &onResult)
 {
     proxy->push(budgetResultCallback(onResult),
-                "PUT", "/v1/accounts/" + accountStr + "/balance",
+                "POST", "/v1/accounts/" + accountStr + "/balance",
                 { { "accountType", AccountTypeToString(accountType) } },
                 amount.toJson().toString());
 }
@@ -257,7 +257,7 @@ setBudget(const std::string &topLevelAccount,
           const BudgetController::OnBudgetResult &onResult)
 {
     proxy->push(budgetResultCallback(onResult),
-                "PUT", "/v1/accounts/" + topLevelAccount + "/budget",
+                "POST", "/v1/accounts/" + topLevelAccount + "/budget",
                 { /* {"amount", amount.toString()}*/ },
                 amount.toJson().toString());
 }
@@ -306,7 +306,7 @@ syncAccount(const ShadowAccount &account, const std::string &shadowStr,
             std::function<void (std::exception_ptr, Account &&)> onDone)
 {
     proxy->push(makeRestResponseJsonDecoder<Account>("ZmqLayer::syncAccount", onDone),
-                "PUT",
+                "POST",
                 "/v1/accounts/" + shadowStr + "/shadow",
                 {},
                 account.toJson().toString());

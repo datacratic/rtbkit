@@ -483,7 +483,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
 
     addRouteSyncReturn(account,
                        "/budget",
-                       {"PUT", "POST"},
+                       {"POST"},
                        "Set a top level account's budget to match the given "
                        "amount.  ",
                        "Status of the account after the operation",
@@ -495,7 +495,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
 
     addRouteSyncReturn(account,
                        "/balance",
-                       {"PUT", "POST"},
+                       {"POST"},
                        "Transfer budget from the parent such that account's "
                        "balance amount matches the parameter",
                        "Account: Representation of the modified account",
@@ -508,7 +508,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
     
     addRouteSyncReturn(account,
                        "/adjustment",
-                       {"PUT", "POST"},
+                       {"POST"},
                        "Perform an adjustment to the account",
                        "Account: Representation of the modified account",
                        [] (const Account & a) { return a.toJson(); },
@@ -530,7 +530,7 @@ init(const shared_ptr<BankerPersistence> & storage, double saveInterval)
 
     addRouteSyncReturn(account,
                        "/shadow",
-                       {"PUT", "POST"},
+                       {"POST"},
                        "Update a spend account's spend and commitments",
                        "Account: Representation of the modified account",
                        [] (const Account & a) { return a.toJson(); },
