@@ -239,6 +239,17 @@ doConfigChange(
         const std::string & agent,
         std::shared_ptr<const AgentConfig> config)
 {
+    // For debugging orphaned clicks. Should not be merged in.
+    {
+        std::stringstream ss;
+
+        ss << (config ? "new" : "dead") << " config: " << agent;
+        if (config) ss << " -> " << config->account;
+        ss << std::endl;
+
+        LOG(trace) << ss.str();
+    }
+
     if (!config) return;
     if (config->account.empty())
         throw ML::Exception("attempt to add an account with empty values");
@@ -463,9 +474,9 @@ doMatchedCampaignEvent(std::shared_ptr<MatchedCampaignEvent> event)
 
             ss << "orphaned CLICK for " << event->account << std::endl;
             configListener.forEachAgent([&] (const AgentConfigEntry & entry) {
-                        ss << "\t - " << entry.name
-                            << " -> " << entry.config->account
-                            << std::endl;
+                        ss << "\t - " << entry.name;
+                        if (entry.config) ss << " -> " << entry.config->account;
+                        ss << std::endl;
                     });
 
             ss << "bid: " << event->bid << std::endl << std::endl;
