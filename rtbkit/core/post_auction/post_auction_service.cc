@@ -455,6 +455,23 @@ doMatchedCampaignEvent(std::shared_ptr<MatchedCampaignEvent> event)
     configListener.forEachAccountAgent(account, onMatchingAgent);
 
     if (!sent) {
+
+        // Exists for debugging only. Should be removed once we've figured out
+        // the source of the issue.
+        if (event->label == "CLICK") {
+            std::stringstream ss;
+
+            ss << "orphaned CLICK for " << event->account << std::endl;
+            configListener.forEachAgent([&] (const AgentConfigEntry & entry) {
+                        ss << "\t - " << entry.name
+                            << " -> " << entry.config->account
+                            << std::endl;
+                    });
+
+            ss << "bid: " << event->bid << std::endl << std::endl;
+            LOG(trace) << ss.str();
+        }
+
         recordHit("delivery.%s.orphaned", event->label);
         logPAError("doCampaignEvent.noListeners" + event->label,
                 "nothing listening for account " + account.toString());
