@@ -268,6 +268,10 @@ syncAllSync()
     result.get();
 }
 
+namespace {
+    Logging::Category bankerDebug("BankerDebug");
+}
+
 void
 SlaveBanker::
 syncAll(std::function<void (std::exception_ptr)> onDone)
@@ -276,8 +280,11 @@ syncAll(std::function<void (std::exception_ptr)> onDone)
 
     vector<AccountKey> filteredKeys;
     for (auto k: allKeys)
-    	if (accounts.isInitialized(k))
+    	if (accounts.isInitialized(k)) {
     		filteredKeys.push_back(k);
+        } else {
+            LOG(bankerDebug) << "CRITICAL:" << k << std::endl;
+        }
 
     allKeys.swap(filteredKeys);
 
