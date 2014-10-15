@@ -7,6 +7,7 @@
 #pragma once
 
 #include <string>
+#include "cryptopp/hex.h"
 
 namespace RTBKIT {
 
@@ -22,6 +23,8 @@ struct PassbackEncryption {
 
     typedef unsigned char byte;
     
+    PassbackEncryption();
+
     std::string generateKey();
 
     std::string generateIV();
@@ -34,6 +37,10 @@ struct PassbackEncryption {
                         const std::string & key,
                         const std::string & iv);
 private: 
+
+    CryptoPP::HexEncoder hexEncoder;
+    CryptoPP::HexDecoder hexDecoder;
+
     std::string digest(const std::string & encrypted);
 
     std::string addDigest(const std::string & encrypted);
