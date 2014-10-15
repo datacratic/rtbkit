@@ -1,4 +1,4 @@
-/* passback_encryption.h                                    -*- C++ -*-
+/* passback_keygen.cc                                    -*- C++ -*-
    Michael Burkat, 7 Octobre 2013
    Copyright (c) 2014 Datacratic Inc.  All rights reserved.
 
@@ -22,14 +22,6 @@ int main() {
 
     cout << "Key: " << key << endl;
     cout << "IV:  " << iv << endl;
-
-    string account = "test1:subtest1";
-        
-    string encrypted = pe.encrypt(account, key, iv);
-    cout << "encrypted: " << encrypted << endl;
-    
-    string decrypted = pe.decrypt(encrypted, key, iv);
-    cout << "decrypted: " << decrypted << endl;
 
     return 0;
 }

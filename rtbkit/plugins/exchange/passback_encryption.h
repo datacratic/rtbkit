@@ -34,6 +34,7 @@ struct PassbackEncryption {
     std::string byteToStr(byte * encode);
 
     std::string hexEncode(const std::string & decoded);
+
     std::string hexDecode(const std::string & encoded);
     
     std::string generateKey();
