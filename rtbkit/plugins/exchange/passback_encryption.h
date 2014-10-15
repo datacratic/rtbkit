@@ -7,7 +7,6 @@
 #pragma once
 
 #include <string>
-#include <iostream>
 
 namespace RTBKIT {
 
@@ -23,6 +22,10 @@ struct PassbackEncryption {
 
     typedef unsigned char byte;
     
+    std::string generateKey();
+
+    std::string generateIV();
+    
     std::string encrypt(const std::string & passback,
                         const std::string & key,
                         const std::string & iv);
@@ -30,17 +33,18 @@ struct PassbackEncryption {
     std::string decrypt(const std::string & passback,
                         const std::string & key,
                         const std::string & iv);
+private: 
+    std::string digest(const std::string & encrypted);
 
-    std::string byteToStr(byte * encode);
+    std::string addDigest(const std::string & encrypted);
+
+    std::string removeDigest(const std::string & digested);
+
+    std::string byteToStr(byte * encode, size_t size);
 
     std::string hexEncode(const std::string & decoded);
 
     std::string hexDecode(const std::string & encoded);
-    
-    std::string generateKey();
-
-    std::string generateIV();
-
 };
 
 } // namespace RTBKIT

@@ -10,6 +10,7 @@
 #include "cryptopp/osrng.h"
 #include "cryptopp/hex.h"
 #include "cryptopp/aes.h"
+#include <iostream>
 
 using namespace std; 
 using namespace CryptoPP;
@@ -37,7 +38,7 @@ PassbackEncryption::encrypt(const string & passback, const string & key, const s
             new StringSink(cipher)
         )
     );
-    return hexEncode(cipher);
+    return addDigest(cipher);
 }
 
 string
@@ -47,13 +48,43 @@ PassbackEncryption::decrypt(const string & passback, const string & key, const s
 
     CFB_Mode<AES>::Decryption d(bk, AES::DEFAULT_KEYLENGTH, biv);
     
+    string noDigest = removeDigest(hexDecode(passback));
+    if (noDigest == "")
+        return "";
+
     string recovered;
-    StringSource s(hexDecode(passback), true, 
+    StringSource s(noDigest, true, 
         new StreamTransformationFilter(d,
             new StringSink(recovered)
         )
     );
     return recovered;
+}
+
+string PassbackEncryption::addDigest(const string & encrypted) {
+    return hexEncode(encrypted) + digest(encrypted);
+}
+
+string PassbackEncryption::removeDigest(const string & digested) {
+    if (digested.size() <= CRC32::DIGESTSIZE) {
+        return "";
+    }
+
+    const string digestStr = digested.substr(digested.size() - CRC32::DIGESTSIZE); 
+    const string encrypted = digested.substr(0, digested.size() - CRC32::DIGESTSIZE);
+
+    if (hexEncode(digestStr) == digest(encrypted))
+        return encrypted;
+    else
+        return "";
+}
+
+string PassbackEncryption::digest(const string & encrypted) {
+    byte digest[CRC32::DIGESTSIZE];
+    const byte * bencrypt = reinterpret_cast<const byte *>(encrypted.c_str());
+    CRC32 crc;
+    crc.CalculateDigest(digest, bencrypt, encrypted.size());
+    return byteToStr(digest, CRC32::DIGESTSIZE);
 }
 
 string
@@ -79,10 +110,10 @@ PassbackEncryption::hexDecode(const string & encoded) {
 }
 
 string
-PassbackEncryption::byteToStr(byte * encode) {
+PassbackEncryption::byteToStr(byte * encode, size_t size) {
     string encoded;
     encoded.clear();
-    StringSource(encode, AES::DEFAULT_KEYLENGTH, true,
+    StringSource(encode, size, true,
             new HexEncoder(
                 new StringSink(encoded)
             )
@@ -96,7 +127,7 @@ PassbackEncryption::generateKey() {
     byte key[AES::DEFAULT_KEYLENGTH];
     rnd.GenerateBlock(key, sizeof(key));
 
-    return byteToStr(key);
+    return byteToStr(key, AES::DEFAULT_KEYLENGTH);
 }
 
 string
@@ -105,7 +136,7 @@ PassbackEncryption::generateIV() {
     byte iv[AES::BLOCKSIZE];
     rnd.GenerateBlock(iv, sizeof(iv));
     
-    return byteToStr(iv); 
+    return byteToStr(iv, AES::BLOCKSIZE);
 }
 
 } // namespace RTBKIT
