@@ -33,13 +33,11 @@ PassbackEncryption::encrypt(const string & passback, const string & key, const s
     const byte * biv =  reinterpret_cast<const byte *>(iv.c_str());
 
     CFB_Mode<AES>::Encryption e(bk, AES::DEFAULT_KEYLENGTH, biv);
-
-    string cipher;
-    StringSource(passback, true, 
-        new StreamTransformationFilter(e,
-            new StringSink(cipher)
-        )
-    );
+    StreamTransformationFilter stfE(e);
+    stfE.Put((const byte *) passback.c_str(), passback.size());
+    byte pEnc[passback.size()];
+    stfE.Get(pEnc, passback.size());
+    string cipher(pEnc, pEnc + passback.size());
     return addDigest(cipher);
 }
 
@@ -48,18 +46,16 @@ PassbackEncryption::decrypt(const string & passback, const string & key, const s
     const byte * bk = reinterpret_cast<const byte *>(key.c_str());
     const byte * biv =  reinterpret_cast<const byte *>(iv.c_str());
 
-    CFB_Mode<AES>::Decryption d(bk, AES::DEFAULT_KEYLENGTH, biv);
-    
     string noDigest = removeDigest(hexDecode(passback));
     if (noDigest == "")
         return "";
 
-    string recovered;
-    StringSource s(noDigest, true, 
-        new StreamTransformationFilter(d,
-            new StringSink(recovered)
-        )
-    );
+    CFB_Mode<AES>::Decryption d(bk, AES::DEFAULT_KEYLENGTH, biv);
+    StreamTransformationFilter stfD(d);
+    stfD.Put((const byte *) noDigest.c_str(), noDigest.size());
+    byte pDec[noDigest.size()];
+    stfD.Get(pDec, noDigest.size());
+    string recovered(pDec, pDec + noDigest.size());
     return recovered;
 }
 
