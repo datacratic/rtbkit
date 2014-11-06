@@ -18,18 +18,16 @@ using namespace RTBKIT;
 namespace {
     DefaultDescription<OpenRTB::BidRequest> desc;
 
-    std::string httpErrorString(HttpClientError code)  {
-        switch (code) {
+    std::string httpErrorString(int code)  {
+        switch (static_cast<TcpConnectionCode>(code)) {
             #define CASE(code) \
                 case code: \
                     return #code;
-            CASE(HttpClientError::None)
-            CASE(HttpClientError::Unknown)
-            CASE(HttpClientError::Timeout)
-            CASE(HttpClientError::HostNotFound)
-            CASE(HttpClientError::CouldNotConnect)
-            CASE(HttpClientError::SendError)
-            CASE(HttpClientError::RecvError)
+            CASE(TcpConnectionCode::Success)
+            CASE(TcpConnectionCode::UnknownError)
+            CASE(TcpConnectionCode::ConnectionFailure)
+            CASE(TcpConnectionCode::HostUnknown)
+            CASE(TcpConnectionCode::Timeout)
             #undef CASE
         }
         ExcCheck(false, "Invalid code path");
@@ -96,17 +94,23 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
      * and then pay the cost of an extra HTTP roundtrip. Thus we remove this
      * header
      */
+#if 0
     httpClientRouter->sendExpect100Continue(false);
+#endif
     loop.addSource("HttpBidderInterface::httpClientRouter", httpClientRouter);
 
     std::string winHost = adserverHost + ':' + std::to_string(adserverWinPort);
     httpClientAdserverWins.reset(new HttpClient(winHost, adserverHttpActiveConnections));
+#if 0
     httpClientAdserverWins->sendExpect100Continue(false);
+#endif
     loop.addSource("HttpBidderInterface::httpClientAdserverWins", httpClientAdserverWins);
 
     std::string eventHost = adserverHost + ':' + std::to_string(adserverEventPort);
     httpClientAdserverEvents.reset(new HttpClient(eventHost, adserverHttpActiveConnections));
+#if 0
     httpClientAdserverEvents->sendExpect100Continue(false);
+#endif
     loop.addSource("HttpBidderInterface::httpClientAdserverEvents", httpClientAdserverEvents);
 
     loop.addPeriodic("HttpBidderInterface::reportQueues", 1.0, [=](uint64_t) {
@@ -172,7 +176,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
        a dangling reference if we go out of scope before receiving the http response
     */
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
-            [=](const HttpRequest &, HttpClientError errorCode,
+            [=](const HttpRequest &, int errorCode,
                 int statusCode, const std::string &, std::string &&body)
             {
                 Date responseReceivedTime = Date::now();
@@ -204,7 +208,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                  // Make sure to submit the bids no matter what
                  ML::Call_Guard guard([&]() { submitBids(bidsToSubmit, openRtbRequest.imp.size()); });
 
-                 if (errorCode != HttpClientError::None) {
+                 if (static_cast<TcpConnectionCode>(errorCode) != TcpConnectionCode::Success) {
                      LOG(error) << "Error requesting " << routerHost << " ("
                                 << httpErrorString(errorCode) << ")" << std::endl;
                      recordError("network");
@@ -310,7 +314,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
             }
     );
 
-    HttpRequest::Content reqContent { requestStr, "application/json" };
+    MimeContent reqContent { requestStr, "application/json" };
 
     RestParams headers { { "x-openrtb-version", "2.1" } };
    // std::cerr << "Sending HTTP POST to: " << routerHost << " " << routerPath << std::endl;
@@ -332,10 +336,10 @@ void HttpBidderInterface::sendWinLossMessage(
     if (event.type == MatchedWinLoss::Loss) return;
 
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
-        [=](const HttpRequest &, HttpClientError errorCode,
+        [=](const HttpRequest &, int errorCode,
             int statusCode, const std::string &, std::string &&body)
         {
-            if (errorCode != HttpClientError::None) {
+            if (static_cast<TcpConnectionCode>(errorCode) != TcpConnectionCode::Success) {
                  LOG(error) << "Error requesting "
                             << adserverHost << ":" << adserverWinPort
                             << " (" << httpErrorString(errorCode) << ")" << std::endl;
@@ -354,7 +358,7 @@ void HttpBidderInterface::sendWinLossMessage(
 
     //requestStr["passback"];
     
-    HttpRequest::Content reqContent { content, "application/json" };
+    MimeContent reqContent { content, "application/json" };
     httpClientAdserverWins->post("/", callbacks, reqContent,
                          { } /* queryParams */);
     
@@ -370,10 +374,10 @@ void HttpBidderInterface::sendCampaignEventMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, MatchedCampaignEvent const & event) {
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
-        [=](const HttpRequest &, HttpClientError errorCode,
+        [=](const HttpRequest &, int errorCode,
             int statusCode, const std::string &, std::string &&body)
         {
-            if (errorCode != HttpClientError::None) {
+            if (static_cast<TcpConnectionCode>(errorCode) != TcpConnectionCode::Success) {
                  LOG(error) << "Error requesting "
                             << adserverHost << ":" << adserverEventPort
                             << " (" << httpErrorString(errorCode) << ")" << std::endl;
@@ -388,7 +392,7 @@ void HttpBidderInterface::sendCampaignEventMessage(
     content["impid"] = event.impId.toString();
     content["type"] = event.label;
     
-    HttpRequest::Content reqContent { content, "application/json" };
+    MimeContent reqContent { content, "application/json" };
     httpClientAdserverEvents->post("/", callbacks, reqContent,
                          { } /* queryParams */);
     

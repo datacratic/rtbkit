@@ -22,14 +22,14 @@ makeCallback(std::string functionName,
 
     return std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &,
-            HttpClientError error, int statusCode,
+            int error, int statusCode,
             std::string &&, std::string &&body) {
         JML_TRACE_EXCEPTIONS(false);
         if (!onDone) {
             return;
         }
 
-        if (error != HttpClientError::None) {
+        if (static_cast<TcpConnectionCode>(error) != TcpConnectionCode::Success) {
             std::ostringstream oss;
             oss << error;
             onDone(std::make_exception_ptr(ML::Exception("HTTP Request failed in '%s': %s",
@@ -63,8 +63,10 @@ init(std::string bankerUri, int activeConnections /* = 4 */, bool tcpNoDelay /* 
         bankerUri = "http://" + bankerUri;
 
     httpClient.reset(new HttpClient(bankerUri, activeConnections));
+#if 0
     httpClient->sendExpect100Continue(false);
     httpClient->toggleTcpNoDelay(tcpNoDelay);
+#endif
     addSource("HttpLayer::httpClient", httpClient);
 }
 
@@ -164,9 +166,9 @@ request(std::string method, const std::string &resource,
 
     auto onDone = std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &,
-            HttpClientError error, int statusCode,
+            int error, int statusCode,
             std::string &&, std::string &&body) {
-        if (error != HttpClientError::None) {
+        if (static_cast<TcpConnectionCode>(error) != TcpConnectionCode::Success) {
             std::ostringstream oss;
             oss << error;
             onResult(std::make_exception_ptr(
@@ -179,10 +181,10 @@ request(std::string method, const std::string &resource,
     });
 
     if (method == "post") {
-        httpClient->post(resource, onDone, content, params);
+        httpClient->post(resource, onDone, MimeContent(content, "application/json"), params);
     }
     else if (method == "put") {
-        httpClient->put(resource, onDone, content, params);
+        httpClient->put(resource, onDone, MimeContent(content, "application/json"), params);
     }
     else if (method == "get") {
         httpClient->get(resource, onDone, params);
@@ -198,9 +200,9 @@ budgetResultCallback(const BudgetController::OnBudgetResult &onResult)
 {
     return std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &,
-            HttpClientError error, int statusCode,
+            int error, int statusCode,
             std::string &&, std::string &&body) {
-        if (error != HttpClientError::None) {
+        if (static_cast<TcpConnectionCode>(error) != TcpConnectionCode::Success) {
             std::ostringstream oss;
             oss << error;
             onResult(std::make_exception_ptr(
