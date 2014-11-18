@@ -1,6 +1,6 @@
 /* -*- js-mode -*- */
 {
-    "type": "mock",
+    "type": "standard",
     "winPort": 12340,
     "eventPort": 12341
 }

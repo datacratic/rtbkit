@@ -1,17 +1,17 @@
 {
     "workers": [
         {
-            "thread": 1,
+            "threads": 32,
             "bids": {
-                "type": "mock",
+                "type": "openrtb",
                 "url": "localhost:12339"
             },
             "wins": {
-                "type": "mock",
+                "type": "standard",
                 "url": "localhost:12340"
             },
             "events": {
-                "type": "mock",
+                "type": "standard",
                 "url": "localhost:12341"
             }
         }

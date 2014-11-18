@@ -38,16 +38,17 @@ class openRtb_response():
     key_impid = "impid"
     key_price = "price"
     key_seatbid = "seatbid"
-    
+
     # template obejcts
     bid_object = {key_id: "1",
                   key_impid: "1",
                   key_price: 1.0}
     seat_bid_object = [deepcopy(bid_object)]
     bid_response_object = {key_id: "1",
-                           key_seatbid: [deepcopy(seat_bid_object)]}
-    
+                           key_seatbid: [deepcopy(seat_bid_object)]
+
     def get_empty_response(self):
+
         """returns an object with the scafold of an rtb response
         but containing only default values"""
         empty_resp = deepcopy(self.bid_response_object)
@@ -55,8 +56,8 @@ class openRtb_response():
         return empty_resp
 
     def get_default_response(self, req):
-        """returns an object with the scafold of an rtb response
-        and fills some fields based on the request provided"""
+    """returns an object with the scafold of an rtb response and fills some fields based on the request provided"""
+
         default_resp = None
 
         if (self.validate_req(req)):
@@ -75,7 +76,8 @@ class openRtb_response():
 
             # iterate over impressions array from request and
             # populate seatbid list
-            for imp in req["imp"]:  # -> imp is the field name @ the req
+            for imp in req["imp"]:
+            # -> imp is the field name @ the req
 
                 # dumb bid id, just a counter
                 id_counter = id_counter + 1
