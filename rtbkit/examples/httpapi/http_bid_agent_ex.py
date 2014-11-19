@@ -47,7 +47,7 @@ class openRtb_response():
     bid_object = {key_id: "1",
                   key_impid: "1",
                   key_price: 1.0,
-                  key_ext: {key_extid: "", key_priority: 1.0}}
+                  key_ext: {key_priority: 1.0}}
     seat_bid_object = {key_bid: [deepcopy(bid_object)]}
     bid_response_object = {key_id: "1",
                            key_seatbid: [deepcopy(seat_bid_object)]}
@@ -91,14 +91,14 @@ class openRtb_response():
                 # copy impression id as imp for this bid
                 new_bid[self.key_impid] = imp[self.key_id]
 
+                externalId = 0
                 # copy external id to the response
                 try:
-                    externalId = imp["external-ids"][0] 
+                    externalId = imp[self.key_ext]["external-ids"][0]
+                    new_bid[self.key_ext][self.key_extid] = externalId
                 except:
-                    externalId = "" 
+                    externalId = -1  # and do not add this fiel
 
-                new_bid[self.key_ext][self.key_extid] = externalId
-                
                 # will keep the defaul price as it'll be changed by bidder
                 # and append this bid into the bid response
                 ref2bidList = default_resp[self.key_seatbid][0][self.key_bid]
@@ -112,8 +112,8 @@ class openRtb_response():
         # the request is accroding to the spec
         valid = True
         return valid
-    
-  
+
+
 class FixedPriceBidderMixIn():
     """Dumb bid agent Mixin that bid 100% at $1"""
 
@@ -123,12 +123,12 @@ class FixedPriceBidderMixIn():
 
     bid_config = None
     openRtb = openRtb_response()
-    
+
     def do_config(self):
         self.bid_config = {}
         self.bid_config["probability"] = 1.0
         self.bid_config["price"] = 1
-    
+
     def do_bid(self, req):
         # -------------------
         # bid logic
@@ -137,7 +137,7 @@ class FixedPriceBidderMixIn():
         # and using the default price ($1) will do the work.
         # -------------------
         resp = self.openRtb.get_default_response(req)
-        
+
         return resp
 
 
