@@ -33,15 +33,21 @@ import json
 class openRtb_response():
     """this is a helper class to build basic OpenRTB json objects"""
 
-    # field names
+    # field names - constants to avoid magic strings inside the function
     key_id = "id"
     key_bid = "bid"
+    key_ext = "ext"
+    key_extid = "external-id"
+    key_priority = "priority"
     key_impid = "impid"
     key_price = "price"
     key_seatbid = "seatbid"
 
     # template obejcts
-    bid_object = {key_id: "1", key_impid: "1", key_price: 1.0}
+    bid_object = {key_id: "1",
+                  key_impid: "1",
+                  key_price: 1.0,
+                  key_ext: {key_extid: "", key_priority: 1.0}}
     seat_bid_object = {key_bid: [deepcopy(bid_object)]}
     bid_response_object = {key_id: "1",
                            key_seatbid: [deepcopy(seat_bid_object)]}
@@ -74,7 +80,7 @@ class openRtb_response():
             new_bid = deepcopy(self.bid_object)
 
             # iterate over impressions array from request and
-            # populate seatbid list
+            # populate bid list
             for imp in req["imp"]:
                 # -> imp is the field name @ the req
 
@@ -85,9 +91,18 @@ class openRtb_response():
                 # copy impression id as imp for this bid
                 new_bid[self.key_impid] = imp[self.key_id]
 
+                # copy external id to the response
+                try:
+                    externalId = imp["external-ids"][0] 
+                except:
+                    externalId = "" 
+
+                new_bid[self.key_ext][self.key_extid] = externalId
+                
                 # will keep the defaul price as it'll be changed by bidder
                 # and append this bid into the bid response
-                default_resp[self.key_seatbid][0][self.key_bid].append(deepcopy(new_bid))
+                ref2bidList = default_resp[self.key_seatbid][0][self.key_bid]
+                ref2bidList.append(deepcopy(new_bid))
 
         return default_resp
 
