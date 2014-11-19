@@ -31,7 +31,7 @@ import json
 
 
 class openRtb_response():
-    """this is a helper class to build basic json objects"""
+    """this is a helper class to build basic OpenRTB json objects"""
 
     # field names
     key_id = "id"
@@ -42,7 +42,7 @@ class openRtb_response():
 
     # template obejcts
     bid_object = {key_id: "1", key_impid: "1", key_price: 1.0}
-    seat_bid_object = {key_bid: deepcopy(bid_object)}
+    seat_bid_object = {key_bid: [deepcopy(bid_object)]}
     bid_response_object = {key_id: "1",
                            key_seatbid: [deepcopy(seat_bid_object)]}
 
@@ -66,12 +66,12 @@ class openRtb_response():
             # copy request id
             default_resp[self.key_id] = req[self.key_id]
 
-            # empty the seatbid list
-            default_resp[self.key_seatbid] = []
+            # empty the bid list (we assume only one seat bid for simplicity)
+            default_resp[self.key_seatbid][0][self.key_bid] = []
 
             # default values for some of the fields of the bid response
             id_counter = 0
-            new_seatbid = {self.key_bid: deepcopy(self.bid_object)}
+            new_bid = deepcopy(self.bid_object)
 
             # iterate over impressions array from request and
             # populate seatbid list
@@ -80,14 +80,14 @@ class openRtb_response():
 
                 # dumb bid id, just a counter
                 id_counter = id_counter + 1
-                new_seatbid[self.key_bid][self.key_id] = str(id_counter)
+                new_bid[self.key_id] = str(id_counter)
 
                 # copy impression id as imp for this bid
-                new_seatbid[self.key_bid][self.key_impid] = imp[self.key_id]
+                new_bid[self.key_impid] = imp[self.key_id]
 
                 # will keep the defaul price as it'll be changed by bidder
                 # and append this bid into the bid response
-                default_resp[self.key_seatbid].append(deepcopy(new_seatbid))
+                default_resp[self.key_seatbid][0][self.key_bid].append(deepcopy(new_bid))
 
         return default_resp
 
