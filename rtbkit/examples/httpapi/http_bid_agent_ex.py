@@ -36,6 +36,7 @@ class openRtb_response():
     # field names - constants to avoid magic strings inside the function
     key_id = "id"
     key_bid = "bid"
+    key_crid = "crid"
     key_ext = "ext"
     key_extid = "external-id"
     key_priority = "priority"
@@ -47,6 +48,7 @@ class openRtb_response():
     bid_object = {key_id: "1",
                   key_impid: "1",
                   key_price: 1.0,
+                  key_crid: "",
                   key_ext: {key_priority: 1.0}}
     seat_bid_object = {key_bid: [deepcopy(bid_object)]}
     bid_response_object = {key_id: "1",
@@ -127,7 +129,8 @@ class FixedPriceBidderMixIn():
     def do_config(self):
         self.bid_config = {}
         self.bid_config["probability"] = 1.0
-        self.bid_config["price"] = 1
+        self.bid_config["price"] = 1.0
+        self.bid_config["creative"] = ["AAA", "BBB"]
 
     def do_bid(self, req):
         # -------------------
@@ -136,7 +139,17 @@ class FixedPriceBidderMixIn():
         # just mapping the request to the response
         # and using the default price ($1) will do the work.
         # -------------------
+
+        # get defaul response
         resp = self.openRtb.get_default_response(req)
+
+        # update bid with price and creatives
+        crid = 0
+        ref2seatbid0 = resp[openRtb_response.key_seatbid][0]
+        for bid in ref2seatbid0[openRtb_response.key_bid]:
+            bid[openRtb_response.key_price] = self.bid_config["price"]
+            bid[openRtb_response.key_crid] = self.bid_config["creative"][crid]
+            crid = (crid + 1) % len(self.bid_config["creative"])
 
         return resp
 
@@ -185,7 +198,7 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             try:
                 # process JSON if fails treat as exception
                 req = self.decode_json(lineStr)
-                
+
             except:
                 # can't bid if request message is not properly formated
                 print("can't bid if request message is not properly formated")
@@ -220,13 +233,15 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         """ converts the HTML body String into object"""
         ss = StringIO(jsonStr)
         ret = json.load(ss)
-        print("json decoded")
+        print("json decoded ------------------------------------")
+        print(jsonStr)
         return ret
 
     def encode_json(self, jsonObj):
         """ converts an oject into a string to use as response"""
         ret = json.dumps(jsonObj)
-        print("json encoded")
+        print("json encoded ------------------------------------")
+        print(ret)
         return ret
 
     def process_bid(self, req):
@@ -234,7 +249,7 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         resp = None
         print("got response")
         return resp
-    
+
     def http200_response(self, length):
         """ return valid headers"""
         self.send_response(200)
@@ -251,7 +266,7 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-        
+
 class HTTPFixPriceBidAgentRequestHandler(HTTPBaseBidAgentRequestHandler,
                                          FixedPriceBidderMixIn):
     """
