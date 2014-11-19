@@ -35,20 +35,18 @@ class openRtb_response():
 
     # field names
     key_id = "id"
+    key_bid = "bid"
     key_impid = "impid"
     key_price = "price"
     key_seatbid = "seatbid"
 
     # template obejcts
-    bid_object = {key_id: "1",
-                  key_impid: "1",
-                  key_price: 1.0}
-    seat_bid_object = [deepcopy(bid_object)]
+    bid_object = {key_id: "1", key_impid: "1", key_price: 1.0}
+    seat_bid_object = {key_bid: deepcopy(bid_object)}
     bid_response_object = {key_id: "1",
-                           key_seatbid: [deepcopy(seat_bid_object)]
+                           key_seatbid: [deepcopy(seat_bid_object)]}
 
     def get_empty_response(self):
-
         """returns an object with the scafold of an rtb response
         but containing only default values"""
         empty_resp = deepcopy(self.bid_response_object)
@@ -56,7 +54,8 @@ class openRtb_response():
         return empty_resp
 
     def get_default_response(self, req):
-    """returns an object with the scafold of an rtb response and fills some fields based on the request provided"""
+        """returns an object with the scafold of an rtb response
+        and fills some fields based on the request provided"""
 
         default_resp = None
 
@@ -72,19 +71,19 @@ class openRtb_response():
 
             # default values for some of the fields of the bid response
             id_counter = 0
-            new_seatbid = deepcopy(self.bid_object)
+            new_seatbid = {self.key_bid: deepcopy(self.bid_object)}
 
             # iterate over impressions array from request and
             # populate seatbid list
             for imp in req["imp"]:
-            # -> imp is the field name @ the req
+                # -> imp is the field name @ the req
 
                 # dumb bid id, just a counter
                 id_counter = id_counter + 1
-                new_seatbid[self.key_id] = id_counter
+                new_seatbid[self.key_bid][self.key_id] = str(id_counter)
 
                 # copy impression id as imp for this bid
-                new_seatbid[self.key_impid] = imp[self.key_id]
+                new_seatbid[self.key_bid][self.key_impid] = imp[self.key_id]
 
                 # will keep the defaul price as it'll be changed by bidder
                 # and append this bid into the bid response
