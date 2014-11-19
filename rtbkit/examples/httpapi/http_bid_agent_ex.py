@@ -127,10 +127,14 @@ class FixedPriceBidderMixIn():
     openRtb = openRtb_response()
 
     def do_config(self):
+        cfg = open("http_config.json")
+        data = json.load(cfg)
         self.bid_config = {}
-        self.bid_config["probability"] = 1.0
+        self.bid_config["probability"] = data["bidProbability"]
+        # self.bid_config["probability"] = 1.0
         self.bid_config["price"] = 1.0
-        self.bid_config["creative"] = ["AAA", "BBB"]
+        self.bid_config["creatives"] = data["creatives"]
+        # self.bid_config["creatives"] = [1]
 
     def do_bid(self, req):
         # -------------------
@@ -144,12 +148,13 @@ class FixedPriceBidderMixIn():
         resp = self.openRtb.get_default_response(req)
 
         # update bid with price and creatives
-        crid = 0
+        crndx = 0
         ref2seatbid0 = resp[openRtb_response.key_seatbid][0]
         for bid in ref2seatbid0[openRtb_response.key_bid]:
             bid[openRtb_response.key_price] = self.bid_config["price"]
-            bid[openRtb_response.key_crid] = self.bid_config["creative"][crid]
-            crid = (crid + 1) % len(self.bid_config["creative"])
+            creativeId = str(self.bid_config["creatives"][crndx]["id"])
+            bid[openRtb_response.key_crid] = creativeId
+            crndx = (crndx + 1) % len(self.bid_config["creatives"])
 
         return resp
 
