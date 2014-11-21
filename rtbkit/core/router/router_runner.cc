@@ -51,6 +51,7 @@ RouterRunner() :
     logAuctions(false),
     logBids(false),
     maxBidPrice(40),
+    bankerBatched(false),
     slowModeTimeout(MonitorClient::DefaultCheckTimeout),
     slowModeTolerance(MonitorClient::DefaultTolerance),
     slowModeMoneyLimit(""),
@@ -90,6 +91,8 @@ doOptions(int argc, char ** argv,
          "maximum bid price accepted by router")
         ("spend-rate", value<string>(&spendRate)->default_value("100000USD/1M"),
          "Amount of budget in USD to be periodically re-authorized (default 100000USD/1M)")
+        ("banker-batched", bool_switch(&bankerBatched),
+         "slave banker now uses batched communication to sync with the master banker.")
         ("slow-mode-money-limit,s", value<string>(&slowModeMoneyLimit)->default_value("100000USD/1M"),
          "Amout of money authorized per second when router enters slow mode (default is 100000USD/1M).")
         ("analytics,a", bool_switch(&analyticsOn),
@@ -170,7 +173,7 @@ init()
     const auto amount = Amount::parse(spendRate);
     banker = bankerArgs.makeBankerWithArgs(proxies,
                                            router->serviceName() + ".slaveBanker",
-                                           CurrencyPool(amount));
+                                           CurrencyPool(amount), bankerBatched);
 
     router->setBanker(banker);
     router->bindTcp();

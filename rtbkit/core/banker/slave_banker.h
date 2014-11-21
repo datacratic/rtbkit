@@ -108,7 +108,8 @@ struct SlaveBanker : public Banker, public MessageLoop {
     }
 
     SlaveBanker(const std::string & accountSuffix,
-                CurrencyPool spendRate = DefaultSpendRate);
+            CurrencyPool spendRate = DefaultSpendRate,
+            bool batchedUpdates = false);
 
     /** Initialize the slave banker.  
 
@@ -118,7 +119,8 @@ struct SlaveBanker : public Banker, public MessageLoop {
         system, but should be consistent from one invocation to another.
     */
     void init(const std::string & accountSuffix,
-              CurrencyPool spendRate = DefaultSpendRate);
+              CurrencyPool spendRate = DefaultSpendRate,
+              bool batchedUpdates = false);
 
     /** Notify the banker that we're going to need to be spending some
         money for the given account.  We also keep track of how much
@@ -294,6 +296,10 @@ private:
     {
         return account.childKey(accountSuffix).toString();
     }
+
+    void reauthorizeBudgetBatched(uint64_t numTimeoutsExpired);
+    void onReauthorizeBudgetBatchedResponse(
+            std::exception_ptr exc, int code, const std::string& payload);
 
     std::atomic<bool> shutdown_;
     std::atomic<bool> reauthorizing;

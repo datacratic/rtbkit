@@ -41,6 +41,8 @@ struct RouterRunner {
     float maxBidPrice;
     std::string bankerUri;
     std::string spendRate;
+    bool bankerBatched;
+
     int slowModeTimeout; // Default value =  MonitorClient::DefaultCheckTimeout
     int slowModeTolerance;
 
