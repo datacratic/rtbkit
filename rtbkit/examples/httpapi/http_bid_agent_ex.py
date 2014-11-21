@@ -1,36 +1,59 @@
 #!/usr/bin/env python
 """HTTPBidAgent
 
-This module builds on BaseHTTPServer by implementing GET and POST
+This module extends tornados classes implementing GET and POST
 requests to respond to BID requests
+
+A basic openRtb class helps to interpret requests and prepare responses
+
+Tornado request handlers are extended to handle openRtb, and a
+FixedPriceBidder MixIn is used to calculate the bids.
+If this MixIn is replaced by a smarter strategy the base handlers
+can still be used to deal with the http layer
+
+There are 2 tornado apps listening at win and event ports
+playing the role of a dummy ad server
+
+To improve response time a http server is being used to spawn extra
+proceses to deal with larger volume of requests.
+
+This is a simplistic implementation and should not be expected to
+perform under high load.
+
+Currently the worst cases response time for each bids is around 15 to 20 ms.
+
 """
 
 __version__ = "0.1"
-__all__ = ["openRtb_response",
+__all__ = ["OpenRtb_response",
            "FixedPriceBidderMixIn",
-           "HTTPBaseBidAgentRequestHandler",
-           "HTTPFixPriceBidAgentRequestHandler"]
+           "TornadoDummyRequestHandler",
+           "TornadoBaseBidAgentRequestHandler",
+           "TornadoFixPriceBidAgentRequestHandler",
+           "BudgetPacer"]
            
 
 # IMPORTS
 
 # util libs
-import shutil
+import urllib
 from copy import deepcopy
-# barebones HTTP server
-import BaseHTTPServer
-# tries to use the fast string IO lib, otherwise fall back to standard one
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
-# json processing lib
 import json
+
+# tornado web
+from tornado import process
+from tornado import netutil
+from tornado import httpserver
+from tornado.web import RequestHandler, Application, url
+from tornado.ioloop import IOLoop
+from tornado.httpclient import AsyncHTTPClient
+from tornado.ioloop import PeriodicCallback
+
 
 # IMPLEMENTATION
 
 
-class openRtb_response():
+class OpenRtb_response():
     """this is a helper class to build basic OpenRTB json objects"""
 
     # field names - constants to avoid magic strings inside the function
@@ -124,17 +147,15 @@ class FixedPriceBidderMixIn():
     # have to be dealt with by the class that incorporates it!!!
 
     bid_config = None
-    openRtb = openRtb_response()
+    openRtb = OpenRtb_response()
 
     def do_config(self):
         cfg = open("http_config.json")
         data = json.load(cfg)
         self.bid_config = {}
         self.bid_config["probability"] = data["bidProbability"]
-        # self.bid_config["probability"] = 1.0
         self.bid_config["price"] = 1.0
         self.bid_config["creatives"] = data["creatives"]
-        # self.bid_config["creatives"] = [1]
 
     def do_bid(self, req):
         # -------------------
@@ -149,156 +170,175 @@ class FixedPriceBidderMixIn():
 
         # update bid with price and creatives
         crndx = 0
-        ref2seatbid0 = resp[openRtb_response.key_seatbid][0]
-        for bid in ref2seatbid0[openRtb_response.key_bid]:
-            bid[openRtb_response.key_price] = self.bid_config["price"]
+        ref2seatbid0 = resp[OpenRtb_response.key_seatbid][0]
+        for bid in ref2seatbid0[OpenRtb_response.key_bid]:
+            bid[OpenRtb_response.key_price] = self.bid_config["price"]
             creativeId = str(self.bid_config["creatives"][crndx]["id"])
-            bid[openRtb_response.key_crid] = creativeId
+            bid[OpenRtb_response.key_crid] = creativeId
             crndx = (crndx + 1) % len(self.bid_config["creatives"])
 
         return resp
 
 
-# extends request handler class to deal with bids
+class TornadoDummyRequestHandler(RequestHandler):
+    """dummy handler just answer 200. Used to run a dummy adserver"""
+    def post(self):
+        self.set_status(200)
+        self.write("")
+
+    def get(self):
+        self.set_status(200)
+        self.write("")
+
+  
+# tornado request handler class extend
 # this class is a general bid Agent hadler.
 # bid processing must be implemented in a derived class
 
-class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    """BidAgent HTTP request handler with GET and POST commands.
-    This processes JSON bid request and sent JSON bid responses
-    The GET and POST requests are identical
-    There is no bid logic in this class. This is just a scafold class to
-    build other bidders with specific logic
-    """
+class TornadoBaseBidAgentRequestHandler(RequestHandler):
+    """ extends tornado handler to answer openRtb requests"""
+    def post(self):
+        result_body = self.process_req()
+        self.write(result_body)
 
-    server_version = "HTTPBidAgent/" + __version__
+    def get(self):
+        result_body = self.process_req()
+        self.write(result_body)
 
-    def do_GET(self):
-        """ Serve a GET request."""
-        f = self.process_JSON_req()
-        if f:
-            shutil.copyfileobj(f, self.wfile)
-            f.close()
+    def process_req(self):
+        """processes post requests"""
 
-    def do_POST(self):
-        """ Serve a POST request."""
-        f = self.process_JSON_req()
-        if f:
-            shutil.copyfileobj(f, self.wfile)
-            f.close()
+        ret_val = ""
 
-    def process_JSON_req(self):
-        """ Process the JSON Req and return a JSON response """
-        # create string files for the input and output
-        fout = StringIO()
+        if self.request.headers["Content-Type"].startswith("application/json"):
+            req = json.loads(self.request.body)
+        else:
+            req = None
 
-        # read content
-        content_type = self.headers.get('Content-Type', "")
-        content_len = int(self.headers.get('Content-Length', "0"))
-        lineStr = self.rfile.read(content_len)
-
-        # check if the content type is correct
-        if (content_type == "application/json"):
-
-            try:
-                # process JSON if fails treat as exception
-                req = self.decode_json(lineStr)
-
-            except:
-                # can't bid if request message is not properly formated
-                print("can't bid if request message is not properly formated")
-                self.http204_response()
-
-            # req object will be processed by bidder class
+        if (req is not None):
             resp = self.process_bid(req)
 
             if (resp is not None):
-                # prepare response
-                resp_str = self.encode_json(resp)
-                fout.write(resp_str)
-                resp_len = fout.tell()
-                fout.seek(0)
-
-                # response headers
-                self.http200_response(str(resp_len))
-
+                self.set_status(200)
+                self.set_header("Content-type", "application/json")
+                self.set_header("x-openrtb-version", "2.1")
+                ret_val = json.dumps(resp)
             else:
-                # response is empty
-                print("response is empty")
-                self.http204_response()
-                
+                self.set_status(204)
+                ret_val = "Error\n"
         else:
-            # can't bid if request message is not of the rigth content_type
-            print("can't bid: request message is not of proper content_type")
-            self.http204_response()
-       
-        return fout
+            self.set_status(204)
+            ret_val = "Error\n"
 
-    def decode_json(self, jsonStr):
-        """ converts the HTML body String into object"""
-        ss = StringIO(jsonStr)
-        ret = json.load(ss)
-        print("json decoded ------------------------------------")
-        print(jsonStr)
-        return ret
-
-    def encode_json(self, jsonObj):
-        """ converts an oject into a string to use as response"""
-        ret = json.dumps(jsonObj)
-        print("json encoded ------------------------------------")
-        print(ret)
-        return ret
+        return ret_val
 
     def process_bid(self, req):
-        """---TBD on subclass---"""
+        """---TBD in subclass---"""
         resp = None
         print("got response")
         return resp
 
-    def http200_response(self, length):
-        """ return valid headers"""
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.send_header("Content-Length", length)
-        self.send_header("x-openrtb-version", "2.1")
-        self.end_headers()
 
-    def http204_response(self):
-        """ default answer in case there are some error
-        invalid request answers as code 204
-        """
-        self.send_response(204)
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-
-class HTTPFixPriceBidAgentRequestHandler(HTTPBaseBidAgentRequestHandler,
-                                         FixedPriceBidderMixIn):
-    """
-    This class extends HTTPBaseBidAgentRequestHandler
+class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
+                                            FixedPriceBidderMixIn):
+    """ This class extends TornadoBaseBidAgentRequestHandler
     The bidding logic is provided by a external object passed as
-    parameter to the constructor
-    """
+    parameter to the constructor"""
 
-    def process_bid(self, req):
-        """process bid request by calling bidder mixin do_bid() method"""
+    def __init__(self, application, request, **kwargs):
+        """constructor just call parent INIT and run MixIn's do_config"""
+        super(TornadoBaseBidAgentRequestHandler, self).__init__(application, request, **kwargs)
         if (self.bid_config is None):
             self.do_config()
 
+    def process_bid(self, req):
+        """process bid request by calling bidder mixin do_bid() method"""
         resp = self.do_bid(req)
         return resp
 
 
-# test function
-def http_bidder_run(server_class, handler_class, port_number):
-    """start a http bid agent for test purposes"""
-    server_address = ('', port_number)
-    httpd = server_class(server_address, handler_class)
-    httpd.serve_forever()
+def handle_async_request(response):
+    if response.error:
+        print ("Error!")
+    else:
+        print ("Bank response OK")
+        print response.body
+
+
+class BudgetPacer(object):
+    """send rest requests to the bancker to pace the budget)"""
     
+    def config(self, banker_address, amount):
+        """config pacer"""
+        self.body = '{"USD/1M": '+str(amount)+'}'
+        self.headers = {"Accept": "application/json"}
+        self.url = "http://" + banker_address[0]
+        self.url = self.url + ":" + str(banker_address[1])
+        self.url = self.url + "/v1/accounts/hello:world/balance"
+        self.http_client = AsyncHTTPClient()
+
+    def http_request(self):
+        """called periodically to updated the budget"""
+        print("pacing budget!")
+        try:
+            self.http_client.fetch(self.url, callback=handle_async_request, method='POST', headers=self.headers, body=self.body)
+        except:
+            print("pacing - Failed!")
+
+
+# test functions
+def tornado_bidder_run():
+    """runs httpapi bidder agent"""
+
+    # --- test parameters
+    # bidder request port
+    bid_port = 7654
+    # ad server win port
+    win_port = 7653
+    # ad server event port
+    evt_port = 7652
+    # banker server address and port
+    banker_port = 9876
+    banker_ip = "192.168.168.229"
+    # budget increase US$/1M
+    budget = 100000
+    # pacer period (milisenconds)
+    period = 300000  # 5 min
+    # ---
+    
+    # -- tornado advanced multi-process http server
+    sockets = netutil.bind_sockets(bid_port)
+
+    # fork working processes
+    process.fork_processes(0)
+
+    # Tornado app implementation
+    app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
+
+    # start http servers
+    server = httpserver.HTTPServer(app)
+    server.add_sockets(sockets)
+
+    process_counter = process.task_id()
+    # perform this action only in the parent process
+    if (process_counter == 0):
+        # run dummy ad server
+        adserver_win = Application([url(r"/", TornadoDummyRequestHandler)])
+        adserver_win.listen(win_port)
+        adserver_evt = Application([url(r"/", TornadoDummyRequestHandler)])
+        adserver_evt.listen(evt_port)
+
+        # --instantiate pacer
+        pacer = BudgetPacer()
+        pacer.config((banker_ip, banker_port), budget)
+
+        # add periodic event
+        PeriodicCallback(pacer.http_request, period).start()
+
+    # main io loop
+    IOLoop.instance().start()
+
+
 # run test of this module
 if __name__ == '__main__':
-    server = BaseHTTPServer.HTTPServer
-    handler = HTTPFixPriceBidAgentRequestHandler
-    port = 12345
-    http_bidder_run(server, handler, port)
+    tornado_bidder_run()
