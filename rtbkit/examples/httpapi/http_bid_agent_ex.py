@@ -30,8 +30,12 @@ except ImportError:
 import json
 
 # tornado web
+from tornado import process
+from tornado import netutil
+from tornado import httpserver
 from tornado.web import RequestHandler, Application, url
 from tornado.ioloop import IOLoop
+
 
 # IMPLEMENTATION
 
@@ -169,18 +173,19 @@ class FixedPriceBidderMixIn():
 
 class TornadoBaseBidAgentRequestHandler(RequestHandler):
     """ extends tornado handler to answer openRtb requests"""
-
     def post(self):
-        self.process_req()
+        result_body = self.process_req()
+        self.write(result_body)
 
     def get(self):
-        self.process_req()
+        result_body = self.process_req()
+        self.write(result_body)
 
     def process_req(self):
         """processes post requests"""
-        
-        print(self.request.headers)
-        
+
+        ret_val = ""
+
         if self.request.headers["Content-Type"].startswith("application/json"):
             req = json.loads(self.request.body)
         else:
@@ -193,13 +198,15 @@ class TornadoBaseBidAgentRequestHandler(RequestHandler):
                 self.set_status(200)
                 self.set_header("Content-type", "application/json")
                 self.set_header("x-openrtb-version", "2.1")
-                self.write(json.dumps(resp))
+                ret_val = json.dumps(resp)
             else:
                 self.set_status(204)
-                self.write("Error\n")
+                ret_val = "Error\n"
         else:
             self.set_status(204)
-            self.write("Error\n")
+            ret_val = "Error\n"
+
+        return ret_val
 
     def process_bid(self, req):
         """---TBD in subclass---"""
@@ -363,7 +370,6 @@ def http_bidder_run():
 
 def tornado_bidder_run():
     app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
-    app.listen(7654)
     return app
 
 
@@ -371,9 +377,30 @@ def tornado_bidder_run():
 if __name__ == '__main__':
     # Tornado implementation
     app = tornado_bidder_run()
+
+    # -- tornado advanced multi-process http server
+    sockets = netutil.bind_sockets(7654)
+    process.fork_processes(0)
+    server = httpserver.HTTPServer(app)
+    server.add_sockets(sockets)
+
+    # -- tornado simple multi-process http server
+    # server = httpserver.HTTPServer(app)
+    # server.bind(7654)
+    # server.start(0)  # Forks multiple sub-processes
+
+    # -- tornado single process http server
+    # server = httpserver.HTTPServer(app)
+    # server.listen(7654)
+
+    # -- tornado addp class only
+    # app.listen(7654)
+
+    # io loop
     IOLoop.instance().start()
 
-    # STANDARD HTTP Server implementation
+    # -------------
+    # default Python HTTP Server implementation
     # app = http_bidder_run()
     # app.serve_forever()
 
