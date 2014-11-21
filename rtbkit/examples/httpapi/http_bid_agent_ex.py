@@ -6,8 +6,10 @@ requests to respond to BID requests
 """
 
 __version__ = "0.1"
-__all__ = ["openRtb_response",
+__all__ = ["OpenRtb_response",
            "FixedPriceBidderMixIn",
+           "TornadoBaseBidAgentRequestHandler",
+           "TornadoFixPriceBidAgentRequestHandler",
            "HTTPBaseBidAgentRequestHandler",
            "HTTPFixPriceBidAgentRequestHandler"]
            
@@ -27,10 +29,14 @@ except ImportError:
 # json processing lib
 import json
 
+# tornado web
+from tornado.web import RequestHandler, Application, url
+from tornado.ioloop import IOLoop
+
 # IMPLEMENTATION
 
 
-class openRtb_response():
+class OpenRtb_response():
     """this is a helper class to build basic OpenRTB json objects"""
 
     # field names - constants to avoid magic strings inside the function
@@ -124,17 +130,15 @@ class FixedPriceBidderMixIn():
     # have to be dealt with by the class that incorporates it!!!
 
     bid_config = None
-    openRtb = openRtb_response()
+    openRtb = OpenRtb_response()
 
     def do_config(self):
         cfg = open("http_config.json")
         data = json.load(cfg)
         self.bid_config = {}
         self.bid_config["probability"] = data["bidProbability"]
-        # self.bid_config["probability"] = 1.0
         self.bid_config["price"] = 1.0
         self.bid_config["creatives"] = data["creatives"]
-        # self.bid_config["creatives"] = [1]
 
     def do_bid(self, req):
         # -------------------
@@ -149,13 +153,76 @@ class FixedPriceBidderMixIn():
 
         # update bid with price and creatives
         crndx = 0
-        ref2seatbid0 = resp[openRtb_response.key_seatbid][0]
-        for bid in ref2seatbid0[openRtb_response.key_bid]:
-            bid[openRtb_response.key_price] = self.bid_config["price"]
+        ref2seatbid0 = resp[OpenRtb_response.key_seatbid][0]
+        for bid in ref2seatbid0[OpenRtb_response.key_bid]:
+            bid[OpenRtb_response.key_price] = self.bid_config["price"]
             creativeId = str(self.bid_config["creatives"][crndx]["id"])
-            bid[openRtb_response.key_crid] = creativeId
+            bid[OpenRtb_response.key_crid] = creativeId
             crndx = (crndx + 1) % len(self.bid_config["creatives"])
 
+        return resp
+
+
+# tornado request handler class extend
+# this class is a general bid Agent hadler.
+# bid processing must be implemented in a derived class
+
+class TornadoBaseBidAgentRequestHandler(RequestHandler):
+    """ extends tornado handler to answer openRtb requests"""
+
+    def post(self):
+        self.process_req()
+
+    def get(self):
+        self.process_req()
+
+    def process_req(self):
+        """processes post requests"""
+        
+        print(self.request.headers)
+        
+        if self.request.headers["Content-Type"].startswith("application/json"):
+            req = json.loads(self.request.body)
+        else:
+            req = None
+
+        if (req is not None):
+            resp = self.process_bid(req)
+
+            if (resp is not None):
+                self.set_status(200)
+                self.set_header("Content-type", "application/json")
+                self.set_header("x-openrtb-version", "2.1")
+                self.write(json.dumps(resp))
+            else:
+                self.set_status(204)
+                self.write("Error\n")
+        else:
+            self.set_status(204)
+            self.write("Error\n")
+
+    def process_bid(self, req):
+        """---TBD in subclass---"""
+        resp = None
+        print("got response")
+        return resp
+
+
+class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
+                                            FixedPriceBidderMixIn):
+    """ This class extends TornadoBaseBidAgentRequestHandler
+    The bidding logic is provided by a external object passed as
+    parameter to the constructor"""
+
+    def __init__(self, application, request, **kwargs):
+        """constructor just call parent INIT and run MixIn's do_config"""
+        super(TornadoBaseBidAgentRequestHandler, self).__init__(application, request, **kwargs)
+        if (self.bid_config is None):
+            self.do_config()
+
+    def process_bid(self, req):
+        """process bid request by calling bidder mixin do_bid() method"""
+        resp = self.do_bid(req)
         return resp
 
 
@@ -168,8 +235,7 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     This processes JSON bid request and sent JSON bid responses
     The GET and POST requests are identical
     There is no bid logic in this class. This is just a scafold class to
-    build other bidders with specific logic
-    """
+    build other bidders with specific logic"""
 
     server_version = "HTTPBidAgent/" + __version__
 
@@ -196,7 +262,7 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         content_type = self.headers.get('Content-Type', "")
         content_len = int(self.headers.get('Content-Length', "0"))
         lineStr = self.rfile.read(content_len)
-
+        
         # check if the content type is correct
         if (content_type == "application/json"):
 
@@ -250,7 +316,7 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         return ret
 
     def process_bid(self, req):
-        """---TBD on subclass---"""
+        """---TBD in subclass---"""
         resp = None
         print("got response")
         return resp
@@ -274,11 +340,9 @@ class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 class HTTPFixPriceBidAgentRequestHandler(HTTPBaseBidAgentRequestHandler,
                                          FixedPriceBidderMixIn):
-    """
-    This class extends HTTPBaseBidAgentRequestHandler
+    """This class extends HTTPBaseBidAgentRequestHandler
     The bidding logic is provided by a external object passed as
-    parameter to the constructor
-    """
+    parameter to the constructor"""
 
     def process_bid(self, req):
         """process bid request by calling bidder mixin do_bid() method"""
@@ -289,16 +353,29 @@ class HTTPFixPriceBidAgentRequestHandler(HTTPBaseBidAgentRequestHandler,
         return resp
 
 
-# test function
-def http_bidder_run(server_class, handler_class, port_number):
+# test functions
+def http_bidder_run():
     """start a http bid agent for test purposes"""
-    server_address = ('', port_number)
-    httpd = server_class(server_address, handler_class)
-    httpd.serve_forever()
-    
+    server_address = ('', 7654)
+    app = BaseHTTPServer(server_address, HTTPFixPriceBidAgentRequestHandler)
+    return app
+
+
+def tornado_bidder_run():
+    app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
+    app.listen(7654)
+    return app
+
+
 # run test of this module
 if __name__ == '__main__':
-    server = BaseHTTPServer.HTTPServer
-    handler = HTTPFixPriceBidAgentRequestHandler
-    port = 12345
-    http_bidder_run(server, handler, port)
+    # Tornado implementation
+    app = tornado_bidder_run()
+    IOLoop.instance().start()
+
+    # STANDARD HTTP Server implementation
+    # app = http_bidder_run()
+    # app.serve_forever()
+
+
+

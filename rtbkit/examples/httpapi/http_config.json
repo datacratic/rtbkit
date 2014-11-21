@@ -2,7 +2,7 @@
    "account": ["hello", "world"],
    "externalId": 123,
    "bidderInterface": "iface.http",
-   "bidProbability": 1,
+   "bidProbability": 0.1,
    "creatives": [
        {
            "id": 1,
