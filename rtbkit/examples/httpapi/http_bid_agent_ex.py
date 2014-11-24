@@ -247,12 +247,8 @@ class BudgetPacer(object):
 
 # test functions
 def tornado_bidder_run():
-    app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
-    return app
+    """runs httpapi bidder agent"""
 
-
-# run test of this module
-if __name__ == '__main__':
     # -- tornado advanced multi-process http server
     sockets = netutil.bind_sockets(7654)
 
@@ -260,7 +256,7 @@ if __name__ == '__main__':
     process.fork_processes(0)
 
     # Tornado app implementation
-    app = tornado_bidder_run()
+    app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
 
     # start http servers
     server = httpserver.HTTPServer(app)
@@ -280,3 +276,6 @@ if __name__ == '__main__':
     IOLoop.instance().start()
 
 
+# run test of this module
+if __name__ == '__main__':
+    tornado_bidder_run()
