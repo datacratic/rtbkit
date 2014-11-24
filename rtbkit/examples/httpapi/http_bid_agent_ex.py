@@ -8,6 +8,7 @@ requests to respond to BID requests
 __version__ = "0.1"
 __all__ = ["OpenRtb_response",
            "FixedPriceBidderMixIn",
+           "TornadoDummyRequestHandler",
            "TornadoBaseBidAgentRequestHandler",
            "TornadoFixPriceBidAgentRequestHandler",
            "BudgetPacer"]
@@ -160,6 +161,17 @@ class FixedPriceBidderMixIn():
         return resp
 
 
+class TornadoDummyRequestHandler(RequestHandler):
+    """dummy handler just answer 200. Used to run a dummy adserver"""
+    def post(self):
+        self.set_status(200)
+        self.write("")
+
+    def get(self):
+        self.set_status(200)
+        self.write("")
+
+  
 # tornado request handler class extend
 # this class is a general bid Agent hadler.
 # bid processing must be implemented in a derived class
@@ -235,14 +247,14 @@ class BudgetPacer(object):
         self.body = urllib.urlencode(post_data)
         self.headers = {"Accept": "application/json"}
         self.url = "http://" + banker_address[0]
-        self.url = self.url + ":" + banker_address[1]
+        self.url = self.url + ":" + str(banker_address[1])
         self.url = self.url + "/v1/accounts/hello:world/balance"
         self.http_client = AsyncHTTPClient()
 
     def http_request(self):
         """called periodically to updated the budget"""
         print("pacing budget!")
-        # self.http_client.fetch(self.url, callback=None, method='POST', headers=self.headers, body=self.body)
+        self.http_client.fetch(self.url, callback=None, method='POST', headers=self.headers, body=self.body)
 
 
 # test functions
@@ -265,12 +277,18 @@ def tornado_bidder_run():
     process_counter = process.task_id()
     # perform this action only in the parent process
     if (process_counter == 0):
+        # run dummy ad server
+        adserver_win = Application([url(r"/", TornadoDummyRequestHandler)])
+        adserver_win.listen(7653)
+        adserver_evt = Application([url(r"/", TornadoDummyRequestHandler)])
+        adserver_evt.listen(7652)
+
         # --instantiate pacer
         pacer = BudgetPacer()
-        pacer.config(("129.168.168.229", "9876"), 10000)
+        pacer.config(("129.168.168.229", 9876), 10000)
 
         # add periodic event
-        PeriodicCallback(pacer.http_request, 60000).start()  # 60 sec
+        PeriodicCallback(pacer.http_request, 300000).start()  # 5 min
 
     # main io loop
     IOLoop.instance().start()
