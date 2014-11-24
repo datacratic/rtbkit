@@ -1275,11 +1275,11 @@ syncFromShadowBatched(const Json::Value &transfers)
 
         pair<bool, bool> presentActive = accounts.accountPresentAndActive(key);
 
-        if (!presentActive.first || presentActive.second) {
-            result[key] = accounts.syncFromShadow(account, shadow);
+        if (presentActive.first && !presentActive.second) {
+            result[key] = accounts.getAccount(account);
         }
         else {
-            result[key] = accounts.getAccount(account);
+            result[key] = accounts.syncFromShadow(account, shadow);
         }
     }
 
