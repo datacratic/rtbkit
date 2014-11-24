@@ -468,7 +468,7 @@ reauthorizeBudgetBatched(uint64_t numTimeoutsExpired)
     };
     accounts.forEachInitializedAndActiveAccount(onAccount);
 
-    std::string payload = body.toStringNoNewLine();
+    std::string payload = request.toStringNoNewLine();
 
     using std::placeholders::_1;
     using std::placeholders::_2;
