@@ -1,8 +1,27 @@
 #!/usr/bin/env python
 """HTTPBidAgent
 
-This module builds on BaseHTTPServer by implementing GET and POST
+This module extends tornados classes implementing GET and POST
 requests to respond to BID requests
+
+A basic openRtb class helps to interpret requests and prepare responses
+
+Tornado request handlers are extended to handle openRtb, and a
+FixedPriceBidder MixIn is used to calculate the bids.
+If this MixIn is replaced by a smarter strategy the base handlers
+can still be used to deal with the http layer
+
+There are 2 tornado apps listening at win and event ports
+playing the role of a dummy ad server
+
+To improve response time a http server is being used to spawn extra
+proceses to deal with larger volume of requests.
+
+This is a simplistic implementation and should not be expected to
+perform under high load.
+
+Currently the worst cases response time for each bids is around 15 to 20 ms.
+
 """
 
 __version__ = "0.1"
@@ -238,13 +257,20 @@ class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
         return resp
 
 
+def handle_async_request(response):
+    if response.error:
+        print ("Error!")
+    else:
+        print ("Bank response OK")
+        print response.body
+
+
 class BudgetPacer(object):
     """send rest requests to the bancker to pace the budget)"""
     
     def config(self, banker_address, amount):
         """config pacer"""
-        post_data = {"USD/1M": amount}
-        self.body = urllib.urlencode(post_data)
+        self.body = '{"USD/1M": '+str(amount)+'}'
         self.headers = {"Accept": "application/json"}
         self.url = "http://" + banker_address[0]
         self.url = self.url + ":" + str(banker_address[1])
@@ -254,15 +280,34 @@ class BudgetPacer(object):
     def http_request(self):
         """called periodically to updated the budget"""
         print("pacing budget!")
-        self.http_client.fetch(self.url, callback=None, method='POST', headers=self.headers, body=self.body)
+        try:
+            self.http_client.fetch(self.url, callback=handle_async_request, method='POST', headers=self.headers, body=self.body)
+        except:
+            print("pacing - Failed!")
 
 
 # test functions
 def tornado_bidder_run():
     """runs httpapi bidder agent"""
 
+    # --- test parameters
+    # bidder request port
+    bid_port = 7654
+    # ad server win port
+    win_port = 7653
+    # ad server event port
+    evt_port = 7652
+    # banker server address and port
+    banker_port = 9876
+    banker_ip = "192.168.168.229"
+    # budget increase US$/1M
+    budget = 100000
+    # pacer period (milisenconds)
+    period = 300000  # 5 min
+    # ---
+    
     # -- tornado advanced multi-process http server
-    sockets = netutil.bind_sockets(7654)
+    sockets = netutil.bind_sockets(bid_port)
 
     # fork working processes
     process.fork_processes(0)
@@ -279,16 +324,16 @@ def tornado_bidder_run():
     if (process_counter == 0):
         # run dummy ad server
         adserver_win = Application([url(r"/", TornadoDummyRequestHandler)])
-        adserver_win.listen(7653)
+        adserver_win.listen(win_port)
         adserver_evt = Application([url(r"/", TornadoDummyRequestHandler)])
-        adserver_evt.listen(7652)
+        adserver_evt.listen(evt_port)
 
         # --instantiate pacer
         pacer = BudgetPacer()
-        pacer.config(("129.168.168.229", 9876), 10000)
+        pacer.config((banker_ip, banker_port), budget)
 
         # add periodic event
-        PeriodicCallback(pacer.http_request, 300000).start()  # 5 min
+        PeriodicCallback(pacer.http_request, period).start()
 
     # main io loop
     IOLoop.instance().start()
