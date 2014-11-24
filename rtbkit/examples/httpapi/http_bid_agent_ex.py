@@ -10,23 +10,14 @@ __all__ = ["OpenRtb_response",
            "FixedPriceBidderMixIn",
            "TornadoBaseBidAgentRequestHandler",
            "TornadoFixPriceBidAgentRequestHandler",
-           "HTTPBaseBidAgentRequestHandler",
-           "HTTPFixPriceBidAgentRequestHandler"]
+           "BudgetPacer"]
            
 
 # IMPORTS
 
 # util libs
-import shutil
+import urllib
 from copy import deepcopy
-# barebones HTTP server
-import BaseHTTPServer
-# tries to use the fast string IO lib, otherwise fall back to standard one
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
-# json processing lib
 import json
 
 # tornado web
@@ -35,6 +26,8 @@ from tornado import netutil
 from tornado import httpserver
 from tornado.web import RequestHandler, Application, url
 from tornado.ioloop import IOLoop
+from tornado.httpclient import AsyncHTTPClient
+from tornado.ioloop import PeriodicCallback
 
 
 # IMPLEMENTATION
@@ -233,141 +226,26 @@ class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
         return resp
 
 
-# extends request handler class to deal with bids
-# this class is a general bid Agent hadler.
-# bid processing must be implemented in a derived class
+class BudgetPacer(object):
+    """send rest requests to the bancker to pace the budget)"""
+    
+    def config(self, banker_address, amount):
+        """config pacer"""
+        post_data = {"USD/1M": amount}
+        self.body = urllib.urlencode(post_data)
+        self.headers = {"Accept": "application/json"}
+        self.url = "http://" + banker_address[0]
+        self.url = self.url + ":" + banker_address[1]
+        self.url = self.url + "/v1/accounts/hello:world/balance"
+        self.http_client = AsyncHTTPClient()
 
-class HTTPBaseBidAgentRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    """BidAgent HTTP request handler with GET and POST commands.
-    This processes JSON bid request and sent JSON bid responses
-    The GET and POST requests are identical
-    There is no bid logic in this class. This is just a scafold class to
-    build other bidders with specific logic"""
-
-    server_version = "HTTPBidAgent/" + __version__
-
-    def do_GET(self):
-        """ Serve a GET request."""
-        f = self.process_JSON_req()
-        if f:
-            shutil.copyfileobj(f, self.wfile)
-            f.close()
-
-    def do_POST(self):
-        """ Serve a POST request."""
-        f = self.process_JSON_req()
-        if f:
-            shutil.copyfileobj(f, self.wfile)
-            f.close()
-
-    def process_JSON_req(self):
-        """ Process the JSON Req and return a JSON response """
-        # create string files for the input and output
-        fout = StringIO()
-
-        # read content
-        content_type = self.headers.get('Content-Type', "")
-        content_len = int(self.headers.get('Content-Length', "0"))
-        lineStr = self.rfile.read(content_len)
-        
-        # check if the content type is correct
-        if (content_type == "application/json"):
-
-            try:
-                # process JSON if fails treat as exception
-                req = self.decode_json(lineStr)
-
-            except:
-                # can't bid if request message is not properly formated
-                print("can't bid if request message is not properly formated")
-                self.http204_response()
-
-            # req object will be processed by bidder class
-            resp = self.process_bid(req)
-
-            if (resp is not None):
-                # prepare response
-                resp_str = self.encode_json(resp)
-                fout.write(resp_str)
-                resp_len = fout.tell()
-                fout.seek(0)
-
-                # response headers
-                self.http200_response(str(resp_len))
-
-            else:
-                # response is empty
-                print("response is empty")
-                self.http204_response()
-                
-        else:
-            # can't bid if request message is not of the rigth content_type
-            print("can't bid: request message is not of proper content_type")
-            self.http204_response()
-       
-        return fout
-
-    def decode_json(self, jsonStr):
-        """ converts the HTML body String into object"""
-        ss = StringIO(jsonStr)
-        ret = json.load(ss)
-        print("json decoded ------------------------------------")
-        print(jsonStr)
-        return ret
-
-    def encode_json(self, jsonObj):
-        """ converts an oject into a string to use as response"""
-        ret = json.dumps(jsonObj)
-        print("json encoded ------------------------------------")
-        print(ret)
-        return ret
-
-    def process_bid(self, req):
-        """---TBD in subclass---"""
-        resp = None
-        print("got response")
-        return resp
-
-    def http200_response(self, length):
-        """ return valid headers"""
-        self.send_response(200)
-        self.send_header("Content-type", "application/json")
-        self.send_header("Content-Length", length)
-        self.send_header("x-openrtb-version", "2.1")
-        self.end_headers()
-
-    def http204_response(self):
-        """ default answer in case there are some error
-        invalid request answers as code 204
-        """
-        self.send_response(204)
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-
-class HTTPFixPriceBidAgentRequestHandler(HTTPBaseBidAgentRequestHandler,
-                                         FixedPriceBidderMixIn):
-    """This class extends HTTPBaseBidAgentRequestHandler
-    The bidding logic is provided by a external object passed as
-    parameter to the constructor"""
-
-    def process_bid(self, req):
-        """process bid request by calling bidder mixin do_bid() method"""
-        if (self.bid_config is None):
-            self.do_config()
-
-        resp = self.do_bid(req)
-        return resp
+    def http_request(self):
+        """called periodically to updated the budget"""
+        print("pacing budget!")
+        # self.http_client.fetch(self.url, callback=None, method='POST', headers=self.headers, body=self.body)
 
 
 # test functions
-def http_bidder_run():
-    """start a http bid agent for test purposes"""
-    server_address = ('', 7654)
-    app = BaseHTTPServer(server_address, HTTPFixPriceBidAgentRequestHandler)
-    return app
-
-
 def tornado_bidder_run():
     app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
     return app
@@ -375,34 +253,30 @@ def tornado_bidder_run():
 
 # run test of this module
 if __name__ == '__main__':
-    # Tornado implementation
-    app = tornado_bidder_run()
-
     # -- tornado advanced multi-process http server
     sockets = netutil.bind_sockets(7654)
+
+    # fork working processes
     process.fork_processes(0)
+
+    # Tornado app implementation
+    app = tornado_bidder_run()
+
+    # start http servers
     server = httpserver.HTTPServer(app)
     server.add_sockets(sockets)
 
-    # -- tornado simple multi-process http server
-    # server = httpserver.HTTPServer(app)
-    # server.bind(7654)
-    # server.start(0)  # Forks multiple sub-processes
+    process_counter = process.task_id()
+    # perform this action only in the parent process
+    if (process_counter == 0):
+        # --instantiate pacer
+        pacer = BudgetPacer()
+        pacer.config(("129.168.168.229", "9876"), 10000)
 
-    # -- tornado single process http server
-    # server = httpserver.HTTPServer(app)
-    # server.listen(7654)
+        # add periodic event
+        PeriodicCallback(pacer.http_request, 60000).start()  # 60 sec
 
-    # -- tornado addp class only
-    # app.listen(7654)
-
-    # io loop
+    # main io loop
     IOLoop.instance().start()
-
-    # -------------
-    # default Python HTTP Server implementation
-    # app = http_bidder_run()
-    # app.serve_forever()
-
 
 
