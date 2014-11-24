@@ -43,7 +43,6 @@ PostAuctionRunner() :
     bidderConfigurationFile("rtbkit/examples/bidder-config.json"),
     winLossPipeTimeout(PostAuctionService::DefaultWinLossPipeTimeout),
     campaignEventPipeTimeout(PostAuctionService::DefaultCampaignEventPipeTimeout),
-    bankerBatched(false),
     analyticsOn(false),
     analyticsConnections(1)
 {
@@ -70,8 +69,6 @@ doOptions(int argc, char ** argv,
          "Timeout before sending error on WinLoss pipe")
         ("campaignEventPipe-seconds", value<int>(&campaignEventPipeTimeout),
          "Timeout before sending error on CampaignEvent pipe")
-        ("banker-batched", bool_switch(&bankerBatched),
-         "slave banker now uses batched communication to sync with the master banker.")
         ("analytics,a", bool_switch(&analyticsOn),
          "Send data to analytics logger.")
         ("analytics-connections", value<int>(&analyticsConnections),
@@ -125,7 +122,7 @@ init()
     banker = bankerArgs.makeBankerWithArgs(proxies,
                                            postAuctionLoop->serviceName() + ".slaveBanker",
                                            SlaveBanker::DefaultSpendRate,
-                                           bankerBatched);
+                                           bankerArgs.batched);
 
     if (analyticsOn) {
         const auto & analyticsUri = proxies->params["analytics-uri"].asString();

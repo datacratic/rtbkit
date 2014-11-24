@@ -619,7 +619,8 @@ getProviderIndicators() const
 /*****************************************************************************/
 
 SlaveBankerArguments::SlaveBankerArguments()
-    : useHttp(Defaults::UseHttp)
+    : batched(Defaults::Batched)
+    , useHttp(Defaults::UseHttp)
     , httpConnections(0)
     , tcpNoDelay(Defaults::TcpNoDelay)
 {
@@ -640,6 +641,8 @@ SlaveBankerArguments::makeProgramOptions(std::string title)
     options.add_options()
         ("use-http-banker", po::bool_switch(&useHttp),
          "Communicate with the MasterBanker over http")
+        ("banker-batched", po::bool_switch(&batched),
+         "slave banker now uses batched communication to sync with the master banker.")
         ("http-connections", po::value<int>(&httpConnections)
                              ->default_value(Defaults::HttpConnections),
          "Number of active http connections to use when http is enabled")

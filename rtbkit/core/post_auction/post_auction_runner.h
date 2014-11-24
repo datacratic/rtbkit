@@ -34,9 +34,6 @@ struct PostAuctionRunner {
 
     int winLossPipeTimeout;
     int campaignEventPipeTimeout;
-
-    bool bankerBatched;
-
     bool analyticsOn;
     int analyticsConnections;
 

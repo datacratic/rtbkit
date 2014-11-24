@@ -321,6 +321,7 @@ class SlaveBankerArguments
 public:
     struct Defaults {
         static constexpr bool UseHttp = false;
+        static constexpr bool Batched = false;
         static constexpr int HttpConnections = 1 << 3;
         static constexpr bool TcpNoDelay = false;
     };
@@ -350,6 +351,8 @@ public:
     static Logging::Category print;
     static Logging::Category trace;
     static Logging::Category error;
+
+    bool batched;
 
 private:
     bool useHttp;
