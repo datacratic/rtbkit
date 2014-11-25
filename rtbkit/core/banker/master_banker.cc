@@ -236,6 +236,9 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                         /* TODO: the list of inconsistent account should be
                            stored in the db */
                         badAccounts.append(Json::Value(key));
+                        LOG(error) << "Bad Account: " << key << "\n"
+                            << "Banker Account:\n" << bankerAccount << "\n"
+                            << "Redis Account:\n" << storageAccount << endl;
                     }
                 }
                 else {
@@ -249,13 +252,6 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                     Redis::Command command = SET(PREFIX + key, boost::trim_copy(bankerValue.toString()));
                     storeCommands.push_back(command);
                 }
-            }
-
-            if (badAccounts.size() > 0) {
-                string badAccounts = "";
-                for (auto bad : badAccounts)
-                    badAccounts += bad + "\n";
-                LOG(error) << "list of inconsistent accounts: " << badAccounts << endl;
             }
 
             if (storeCommands.size() > 1) {
