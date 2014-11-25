@@ -1,26 +1,25 @@
-#!/usr/bin/env python
-"""HTTPBidAgent
-
-This module extends tornados classes implementing GET and POST
+# ----- Copyright (c) 2014 Datacratic. All rights reserved.
+"""
+This module extends tornados handler classes implementing GET and POST
 requests to respond to BID requests
 
 A basic openRtb class helps to interpret requests and prepare responses
 
 Tornado request handlers are extended to handle openRtb, and a
 FixedPriceBidder MixIn is used to calculate the bids.
-If this MixIn is replaced by a smarter strategy the base handlers
-can still be used to deal with the http layer
+Replacing the Mixin by a smarter strategy using the same HTTP handlers
+will create a new bid agent.
 
 There are 2 tornado apps listening at win and event ports
-playing the role of a dummy ad server
+playing the role of a dummy ad server. No action is taken on the events though!
 
-To improve response time a http server is being used to spawn extra
+To improve response time a tornado http server is being used to spawn extra
 proceses to deal with larger volume of requests.
 
 This is a simplistic implementation and should not be expected to
-perform under high load.
+perform under high load, as it was tested under a few kqps
 
-Currently the worst cases response time for each bids is around 15 to 20 ms.
+Currently the average response time for bids is around 14 to 21 ms.
 
 """
 
@@ -31,12 +30,11 @@ __all__ = ["OpenRtb_response",
            "TornadoBaseBidAgentRequestHandler",
            "TornadoFixPriceBidAgentRequestHandler",
            "BudgetPacer"]
-           
+
 
 # IMPORTS
 
 # util libs
-import urllib
 from copy import deepcopy
 import json
 
@@ -52,6 +50,8 @@ from tornado.ioloop import PeriodicCallback
 
 # IMPLEMENTATION
 
+
+# ----- minimalistic OpenRTB response message class
 
 class OpenRtb_response():
     """this is a helper class to build basic OpenRTB json objects"""
@@ -106,6 +106,8 @@ class OpenRtb_response():
 
             # iterate over impressions array from request and
             # populate bid list
+            # NOTE: as an example we are bidding on all the impressions,
+            # usually that is not what one real bid would look like!!!
             for imp in req["imp"]:
                 # -> imp is the field name @ the req
 
@@ -117,7 +119,7 @@ class OpenRtb_response():
                 new_bid[self.key_impid] = imp[self.key_id]
 
                 externalId = 0
-                # copy external id to the response
+                # try to copy external id to the response
                 try:
                     externalId = imp[self.key_ext]["external-ids"][0]
                     new_bid[self.key_ext][self.key_extid] = externalId
@@ -134,10 +136,14 @@ class OpenRtb_response():
     def validate_req(self, req):
         """ validates the fields in the request"""
         # not implemented yet. should check if the structure from
-        # the request is accroding to the spec
+        # the request is according to the spec
+        # this is just a dummy implementation and we assume everything is fine
         valid = True
         return valid
 
+
+# ----- simplistic fixed price bidder MixIn class,
+#       has to be mixed into a request handler
 
 class FixedPriceBidderMixIn():
     """Dumb bid agent Mixin that bid 100% at $1"""
@@ -159,13 +165,13 @@ class FixedPriceBidderMixIn():
 
     def do_bid(self, req):
         # -------------------
-        # bid logic
+        # bid logic:
         # since this is a fix price bidder,
         # just mapping the request to the response
         # and using the default price ($1) will do the work.
         # -------------------
 
-        # get defaul response
+        # assemble defaul response
         resp = self.openRtb.get_default_response(req)
 
         # update bid with price and creatives
@@ -173,12 +179,18 @@ class FixedPriceBidderMixIn():
         ref2seatbid0 = resp[OpenRtb_response.key_seatbid][0]
         for bid in ref2seatbid0[OpenRtb_response.key_bid]:
             bid[OpenRtb_response.key_price] = self.bid_config["price"]
+            # here we are using the first and only creative available
+            # the http interface still do no provide a list of creatives to
+            # choose from, so in the meantime this is what we can do!!!
             creativeId = str(self.bid_config["creatives"][crndx]["id"])
             bid[OpenRtb_response.key_crid] = creativeId
             crndx = (crndx + 1) % len(self.bid_config["creatives"])
 
         return resp
 
+
+# ----- this dummy handler always answers HTTP 200 to adserver events
+#       no further action is taken on the events received
 
 class TornadoDummyRequestHandler(RequestHandler):
     """dummy handler just answer 200. Used to run a dummy adserver"""
@@ -190,10 +202,10 @@ class TornadoDummyRequestHandler(RequestHandler):
         self.set_status(200)
         self.write("")
 
-  
-# tornado request handler class extend
-# this class is a general bid Agent hadler.
-# bid processing must be implemented in a derived class
+
+# ----- tornado request handler class extend
+#       this class is a general bid Agent hadler.
+#       bid processing must be implemented in a derived class
 
 class TornadoBaseBidAgentRequestHandler(RequestHandler):
     """ extends tornado handler to answer openRtb requests"""
@@ -235,9 +247,11 @@ class TornadoBaseBidAgentRequestHandler(RequestHandler):
     def process_bid(self, req):
         """---TBD in subclass---"""
         resp = None
-        print("got response")
         return resp
 
+
+# ----- minimal fixed price bid agent implementation.
+#       just extends base request handler class and mix in fix price strategy
 
 class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
                                             FixedPriceBidderMixIn):
@@ -257,7 +271,11 @@ class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
         return resp
 
 
+# ----- callback funtion used by Budget pacer
+
 def handle_async_request(response):
+    """ this callback function will handle the response from
+    the AsyncHTTPClient call to the banker"""
     if response.error:
         print ("Error!")
     else:
@@ -265,16 +283,18 @@ def handle_async_request(response):
         print response.body
 
 
+# ----- Budget pacer class top up budget for bid agent account
+
 class BudgetPacer(object):
     """send rest requests to the bancker to pace the budget)"""
-    
-    def config(self, banker_address, amount):
+
+    def config(self, banker_address, amount, account):
         """config pacer"""
         self.body = '{"USD/1M": '+str(amount)+'}'
         self.headers = {"Accept": "application/json"}
         self.url = "http://" + banker_address[0]
         self.url = self.url + ":" + str(banker_address[1])
-        self.url = self.url + "/v1/accounts/hello:world/balance"
+        self.url = self.url + "/v1/accounts/"+account+"/balance"
         self.http_client = AsyncHTTPClient()
 
     def http_request(self):
@@ -286,11 +306,12 @@ class BudgetPacer(object):
             print("pacing - Failed!")
 
 
-# test functions
+# ----- test function
+
 def tornado_bidder_run():
     """runs httpapi bidder agent"""
 
-    # --- test parameters
+    # ----- test parameters
     # bidder request port
     bid_port = 7654
     # ad server win port
@@ -301,12 +322,14 @@ def tornado_bidder_run():
     banker_port = 9876
     banker_ip = "192.168.168.229"
     # budget increase US$/1M
-    budget = 100000
+    budget = 500000
     # pacer period (milisenconds)
     period = 300000  # 5 min
-    # ---
-    
-    # -- tornado advanced multi-process http server
+    # bid agent budget account
+    account = "hello:world"
+    # -----
+
+    # bind tcp port to launch processes on requests
     sockets = netutil.bind_sockets(bid_port)
 
     # fork working processes
@@ -315,12 +338,12 @@ def tornado_bidder_run():
     # Tornado app implementation
     app = Application([url(r"/", TornadoFixPriceBidAgentRequestHandler)])
 
-    # start http servers
+    # start http servers and attach the web app to it
     server = httpserver.HTTPServer(app)
     server.add_sockets(sockets)
 
+    # perform following actions only in the parent process
     process_counter = process.task_id()
-    # perform this action only in the parent process
     if (process_counter == 0):
         # run dummy ad server
         adserver_win = Application([url(r"/", TornadoDummyRequestHandler)])
@@ -328,14 +351,14 @@ def tornado_bidder_run():
         adserver_evt = Application([url(r"/", TornadoDummyRequestHandler)])
         adserver_evt.listen(evt_port)
 
-        # --instantiate pacer
+        # --instantiate budget pacer
         pacer = BudgetPacer()
-        pacer.config((banker_ip, banker_port), budget)
+        pacer.config((banker_ip, banker_port), budget, account)
 
-        # add periodic event
+        # add periodic event to call pacer
         PeriodicCallback(pacer.http_request, period).start()
 
-    # main io loop
+    # main io loop. it will loop waiting for requests
     IOLoop.instance().start()
 
 
