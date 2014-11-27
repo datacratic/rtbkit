@@ -30,7 +30,7 @@ __all__ = ["OpenRtb_response",
            "TornadoBaseBidAgentRequestHandler",
            "TornadoFixPriceBidAgentRequestHandler",
            "BudgetPacer"]
-           
+
 
 # IMPORTS
 
@@ -106,6 +106,8 @@ class OpenRtb_response():
 
             # iterate over impressions array from request and
             # populate bid list
+            # NOTE: as an example we are bidding on all the impressions,
+            # usually that is not what one real bid would look like!!!
             for imp in req["imp"]:
                 # -> imp is the field name @ the req
 
@@ -177,6 +179,9 @@ class FixedPriceBidderMixIn():
         ref2seatbid0 = resp[OpenRtb_response.key_seatbid][0]
         for bid in ref2seatbid0[OpenRtb_response.key_bid]:
             bid[OpenRtb_response.key_price] = self.bid_config["price"]
+            # here we are using the first and only creative available
+            # the http interface still do no provide a list of creatives to
+            # choose from, so in the meantime this is what we can do!!!
             creativeId = str(self.bid_config["creatives"][crndx]["id"])
             bid[OpenRtb_response.key_crid] = creativeId
             crndx = (crndx + 1) % len(self.bid_config["creatives"])
@@ -197,7 +202,7 @@ class TornadoDummyRequestHandler(RequestHandler):
         self.set_status(200)
         self.write("")
 
-  
+
 # ----- tornado request handler class extend
 #       this class is a general bid Agent hadler.
 #       bid processing must be implemented in a derived class
@@ -282,7 +287,7 @@ def handle_async_request(response):
 
 class BudgetPacer(object):
     """send rest requests to the bancker to pace the budget)"""
-    
+
     def config(self, banker_address, amount, account):
         """config pacer"""
         self.body = '{"USD/1M": '+str(amount)+'}'
