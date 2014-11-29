@@ -312,6 +312,16 @@ libraries: $(LIB)/$$(tmpLIBNAME)$$(so)
 endif
 endef
 
+# add a forward dependency to a library, ie it depends upon a library defined further forwards
+# in the makefile.
+# $(1): name of the library
+# $(2): name of all libraries it has a forward dependency on
+define library_forward_dependency
+ifneq ($(PREMAKE),1)
+$$(if $$(LIB_$(1)_SO),,$$(error unknown library $(1) for forward dep))
+$$(LIB_$(1)_SO): $$(foreach lib,$(2), $(LIB)/lib$$(lib)$$(so))
+endif
+endef
 
 # add a program
 # $(1): name of the program
