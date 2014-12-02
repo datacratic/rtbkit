@@ -1,0 +1,13 @@
+{
+   "account": ["hello", "world"],
+   "externalId": 123,
+   "bidderInterface": "iface.http",
+   "bidProbability": 0.5,
+   "creatives": [
+       {
+           "id": 1,
+           "width": 300,
+           "height": 250
+       }
+    ]
+}
