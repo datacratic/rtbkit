@@ -870,8 +870,10 @@ handleAgentMessage(const std::vector<std::string> & message)
         const string & address = message[0];
         const string & request = message[1];
 
-        if (request.empty())
+        if (request.empty()) {
             returnErrorResponse(message, "null request field");
+            return;
+        }
 
         if (request == "CONFIG") {
             string configName = message.at(2);
@@ -2069,7 +2071,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
                 config.account,
                 config.test,
                 agent,
-                bidsString,
+                bids,
                 message.meta,
                 info.config,
                 config.visitChannels,

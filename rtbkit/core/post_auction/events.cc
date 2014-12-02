@@ -145,7 +145,7 @@ publish(ZmqNamedPublisher& logger) const
             std::to_string(response.price.priority), // 8
 
             requestStr,                              // 9
-            response.bidData,                        // 10
+            response.bidData.toJsonStr(),                        // 10
             response.meta,                           // 11
 
             // This is where things start to get weird.
@@ -191,7 +191,7 @@ publish(AnalyticsPublisher & logger) const
             requestStr,
             std::to_string(response.creativeId),
             response.creativeName,
-            response.bidData,
+            response.bidData.toJsonStr(),
             augmentations.toString(),
             response.meta,
 
