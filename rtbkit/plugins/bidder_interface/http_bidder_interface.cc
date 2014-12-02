@@ -397,33 +397,40 @@ void HttpBidderInterface::sendCampaignEventMessage(
 void HttpBidderInterface::sendBidDroppedMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::shared_ptr<Auction> const & auction) {
+	recordHit("agents.%s.DROPPEDBID", agent);
 }
 
 void HttpBidderInterface::sendBidInvalidMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & reason,
         std::shared_ptr<Auction> const & auction) {
+	recordHit("agents.%s.INVALIDBID", agent);
 }
 
 void HttpBidderInterface::sendNoBudgetMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::shared_ptr<Auction> const & auction) {
+	recordHit("agents.%s.NOBUDGET", agent);
 }
 
 void HttpBidderInterface::sendTooLateMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::shared_ptr<Auction> const & auction) {
+	recordHit("agents.%s.TOOLATE", agent);
 }
 
 void HttpBidderInterface::sendMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & message) {
+	//TODO Forward message to the specific agent if possible.
 }
 
 void HttpBidderInterface::sendErrorMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & error,
         std::vector<std::string> const & payload) {
+	recordHit("agents.%s.ERROR", agent);
+	//TODO Log error in err channel using logging framework
 }
 
 void HttpBidderInterface::sendPingMessage(
