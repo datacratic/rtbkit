@@ -155,8 +155,8 @@ class FixedPriceBidderMixIn():
     bid_config = None
     openRtb = OpenRtb_response()
 
-    def do_config(self):
-        cfg = open("http_config.json")
+    def do_config(self, fileName):
+        cfg = open(fileName)
         data = json.load(cfg)
         self.bid_config = {}
         self.bid_config["probability"] = data["bidProbability"]
@@ -171,6 +171,7 @@ class FixedPriceBidderMixIn():
         # and using the default price ($1) will do the work.
         # -------------------
 
+        print("doing fixed price bidding!")
         # assemble defaul response
         resp = self.openRtb.get_default_response(req)
 
@@ -263,7 +264,9 @@ class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
         """constructor just call parent INIT and run MixIn's do_config"""
         super(TornadoBaseBidAgentRequestHandler, self).__init__(application, request, **kwargs)
         if (self.bid_config is None):
-            self.do_config()
+            # due to the way this class is instantiated
+            # we have to hard code the filename
+            self.do_config("../http_config.json")
 
     def process_bid(self, req):
         """process bid request by calling bidder mixin do_bid() method"""
@@ -277,9 +280,9 @@ def handle_async_request(response):
     """ this callback function will handle the response from
     the AsyncHTTPClient call to the banker"""
     if response.error:
-        print ("Error!")
+        print ("Request Error!")
     else:
-        print ("Bank response OK")
+        print ("Request response OK")
         print response.body
 
 
@@ -288,7 +291,7 @@ def handle_async_request(response):
 class BudgetPacer(object):
     """send rest requests to the bancker to pace the budget)"""
 
-    def config(self, banker_address, amount, account):
+    def start(self, banker_address, amount, account, acsIP, fileName):
         """config pacer"""
         self.body = '{"USD/1M": '+str(amount)+'}'
         self.headers = {"Accept": "application/json"}
@@ -296,6 +299,12 @@ class BudgetPacer(object):
         self.url = self.url + ":" + str(banker_address[1])
         self.url = self.url + "/v1/accounts/"+account+"/balance"
         self.http_client = AsyncHTTPClient()
+
+        # register with ACS
+        self.acs_register(acsIP, fileName)
+
+        # call the first budget pace request
+        self.http_request()
 
     def http_request(self):
         """called periodically to updated the budget"""
@@ -305,6 +314,14 @@ class BudgetPacer(object):
         except:
             print("pacing - Failed!")
 
+    def acs_register(self, acsIP, fileName):
+        """calls Agent configurations server to set up this agent"""
+        cfg = open(fileName)
+        data = json.load(cfg)
+        url = "http://" + acsIP + ":9986/v1/agents/my_http_config/config"
+        # send request to ACS
+        self.http_client.fetch(url, callback=handle_async_request, method='POST', headers=self.headers, json.dumps(data))
+
 
 # ----- test function
 
@@ -313,13 +330,13 @@ def tornado_bidder_run():
 
     # ----- test parameters
     # bidder request port
-    bid_port = 7654
+    bid_port = 7666
     # ad server win port
     win_port = 7653
     # ad server event port
     evt_port = 7652
     # banker server address and port
-    banker_port = 9876
+    banker_port = 8000  # 9876
     banker_ip = "192.168.168.229"
     # budget increase US$/1M
     budget = 500000
@@ -327,6 +344,10 @@ def tornado_bidder_run():
     period = 300000  # 5 min
     # bid agent budget account
     account = "hello:world"
+    # ACS Server IP
+    acsIP = "192.168.168.229"
+    # configuration fileName
+    cfgFName = "../http_config.json"
     # -----
 
     # bind tcp port to launch processes on requests
@@ -353,7 +374,7 @@ def tornado_bidder_run():
 
         # --instantiate budget pacer
         pacer = BudgetPacer()
-        pacer.config((banker_ip, banker_port), budget, account)
+        pacer.start((banker_ip, banker_port), budget, account, acsIP, cfgFName)
 
         # add periodic event to call pacer
         PeriodicCallback(pacer.http_request, period).start()
