@@ -24,12 +24,12 @@ Currently the average response time for bids is around 14 to 21 ms.
 """
 
 __version__ = "0.1"
-__all__ = ["OpenRtb_response",
+__all__ = ["OpenRTBResponse",
            "FixedPriceBidderMixIn",
            "TornadoDummyRequestHandler",
            "TornadoBaseBidAgentRequestHandler",
            "TornadoFixPriceBidAgentRequestHandler",
-           "BudgetPacer"]
+           "BudgetControl"]
 
 
 # IMPORTS
@@ -37,6 +37,7 @@ __all__ = ["OpenRtb_response",
 # util libs
 from copy import deepcopy
 import json
+import random
 
 # tornado web
 from tornado import process
@@ -50,10 +51,24 @@ from tornado.ioloop import PeriodicCallback
 
 # IMPLEMENTATION
 
+# helper function reads the global config obj from file
+def read_config(configFile):
+    """read config file into config object"""
+    cfg = open(configFile)
+    contents = json.load(cfg)
+    return contents
+
+
+# this global is used by the bidder class to configure itself
+# because the request handler class makes it hard to pass this
+# as a argument
+CONFIGURATION_FILE = "../http_config.json"
+CONFIG_OBJ = read_config(CONFIGURATION_FILE)
+
 
 # ----- minimalistic OpenRTB response message class
 
-class OpenRtb_response():
+class OpenRTBResponse():
     """this is a helper class to build basic OpenRTB json objects"""
 
     # field names - constants to avoid magic strings inside the function
@@ -62,6 +77,7 @@ class OpenRtb_response():
     key_crid = "crid"
     key_ext = "ext"
     key_extid = "external-id"
+    key_ext_creatives = "creative-indexes"
     key_priority = "priority"
     key_impid = "impid"
     key_price = "price"
@@ -153,17 +169,15 @@ class FixedPriceBidderMixIn():
     # have to be dealt with by the class that incorporates it!!!
 
     bid_config = None
-    openRtb = OpenRtb_response()
+    openRtb = OpenRTBResponse()
 
-    def do_config(self):
-        cfg = open("http_config.json")
-        data = json.load(cfg)
+    def do_config(self, cfgObj):
         self.bid_config = {}
-        self.bid_config["probability"] = data["bidProbability"]
+        self.bid_config["probability"] = cfgObj["bidProbability"]
         self.bid_config["price"] = 1.0
-        self.bid_config["creatives"] = data["creatives"]
+        self.bid_config["creatives"] = cfgObj["creatives"]
 
-    def do_bid(self, req):
+    def do_bid(self, bid_req):
         # -------------------
         # bid logic:
         # since this is a fix price bidder,
@@ -172,19 +186,50 @@ class FixedPriceBidderMixIn():
         # -------------------
 
         # assemble defaul response
-        resp = self.openRtb.get_default_response(req)
+        resp = self.openRtb.get_default_response(bid_req)
 
+        # ---
         # update bid with price and creatives
-        crndx = 0
-        ref2seatbid0 = resp[OpenRtb_response.key_seatbid][0]
-        for bid in ref2seatbid0[OpenRtb_response.key_bid]:
-            bid[OpenRtb_response.key_price] = self.bid_config["price"]
-            # here we are using the first and only creative available
-            # the http interface still do no provide a list of creatives to
-            # choose from, so in the meantime this is what we can do!!!
-            creativeId = str(self.bid_config["creatives"][crndx]["id"])
-            bid[OpenRtb_response.key_crid] = creativeId
-            crndx = (crndx + 1) % len(self.bid_config["creatives"])
+        # ---
+
+        # first we need to buid a dictionary
+        # that correlates impressions from the request
+        # to creative lists
+        # FORMAT: dict[extId][impId] = [creat1..creatN]
+        impDict = {}
+        impList = bid_req["imp"]
+        for imp in impList:
+            # list of external ids from this impression
+            extIdsList = imp[OpenRTBResponse.key_ext]["external-ids"]
+            for extId in extIdsList:
+                tempDict = {}
+                creatives = imp[OpenRTBResponse.key_ext][OpenRTBResponse.key_ext_creatives]
+                impId = imp[OpenRTBResponse.key_id]
+
+                tempDict[impId] = creatives[str(extId)]
+                impDict[extId] = deepcopy(tempDict)
+
+        # then we iterate over all bids and choose a a random creative for each bid
+        # NOTE: we are just doing this fot the first seatbid for simplicity's sake
+        ref2seatbid0 = resp[OpenRTBResponse.key_seatbid][0]
+        for bid in ref2seatbid0[OpenRTBResponse.key_bid]:
+
+            # update bid price
+            bid[OpenRTBResponse.key_price] = self.bid_config["price"]
+
+            # gets the list of creatives from the ext field in the request
+            extId = bid[OpenRTBResponse.key_ext][OpenRTBResponse.key_extid]
+            impId = bid[OpenRTBResponse.key_impid]
+            creativeList = impDict[extId][impId]
+
+            # gets one of the creative indexes randomly
+            creatNdx = random.choice(creativeList)
+
+            # get creative id
+            creativeId = str(self.bid_config["creatives"][creatNdx]["id"])
+
+            # set the cretive id to the bid
+            bid[OpenRTBResponse.key_crid] = creativeId
 
         return resp
 
@@ -235,12 +280,19 @@ class TornadoBaseBidAgentRequestHandler(RequestHandler):
                 self.set_header("Content-type", "application/json")
                 self.set_header("x-openrtb-version", "2.1")
                 ret_val = json.dumps(resp)
+
             else:
+                # print("process_bid error")
                 self.set_status(204)
                 ret_val = "Error\n"
         else:
+            # print("request not json")
             self.set_status(204)
             ret_val = "Error\n"
+
+        # print DEBUG
+        # print("req: " + self.request.body)
+        # print("resp: " + ret_val)
 
         return ret_val
 
@@ -263,7 +315,9 @@ class TornadoFixPriceBidAgentRequestHandler(TornadoBaseBidAgentRequestHandler,
         """constructor just call parent INIT and run MixIn's do_config"""
         super(TornadoBaseBidAgentRequestHandler, self).__init__(application, request, **kwargs)
         if (self.bid_config is None):
-            self.do_config()
+            # due to the way this class is instantiated
+            # we have to use this global var
+            self.do_config(CONFIG_OBJ["ACS"]["Config"])
 
     def process_bid(self, req):
         """process bid request by calling bidder mixin do_bid() method"""
@@ -277,33 +331,53 @@ def handle_async_request(response):
     """ this callback function will handle the response from
     the AsyncHTTPClient call to the banker"""
     if response.error:
-        print ("Error!")
+        print ("Request Error!")
     else:
-        print ("Bank response OK")
+        print ("Request response OK")
         print response.body
 
 
-# ----- Budget pacer class top up budget for bid agent account
+# ----- Budget allocation class do top up budget for bid agent account
 
-class BudgetPacer(object):
-    """send rest requests to the bancker to pace the budget)"""
+class BudgetControl(object):
+    """send rest requests to the banker to pace the budget)"""
 
-    def config(self, banker_address, amount, account):
+    def start(self, cfgObj):
         """config pacer"""
-        self.body = '{"USD/1M": '+str(amount)+'}'
+        self.body = '{"USD/1M": ' + str(cfgObj["Banker"]["Budget"]) + '}'
         self.headers = {"Accept": "application/json"}
-        self.url = "http://" + banker_address[0]
-        self.url = self.url + ":" + str(banker_address[1])
-        self.url = self.url + "/v1/accounts/"+account+"/balance"
+        self.url = "http://" + cfgObj["Banker"]["Ip"]
+        self.url = self.url + ":" + str(cfgObj["Banker"]["Port"])
+        acc = cfgObj["ACS"]["Config"]["account"]
+        self.url = self.url + "/v1/accounts/" + acc[0]+":"+acc[1] + "/balance"
         self.http_client = AsyncHTTPClient()
+
+        # register with ACS
+        self.acs_register(cfgObj["ACS"])
+
+        # call the first budget pace request
+        self.http_request()
 
     def http_request(self):
         """called periodically to updated the budget"""
-        print("pacing budget!")
         try:
+            print("Budgeting: " + self.body)
             self.http_client.fetch(self.url, callback=handle_async_request, method='POST', headers=self.headers, body=self.body)
         except:
             print("pacing - Failed!")
+
+    def acs_register(self, cfgObj):
+        """calls Agent configurations server to set up this agent"""
+        url = "http://" + cfgObj["Ip"]
+        url = url + ":" + str(cfgObj["Port"])
+        url = url + "/v1/agents/my_http_config/config"
+        data = json.dumps(cfgObj["Config"])
+        # send request to ACS
+        try:
+            print("ACS reg'ing: " + data)
+            self.http_client.fetch(url, callback=handle_async_request, method='POST', headers=self.headers, body=data)
+        except:
+            print("ACS registration failed")
 
 
 # ----- test function
@@ -311,26 +385,8 @@ class BudgetPacer(object):
 def tornado_bidder_run():
     """runs httpapi bidder agent"""
 
-    # ----- test parameters
-    # bidder request port
-    bid_port = 7654
-    # ad server win port
-    win_port = 7653
-    # ad server event port
-    evt_port = 7652
-    # banker server address and port
-    banker_port = 9876
-    banker_ip = "192.168.168.229"
-    # budget increase US$/1M
-    budget = 500000
-    # pacer period (milisenconds)
-    period = 300000  # 5 min
-    # bid agent budget account
-    account = "hello:world"
-    # -----
-
     # bind tcp port to launch processes on requests
-    sockets = netutil.bind_sockets(bid_port)
+    sockets = netutil.bind_sockets(CONFIG_OBJ["Bidder"]["Port"])
 
     # fork working processes
     process.fork_processes(0)
@@ -347,16 +403,18 @@ def tornado_bidder_run():
     if (process_counter == 0):
         # run dummy ad server
         adserver_win = Application([url(r"/", TornadoDummyRequestHandler)])
-        adserver_win.listen(win_port)
+        winport = CONFIG_OBJ["Bidder"]["Win"]
+        adserver_win.listen(winport)
         adserver_evt = Application([url(r"/", TornadoDummyRequestHandler)])
-        adserver_evt.listen(evt_port)
+        evtport = CONFIG_OBJ["Bidder"]["Event"]
+        adserver_evt.listen(evtport)
 
         # --instantiate budget pacer
-        pacer = BudgetPacer()
-        pacer.config((banker_ip, banker_port), budget, account)
+        pacer = BudgetControl()
+        pacer.start(CONFIG_OBJ)
 
         # add periodic event to call pacer
-        PeriodicCallback(pacer.http_request, period).start()
+        PeriodicCallback(pacer.http_request, CONFIG_OBJ["Banker"]["Period"]).start()
 
     # main io loop. it will loop waiting for requests
     IOLoop.instance().start()
