@@ -64,7 +64,7 @@ var readConfig = function(cfgFile)
   // we don't want to have to deal with call backs just for this...
   if (fs.existsSync(cfgFile))
   {
-    var contents = fs.readFileSync("./http_config.json").toString();
+    var contents = fs.readFileSync(cfgFile).toString();
     cfgJson = JSON.parse(contents);
   }
 
@@ -83,6 +83,7 @@ var OpenRtbResponse = function ()
   this.keyCrid = "crid";
   this.keyExt = "ext";
   this.keyExtId = "external-id";
+  this.keyExtCreatives = "creative-indexes";
   this.keyPriority = "priority";
   this.keyImpId = "impid";
   this.keyPrice = "price";
@@ -220,23 +221,61 @@ FixedPriceBidder.prototype.doBid = function(bidReq)
 {
   // assemble default response
   var resp = this.openRtb.getResponse(bidReq);
-  
+
+  // ---
   // update bid with creatives and price
+  // ---
+
+  // first we need to buid a dictionary
+  // that correlates impressions from the request
+  // to creative lists
+  // FORMAT: dict[extId][impId] = [creat1..creatN]
+  var impDict = {};
+  var impList = bidReq["imp"];
+  var impNdx;
+  for (impNdx in impList)
+  {
+    // current impression
+    var imp = impList[impNdx];
+
+    // list of external ids from this impression
+    var extIdsList = imp[this.openRtb.keyExt]["external-ids"];
+    var extIdsNdx;
+    for (extIdsNdx in extIdsList)
+    {
+      var extId = extIdsList[extIdsNdx];
+      var tempDict = {};
+      tempDict[imp[this.openRtb.keyId]] =
+	imp[this.openRtb.keyExt][this.openRtb.keyExtCreatives][extId.toString()];
+      impDict[extId] = jsonDeepCopy(tempDict);      
+    }
+  }
+
+  // then we iterate over all bids and choose a random creative for each bid
+  // NOTE: we are just doing this fot the first seatbid for simplicity's sake
   var seatBid0 = resp[this.openRtb.keySeatBid][0];
   var bidNdx;
-  var crndx = 0;
   for (bidNdx in seatBid0[this.openRtb.keyBid])
   {
+    // get bid
     var bid = seatBid0[this.openRtb.keyBid][bidNdx];
+    // update price
     bid[this.openRtb.keyPrice] = this.bidConfig.price;
     
-    // here we are using the first and only creative available
-    // the http interface still do no provide a list of creatives to
-    // choose from, so in the meantime this is what we can do!!!
-    var creativeId = this.bidConfig["creatives"][crndx]["id"].toString();
-    bid[this.openRtb.keyCrid] = creativeId;
-    crndx = (crndx + 1) % (this.bidConfig["creatives"]).length;    
+    // gets the list of creatives from the ext field in the request 
+    var extId = bid[this.openRtb.keyExt][this.openRtb.keyExtId];
+    var impId = bid[this.openRtb.keyImpId];
+    var creativeList = impDict[extId][impId];
 
+    // gets one of the creative indexes randomly
+    var ndx = Math.floor(Math.random() * creativeList.length);
+    var creatNdx  = creativeList[ndx];
+
+    // get creative id
+    var creativeId = this.bidConfig["creatives"][creatNdx]["id"].toString();
+
+    // set the cretive id to the bid
+    bid[this.openRtb.keyCrid] = creativeId;
   };  
 
   // return response
@@ -297,7 +336,9 @@ BaseRequestHandler.prototype.onPost = function(req, resp)
 {
   // process request
   if (this.processBid())
-  {
+  { // print DEBUG
+    // console.log(this.body);
+    // console.log(this.response);
     //send response
     this.sendOk(resp);
   }
@@ -526,7 +567,7 @@ var budget = 500000;
 // pacer period (milisenconds)
 var period = 300000;  // 5 min
 // bid agent budget account
-var account = "hello:world";
+var account = "hello:world0";
 // ACS Server IP
 var acsIP = "192.168.168.229";
 // config file name

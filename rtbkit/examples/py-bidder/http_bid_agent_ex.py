@@ -37,6 +37,8 @@ __all__ = ["OpenRtb_response",
 # util libs
 from copy import deepcopy
 import json
+import random
+import math
 
 # tornado web
 from tornado import process
@@ -62,6 +64,7 @@ class OpenRtb_response():
     key_crid = "crid"
     key_ext = "ext"
     key_extid = "external-id"
+    key_ext_creatives = "creative-indexes"
     key_priority = "priority"
     key_impid = "impid"
     key_price = "price"
@@ -163,7 +166,7 @@ class FixedPriceBidderMixIn():
         self.bid_config["price"] = 1.0
         self.bid_config["creatives"] = data["creatives"]
 
-    def do_bid(self, req):
+    def do_bid(self, bid_req):
         # -------------------
         # bid logic:
         # since this is a fix price bidder,
@@ -171,21 +174,52 @@ class FixedPriceBidderMixIn():
         # and using the default price ($1) will do the work.
         # -------------------
 
-        print("doing fixed price bidding!")
         # assemble defaul response
-        resp = self.openRtb.get_default_response(req)
+        resp = self.openRtb.get_default_response(bid_req)
 
+        # ---
         # update bid with price and creatives
-        crndx = 0
+        # ---
+
+        # first we need to buid a dictionary
+        # that correlates impressions from the request
+        # to creative lists
+        # FORMAT: dict[extId][impId] = [creat1..creatN]
+        impDict = {}
+        impList = bid_req["imp"]
+        for imp in impList:
+            # list of external ids from this impression
+            extIdsList = imp[OpenRtb_response.key_ext]["external-ids"]
+            for extId in extIdsList:
+                tempDict = {}
+                creatives = imp[OpenRtb_response.key_ext][OpenRtb_response.key_ext_creatives]
+                impId = imp[OpenRtb_response.key_id]
+
+                tempDict[impId] = creatives[str(extId)]
+                impDict[extId] = deepcopy(tempDict)
+
+        # then we iterate over all bids and choose a a random creative for each bid
+        # NOTE: we are just doing this fot the first seatbid for simplicity's sake
         ref2seatbid0 = resp[OpenRtb_response.key_seatbid][0]
         for bid in ref2seatbid0[OpenRtb_response.key_bid]:
+
+            # update bid price
             bid[OpenRtb_response.key_price] = self.bid_config["price"]
-            # here we are using the first and only creative available
-            # the http interface still do no provide a list of creatives to
-            # choose from, so in the meantime this is what we can do!!!
-            creativeId = str(self.bid_config["creatives"][crndx]["id"])
+
+            # gets the list of creatives from the ext field in the request
+            extId = bid[OpenRtb_response.key_ext][OpenRtb_response.key_extid]
+            impId = bid[OpenRtb_response.key_impid]
+            creativeList = impDict[extId][impId]
+
+            # gets one of the creative indexes randomly
+            ndx = int(math.floor(random.random() * len(creativeList)))
+            creatNdx = creativeList[ndx]
+
+            # get creative id
+            creativeId = str(self.bid_config["creatives"][creatNdx]["id"])
+
+            # set the cretive id to the bid
             bid[OpenRtb_response.key_crid] = creativeId
-            crndx = (crndx + 1) % len(self.bid_config["creatives"])
 
         return resp
 
@@ -236,12 +270,19 @@ class TornadoBaseBidAgentRequestHandler(RequestHandler):
                 self.set_header("Content-type", "application/json")
                 self.set_header("x-openrtb-version", "2.1")
                 ret_val = json.dumps(resp)
+
             else:
+                # print("process_bid error")
                 self.set_status(204)
                 ret_val = "Error\n"
         else:
+            # print("request not json")
             self.set_status(204)
             ret_val = "Error\n"
+
+        # print DEBUG
+        # print("req: " + self.request.body)
+        # print("resp: " + ret_val)
 
         return ret_val
 
@@ -317,10 +358,11 @@ class BudgetPacer(object):
     def acs_register(self, acsIP, fileName):
         """calls Agent configurations server to set up this agent"""
         cfg = open(fileName)
-        data = json.load(cfg)
+        contents = json.load(cfg)
+        data = json.dumps(contents);
         url = "http://" + acsIP + ":9986/v1/agents/my_http_config/config"
         # send request to ACS
-        self.http_client.fetch(url, callback=handle_async_request, method='POST', headers=self.headers, json.dumps(data))
+        self.http_client.fetch(url, callback=handle_async_request, method='POST', headers=self.headers, body=data)
 
 
 # ----- test function
@@ -330,20 +372,20 @@ def tornado_bidder_run():
 
     # ----- test parameters
     # bidder request port
-    bid_port = 7666
+    bid_port = 7654
     # ad server win port
     win_port = 7653
     # ad server event port
     evt_port = 7652
     # banker server address and port
-    banker_port = 8000  # 9876
+    banker_port = 9876
     banker_ip = "192.168.168.229"
     # budget increase US$/1M
     budget = 500000
     # pacer period (milisenconds)
     period = 300000  # 5 min
     # bid agent budget account
-    account = "hello:world"
+    account = "hello:world0"
     # ACS Server IP
     acsIP = "192.168.168.229"
     # configuration fileName
