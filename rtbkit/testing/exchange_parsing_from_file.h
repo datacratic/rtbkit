@@ -15,6 +15,9 @@ struct Exchange_parsing_from_file {
 
     void run();
     int getNumError();
+    void resetNumError();
+
+    std::string header;
 
 private :
     std::string configurationFile;
