@@ -194,15 +194,13 @@ var FixedPriceBidder = function()
 };
 
 // --- do the bidder config
-FixedPriceBidder.prototype.doConfig = function(cfgFile)
+FixedPriceBidder.prototype.doConfig = function(cfgJson)
 {
 
-  var cfgJson = readConfig(cfgFile);
- 
   if (cfgJson !== undefined)
   {
-    this.bidConfig.probability = cfgJson["bidProbability"]; 
-    this.bidConfig.creatives = cfgJson["creatives"]; 
+    this.bidConfig.probability = cfgJson["ACS"]["Config"]["bidProbability"]; 
+    this.bidConfig.creatives = cfgJson["ACS"]["Config"]["creatives"]; 
   }
   else
   {
@@ -217,67 +215,83 @@ FixedPriceBidder.prototype.doConfig = function(cfgFile)
 };
 
 // --- perform a bid based on the request
-FixedPriceBidder.prototype.doBid = function(bidReq)
+FixedPriceBidder.prototype.doBid = function(req)
 {
-  // assemble default response
-  var resp = this.openRtb.getResponse(bidReq);
 
-  // ---
-  // update bid with creatives and price
-  // ---
-
-  // first we need to buid a dictionary
-  // that correlates impressions from the request
-  // to creative lists
-  // FORMAT: dict[extId][impId] = [creat1..creatN]
-  var impDict = {};
-  var impList = bidReq["imp"];
-  var impNdx;
-  for (impNdx in impList)
+  var bidReq;
+  if(req.length > 0)
   {
-    // current impression
-    var imp = impList[impNdx];
-
-    // list of external ids from this impression
-    var extIdsList = imp[this.openRtb.keyExt]["external-ids"];
-    var extIdsNdx;
-    for (extIdsNdx in extIdsList)
-    {
-      var extId = extIdsList[extIdsNdx];
-      var tempDict = {};
-      tempDict[imp[this.openRtb.keyId]] =
-	imp[this.openRtb.keyExt][this.openRtb.keyExtCreatives][extId.toString()];
-      impDict[extId] = jsonDeepCopy(tempDict);      
+    try {
+      bidReq = JSON.parse(req);
+    } catch(e) {
+      console.log("Malformed JSON!");
     }
   }
 
-  // then we iterate over all bids and choose a random creative for each bid
-  // NOTE: we are just doing this fot the first seatbid for simplicity's sake
-  var seatBid0 = resp[this.openRtb.keySeatBid][0];
-  var bidNdx;
-  for (bidNdx in seatBid0[this.openRtb.keyBid])
+  var resp;
+  
+  if (bidReq !== undefined)
   {
-    // get bid
-    var bid = seatBid0[this.openRtb.keyBid][bidNdx];
-    // update price
-    bid[this.openRtb.keyPrice] = this.bidConfig.price;
-    
-    // gets the list of creatives from the ext field in the request 
-    var extId = bid[this.openRtb.keyExt][this.openRtb.keyExtId];
-    var impId = bid[this.openRtb.keyImpId];
-    var creativeList = impDict[extId][impId];
+    // assemble default response
+    resp = this.openRtb.getResponse(bidReq);
 
-    // gets one of the creative indexes randomly
-    var ndx = Math.floor(Math.random() * creativeList.length);
-    var creatNdx  = creativeList[ndx];
+    // ---
+    // update bid with creatives and price
+    // ---
 
-    // get creative id
-    var creativeId = this.bidConfig["creatives"][creatNdx]["id"].toString();
+    // first we need to buid a dictionary
+    // that correlates impressions from the request
+    // to creative lists
+    // FORMAT: dict[extId][impId] = [creat1..creatN]
+    var impDict = {};
+    var impList = bidReq["imp"];
+    var impNdx;
+    for (impNdx in impList)
+    {
+      // current impression
+      var imp = impList[impNdx];
 
-    // set the cretive id to the bid
-    bid[this.openRtb.keyCrid] = creativeId;
-  };  
+      // list of external ids from this impression
+      var extIdsList = imp[this.openRtb.keyExt]["external-ids"];
+      var extIdsNdx;
+      for (extIdsNdx in extIdsList)
+      {
+	var extId = extIdsList[extIdsNdx];
+	var tempDict = {};
+	tempDict[imp[this.openRtb.keyId]] =
+	  imp[this.openRtb.keyExt][this.openRtb.keyExtCreatives][extId.toString()];
+	impDict[extId] = jsonDeepCopy(tempDict);      
+      }
+    }
 
+    // then we iterate over all bids and choose a random creative for each bid
+    // NOTE: we are just doing this fot the first seatbid for simplicity's sake
+    var seatBid0 = resp[this.openRtb.keySeatBid][0];
+    var bidNdx;
+    for (bidNdx in seatBid0[this.openRtb.keyBid])
+    {
+      // get bid
+      var bid = seatBid0[this.openRtb.keyBid][bidNdx];
+      // update price
+      bid[this.openRtb.keyPrice] = this.bidConfig.price;
+
+      // gets the list of creatives from the ext field in the request 
+      var extId = bid[this.openRtb.keyExt][this.openRtb.keyExtId];
+      var impId = bid[this.openRtb.keyImpId];
+      var creativeList = impDict[extId][impId];
+
+      // gets one of the creative indexes randomly
+      var ndx = Math.floor(Math.random() * creativeList.length);
+      var creatNdx  = creativeList[ndx];
+
+      // get creative id
+      var creativeId = this.bidConfig["creatives"][creatNdx]["id"].toString();
+
+      // set the cretive id to the bid
+      bid[this.openRtb.keyCrid] = creativeId;
+    };  
+  }
+  
   // return response
   return resp;
 };
@@ -322,13 +336,23 @@ BaseRequestHandler.prototype.sendOk = function(resp)
 // --- process Bid request
 BaseRequestHandler.prototype.processBid = function()
 {
+  var success = true;
+  
   if (this.bidder !== undefined)
   {
-    this.response = JSON.stringify(this.bidder.doBid(JSON.parse(this.body)));
+    var resp = JSON.stringify(this.bidder.doBid(this.body));
+
+    if(resp !== undefined)
+    {
+      this.response = resp;
+    }
+    else
+    {
+      success = false;
+    }   
   }
-  // FIXME: there should be a better check, but to keep it simple
-  // here we always assume this is OK
-  return true;
+  
+  return success;
 };
 
 // --- process POST request
@@ -430,20 +454,22 @@ BaseRequestHandler.prototype.reqDispatcher = function(req, resp)
 // ----------------------------------------
 // Bank budget pacer object
 // ----------------------------------------
-var BudgetPacer = function(bankerIp, bankerPort, amount, accountName, acsIP, cfgFile)
+var BudgetControl = function(cfgObj)
 {
-  this.body = "{\"USD/1M\": "+ amount.toString() + "}";
+  this.body = "{\"USD/1M\": "+ cfgObj["Banker"]["Budget"].toString() + "}";
   this.headers = {"Accept": "application/json"};
-  this.host = bankerIp;
-  this.port = bankerPort;
-  this.path = "/v1/accounts/" + accountName + "/balance";
-  this.acsIP = acsIP;
-  this.cfgFile = cfgFile;
+  this.host = cfgObj["Banker"]["Ip"];
+  this.port = cfgObj["Banker"]["Port"];
+  this.path = "/v1/accounts/" + cfgObj["ACS"]["Config"]["account"][0];
+  this.path = this.path + ":" + cfgObj["ACS"]["Config"]["account"][1] + "/balance";
+  this.acsIP = cfgObj["ACS"]["Ip"];
+  this.acsPort = cfgObj["ACS"]["Port"];
+  this.acsCfgJson = cfgObj["ACS"]["Config"];
   this.response = "";
 };
 
 // --- called back from http request to banker
-BudgetPacer.prototype.reqCallback = function(resp)
+BudgetControl.prototype.reqCallback = function(resp)
 {
   self = this;
   
@@ -461,7 +487,7 @@ BudgetPacer.prototype.reqCallback = function(resp)
 };
 
 // --- make request to the banker 
-BudgetPacer.prototype.paceRequest = function()
+BudgetControl.prototype.paceRequest = function()
 {
   var self = this; // closure issue work around
 
@@ -483,36 +509,32 @@ BudgetPacer.prototype.paceRequest = function()
     function (resp) {self.reqCallback(resp);}
   );
   // write our post data to the request
-  console.log("paceRequest: " + this.body);
+  console.log("budgetRequest: " + this.body);
   request.write(this.body);
   request.end();
 };
 
 
 // --- make request to the Agent Config Server
-BudgetPacer.prototype.acsRequest = function()
+BudgetControl.prototype.acsRequest = function()
 {
   var self = this; // closure issue work around
 
-  // read config file
-  var cfgJson = readConfig(this.cfgFile);
- 
   // most request options are hard coded for simplicity
   // they must be adjusted to specific environments
   var options = {
     host: this.acsIP,
-    port: 9986,
+    port: this.acsPort,
     path: "/v1/agents/my_http_config/config",
-    headers: this.headers,
-     headers: jsonDeepCopy(this.headers),
+    headers: jsonDeepCopy(this.headers),
     method: "POST"
   };
 
   var body;
   // if there is a config file
-  if (cfgJson !== undefined)
+  if (this.acsCfgJson !== undefined)
   {
-    var body = JSON.stringify(cfgJson);
+    var body = JSON.stringify(this.acsCfgJson);
     
     // set the body (POST) length
     options.headers['Content-Length'] = body.length;
@@ -532,7 +554,7 @@ BudgetPacer.prototype.acsRequest = function()
 
 
 // --- start pacer and periodically send top up requests to banker
-BudgetPacer.prototype.start = function(interval)
+BudgetControl.prototype.start = function(interval)
 {
   self = this;
 
@@ -553,33 +575,19 @@ BudgetPacer.prototype.start = function(interval)
 // set example test variables
 ///////////////////////////////////////////
 
-// bidder request port
-var bid_port = 7654;
-// ad server win port
-var win_port = 7653;
-// ad server event port
-var evt_port = 7652;
-// banker server address and port
-var banker_port = 9876;
-var banker_ip = "192.168.168.229";
-// budget increase US$/1M
-var budget = 500000;
-// pacer period (milisenconds)
-var period = 300000;  // 5 min
-// bid agent budget account
-var account = "hello:world0";
-// ACS Server IP
-var acsIP = "192.168.168.229";
+
+// -----
 // config file name
 var cfgFileName = "../http_config.json";
+// read global config object
+var cfgObj = readConfig(cfgFileName);
 // -----
-
 
 // ----------------------------------------
 
-// just create a pacer object and start pacing the budget
-var pacer = new BudgetPacer(banker_ip, banker_port, budget, account, acsIP, cfgFileName);
-pacer.start(period);
+// just create a budget control object and start pacing the budget
+var pacer = new BudgetControl(cfgObj);
+pacer.start(cfgObj["Banker"]["Period"]);
 
 
 // ----------------------------------------
@@ -596,7 +604,7 @@ var adWinHttpServer = http.createServer(
     adWinHandler.reqDispatcher(req, resp);
   }
 );
-adWinHttpServer.listen(win_port);
+adWinHttpServer.listen(cfgObj["Bidder"]["Win"]);
 
 // ---
 
@@ -608,7 +616,7 @@ var adEvtHttpServer = http.createServer(
     adEvtHandler.reqDispatcher(req, resp);
   }
 );
-adEvtHttpServer.listen(evt_port);
+adEvtHttpServer.listen(cfgObj["Bidder"]["Event"]);
 
 
 // ----------------------------------------
@@ -616,7 +624,7 @@ adEvtHttpServer.listen(evt_port);
 
 // --- instantiate a fixed price  bidder
 var fixPrice = new FixedPriceBidder();
-fixPrice.doConfig(cfgFileName); // configuration from json file
+fixPrice.doConfig(cfgObj); // configuration from json file
 
 // --- http bid request handler object
 var bidHandler = new BaseRequestHandler(fixPrice);
@@ -628,7 +636,7 @@ var bidHttpServer = http.createServer(
     bidHandler.reqDispatcher(req, resp);
   }
 );
-bidHttpServer.listen(bid_port);
+bidHttpServer.listen(cfgObj["Bidder"]["Port"]);
 
 
 // ----------------------------------------

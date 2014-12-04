@@ -1,18 +1,37 @@
 {
-   "account": ["hello", "world0"],
-   "externalId": 123,
-   "bidderInterface": "iface.http",
-   "bidProbability": 0.5,
-   "creatives": [
-       {
-           "id": 1,
-           "width": 300,
-           "height": 250
-       },
-       {
-	   "id": 2,
-           "width": 300,
-           "height": 250
-       }
-    ]
+  "ACS": {
+    "Ip": "192.168.168.204",
+    "Port": 9986,
+    "Config": {
+      "account": ["hello", "world0"],
+      "externalId": 123,
+      "bidderInterface": "iface.http",
+      "bidProbability": 0.5,
+      "creatives": [
+	{
+	  "id": 1,
+	  "width": 300,
+	  "height": 250
+	},
+	{
+	  "id": 2,
+	  "width": 300,
+	  "height": 250
+	}
+      ]
+    }
+  },
+
+  "Banker": {
+    "Ip": "192.168.168.204",
+    "Port": 9876,
+    "Budget": 500000,
+    "Period": 300000
+  },
+
+  "Bidder": {
+    "Port": 7654,
+    "Win": 7653,
+    "Event": 7652
+  }
 }
