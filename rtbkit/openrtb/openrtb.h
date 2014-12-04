@@ -918,7 +918,7 @@ struct Geo {
     std::string country;         ///< Country code (ISO 3166-1 Alpha-3)
     std::string region;          ///< Region code (ISO 3166-2)
     std::string regionfips104;   ///< Region using FIPS 10-4
-    std::string metro;           ///< Metropolitan region (Google Metro code)
+    Datacratic::UnicodeString metro;           ///< Metropolitan region (Google Metro code)
     Datacratic::UnicodeString city;        ///< City name (UN Code for Trade and Transport Loc)
     Datacratic::UnicodeString zip;             ///< Zip or postal code
     LocationType type;      ///< Source of Geo data (table 6.15)
