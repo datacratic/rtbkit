@@ -21,7 +21,19 @@ perform under high load, as it was tested under a few kqps
 
 Currently the average response time for bids is around 14 to 21 ms.
 
+
 """
+# NOTE: This example is not integrated as part of the rtbkit build system
+# as it is an example of how to build a bidder that uses only HTTP interface
+# Therefore, TornadoWeb must be manually installed to have this script working
+# To do so, execute the following command from your shell:
+#    $> pip install tornado
+# this will install tornado system wide
+# to have tornado installed only at the user level do:
+#    $> pip install --user tornado
+
+
+
 
 __version__ = "0.1"
 __all__ = ["OpenRTBResponse",

@@ -14,7 +14,7 @@
 //  asynchronous request management we leave that to the http server to
 //  deal with.
 //
-//  There are a budget pacer class that uses an httprequest object to
+//  There are a budget control class that uses an httprequest object to
 //  talk to the the banker, and at start up also register the bidder
 //  with the ACS
 //  
@@ -326,7 +326,12 @@ BaseRequestHandler.prototype.sendOk = function(resp)
   resp.writeHead(200, {"Content-Type": "application/json", "x-openrtb-version": "2.1"});
   // write response
   // NOTE: since the answer is not large we are fitting the body in the end() call
-  // if write() is used instead, the response time increases dramatially. NOT SURE WHY!
+  // if write() is used instead, the response time increases dramatically.
+  // it seems that writting and then ending makes the TCP conection send 2 chuncks,
+  // which in the end causes 5 packets exchange insteaad of just 2 exchanges
+  // then on the bidder side the TCP dump shows that the time goes from 1ms
+  // to around 40ms for the entire transaction to take place
+  // so dont use: "resp.write(this.response + "\n");" !!!
   resp.end(this.response + "\n");
   // clear the message body
   this.body = "";
@@ -452,16 +457,16 @@ BaseRequestHandler.prototype.reqDispatcher = function(req, resp)
 
 
 // ----------------------------------------
-// Bank budget pacer object
+// Bank budget control object
 // ----------------------------------------
 var BudgetControl = function(cfgObj)
 {
-  this.body = "{\"USD/1M\": "+ cfgObj["Banker"]["Budget"].toString() + "}";
+  this.body = JSON.stringify({ "USD/1M" : cfgObj["Banker"]["Budget"] });
   this.headers = {"Accept": "application/json"};
   this.host = cfgObj["Banker"]["Ip"];
   this.port = cfgObj["Banker"]["Port"];
-  this.path = "/v1/accounts/" + cfgObj["ACS"]["Config"]["account"][0];
-  this.path = this.path + ":" + cfgObj["ACS"]["Config"]["account"][1] + "/balance";
+  this.path = "/v1/accounts/" + cfgObj["ACS"]["Config"]["account"].join(":");
+  this.path = this.path + "/balance";
   this.acsIP = cfgObj["ACS"]["Ip"];
   this.acsPort = cfgObj["ACS"]["Port"];
   this.acsCfgJson = cfgObj["ACS"]["Config"];
@@ -487,7 +492,7 @@ BudgetControl.prototype.reqCallback = function(resp)
 };
 
 // --- make request to the banker 
-BudgetControl.prototype.paceRequest = function()
+BudgetControl.prototype.budgetRequest = function()
 {
   var self = this; // closure issue work around
 
@@ -553,7 +558,7 @@ BudgetControl.prototype.acsRequest = function()
 };
 
 
-// --- start pacer and periodically send top up requests to banker
+// --- start requesting budget and periodically send top up requests to banker
 BudgetControl.prototype.start = function(interval)
 {
   self = this;
@@ -561,11 +566,11 @@ BudgetControl.prototype.start = function(interval)
   // ACS call to ensure the account exist is configured
   self.acsRequest();
   
-  // send the first pace request
-  self.paceRequest();
+  // send the first budget request
+  self.budgetRequest();
 
   // then repeat it periodically  
-  this.timer = setInterval(function() {self.paceRequest();}, interval);
+  this.timer = setInterval(function() {self.budgetRequest();}, interval);
 };
 
 // ----------------------------------------
@@ -586,8 +591,8 @@ var cfgObj = readConfig(cfgFileName);
 // ----------------------------------------
 
 // just create a budget control object and start pacing the budget
-var pacer = new BudgetControl(cfgObj);
-pacer.start(cfgObj["Banker"]["Period"]);
+var budgetController = new BudgetControl(cfgObj);
+budgetController.start(cfgObj["Banker"]["Period"]);
 
 
 // ----------------------------------------
