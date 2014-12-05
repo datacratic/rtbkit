@@ -464,9 +464,8 @@ PostAuctionService::
 doAuction(std::shared_ptr<SubmittedAuctionEvent> event)
 {
     stats.auctions++;
-    matcher->doAuction(std::move(event));
-
     if (forwarder) forwarder->forwardAuction(event);
+    matcher->doAuction(std::move(event));
 }
 
 void
