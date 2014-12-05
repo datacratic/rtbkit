@@ -5,10 +5,6 @@
    Allow to test batch of Bid Request parsing from a file.
 */
 
-
-using namespace std;
-
-
 struct Exchange_parsing_from_file {
 
     Exchange_parsing_from_file(const std::string config);
