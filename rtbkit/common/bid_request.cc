@@ -9,7 +9,8 @@
 #include "jml/arch/format.h"
 #include "jml/arch/spinlock.h"
 
-#include <dlfcn.h>
+//#include <dlfcn.h>
+#include "rtbkit/common/injection.h"
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string.hpp>
 #include <unordered_map>
@@ -1113,27 +1114,33 @@ typedef boost::lock_guard<ML::Spinlock> Guard;
 static ML::Spinlock lock;
 
 BidRequest::Parser getParser(std::string const & source) {
-    // see if it's already existing
-    {
-        Guard guard(lock);
-        auto i = parsers.find(source);
-        if (i != parsers.end()) return i->second;
-    }
+  return getLibrary(source,
+		    "bid_request",
+		    parsers,
+		    lock,
+		    "bid request parser source");
 
-    // else, try to load the parser library
-    std::string path = "lib" + source + "_bid_request.so";
-    void * handle = dlopen(path.c_str(), RTLD_NOW);
-    if (!handle) {
-        std::cerr << dlerror() << std::endl;
-        throw ML::Exception("couldn't find bid request parser library " + path);
-    }
-
-    // if it went well, it should be registered now
-    Guard guard(lock);
-    auto i = parsers.find(source);
-    if (i != parsers.end()) return i->second;
-
-    throw ML::Exception("couldn't find bid request parser for source " + source);
+//    // see if it's already existing
+//    {
+//        Guard guard(lock);
+//        auto i = parsers.find(source);
+//        if (i != parsers.end()) return i->second;
+//    }
+//
+//    // else, try to load the parser library
+//    std::string path = "lib" + source + "_bid_request.so";
+//    void * handle = dlopen(path.c_str(), RTLD_NOW);
+//    if (!handle) {
+//        std::cerr << dlerror() << std::endl;
+//        throw ML::Exception("couldn't find bid request parser library " + path);
+//    }
+//
+//    // if it went well, it should be registered now
+//    Guard guard(lock);
+//    auto i = parsers.find(source);
+//    if (i != parsers.end()) return i->second;
+//
+//    throw ML::Exception("couldn't find bid request parser for source " + source);
 }
 
 } // file scope

@@ -6,7 +6,7 @@
 */
 
 #include "exchange_connector.h"
-#include <dlfcn.h>
+#include "rtbkit/common/injection.h"
 
 using namespace std;
 
@@ -172,27 +172,11 @@ static std::unordered_map<std::string, ExchangeConnector::Factory> factories;
 
 ExchangeConnector::Factory
 getFactory(std::string const & name) {
-    // see if it's already existing
-    {
-        Guard guard(lock);
-        auto i = factories.find(name);
-        if (i != factories.end()) return i->second;
-    }
-
-    // else, try to load the exchange library
-    std::string path = "lib" + name + "_exchange.so";
-    void * handle = dlopen(path.c_str(), RTLD_NOW);
-    if (!handle) {
-        std::cerr << dlerror() << std::endl;
-        throw ML::Exception("couldn't find exchange connector library " + path);
-    }
-
-    // if it went well, it should be registered now
-    Guard guard(lock);
-    auto i = factories.find(name);
-    if (i != factories.end()) return i->second;
-
-    throw ML::Exception("couldn't find exchange connector named " + name);
+  return getLibrary(name,
+		    "exchange",
+		    factories,
+		    lock,
+		    "exchange connector");
 }
 
 void

@@ -8,8 +8,8 @@
 #include "jml/arch/exception.h"
 #include "jml/arch/format.h"
 #include "jml/arch/spinlock.h"
-
-#include <dlfcn.h>
+#include "rtbkit/common/injection.h"
+//#include <dlfcn.h>
 #include <unordered_map>
 #include <mutex>
 
@@ -24,27 +24,21 @@ std::unordered_map<std::string, WinCostModel::Model> models;
 typedef ML::Spinlock lock_type;
 ML::Spinlock lock;
 
-WinCostModel::Model const & getModel(std::string const & name) {
-    // see if it's already existing
-    {
-        std::lock_guard<lock_type> guard(lock);
-        auto i = models.find(name);
-        if (i != models.end()) return i->second;
-    }
+WinCostModel::Model const &
+getModel(std::string const & name) {
+  // this was made static because otherwise the compiler will complain about
+  // returning a reference to a temporary object.
+  // baffles me the reason why the previous implementation did not cause this error!
+  // Also, I dont know why we are returning a ref here, all other places where this
+  // same template is used. always returns by value???
+  static WinCostModel::Model ret;
+  ret = getLibrary(name,
+		   "win_cost_model",
+		   models,
+		   lock,
+		   "win cost model");
 
-    // else, try to load the model library
-    std::string path = "lib" + name + "_win_cost_model.so";
-    void * handle = dlopen(path.c_str(), RTLD_NOW);
-    if (!handle) {
-        throw ML::Exception("couldn't find win cost model library '%s'", path.c_str());
-    }
-
-    // if it went well, it should be registered now
-    std::lock_guard<lock_type> guard(lock);
-    auto i = models.find(name);
-    if (i != models.end()) return i->second;
-
-    throw ML::Exception("couldn't find win cost model named '%s'", name.c_str());
+  return ret;
 }
 
 struct NoWinCostModel {
