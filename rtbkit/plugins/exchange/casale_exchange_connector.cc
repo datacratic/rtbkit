@@ -43,11 +43,22 @@ void CasaleExchangeConnector::initCreativeConfiguration()
         [](const Json::Value& value, CreativeInfo& info) {
             Datacratic::jsonDecode(value, info.adm);
             if (info.adm.empty()) {
-                throw std::invalid_argument("adm can not be empty");
+                throw std::invalid_argument("adm is required");
             }
 
             return true;
     }).snippet();
+
+    creativeConfig.addField(
+        "adomain",
+        [](const Json::Value& value, CreativeInfo& info) {
+            Datacratic::jsonDecode(value, info.adomain);
+            if (info.adomain.empty()) {
+                throw std::invalid_argument("adomain is required");
+            }
+
+            return true;
+    }).required();
 }
 
 
@@ -96,12 +107,28 @@ CasaleExchangeConnector::getCampaignCompatibility(
     return result;
 }
 
+ExchangeConnector::ExchangeCompatibility
+CasaleExchangeConnector::getCreativeCompatibility(
+        const Creative& creative,
+        bool includeReasons) const
+{
+    return creativeConfig.handleCreativeCompatibility(creative, includeReasons);
+}
+
 std::shared_ptr<BidRequest>
 CasaleExchangeConnector::parseBidRequest(
         HttpAuctionHandler& handler,
         const HttpHeader& header,
         const std::string& payload)
 {
+    /* According to the documentation:
+     *
+     * "x-openrtb-version Yes Indicates the version of OpenRTB. Will always be 2.0"
+     *
+     * Our OpenRTB parser only supports openrtb 2.1 or 2.2 and will throw otherwise. Since
+     * 2.1 should be backward-compatible, we "fake" the version and patch it to 2.1 so that
+     * we do not throw
+     */
     HttpHeader fixedHeaders(header);
     auto it = fixedHeaders.headers.find("x-openrtb-version");
     if (it != std::end(fixedHeaders.headers) && it->second == "2.0") {
@@ -168,7 +195,7 @@ CasaleExchangeConnector::setSeatBid(
     bid.id = Id(auction.id, auction.request->imp[0].id);
     bid.price.val = USD_CPM(resp.price.maxPrice);
 
-    bid.adomain = creativeInfo->adomain;
+    if (!creativeInfo->adomain.empty()) bid.adomain = creativeInfo->adomain;
     bid.adm = creativeConfig.expand(creativeInfo->adm, context);
 
 }

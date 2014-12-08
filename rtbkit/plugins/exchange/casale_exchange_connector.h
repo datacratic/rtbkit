@@ -39,6 +39,11 @@ struct CasaleExchangeConnector : public OpenRTBExchangeConnector {
             const AgentConfig& config,
             bool includeReasons) const;
 
+    ExchangeCompatibility
+    getCreativeCompatibility(
+            const Creative& creative,
+            bool includeReasons) const;
+
     std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler& handler,
                     const HttpHeader& header,
