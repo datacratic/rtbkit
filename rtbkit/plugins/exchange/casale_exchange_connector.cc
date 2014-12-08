@@ -12,6 +12,12 @@ using namespace Datacratic;
 
 namespace RTBKIT {
 
+namespace Default {
+
+    // 2.6 Response Times
+    static constexpr double MaximumResponseTime = 100;
+}
+
 /*****************************************************************************/
 /* CASALE EXCHANGE CONNECTOR                                                */
 /*****************************************************************************/
@@ -61,7 +67,14 @@ void CasaleExchangeConnector::initCreativeConfiguration()
     }).required();
 }
 
+double
+CasaleExchangeConnector::getTimeAvailableMs(
+        HttpAuctionHandler &handler,
+        const HttpHeader& header,
+        const std::string& payload) {
 
+    return Default::MaximumResponseTime;
+}
 
 ExchangeConnector::ExchangeCompatibility
 CasaleExchangeConnector::getCampaignCompatibility(
@@ -69,23 +82,25 @@ CasaleExchangeConnector::getCampaignCompatibility(
         bool includeReasons) const
 {
     ExchangeCompatibility result;
+    result.setCompatible();
 
-    const char* name = exchangeName().c_str();
-    if (!config.providerConfig.isMember(name)) {
+    std::string exchange = exchangeName();
+    const char* name = exchange.c_str();
+    if (!config.providerConfig.isMember(exchange)) {
         result.setIncompatible(
                 ML::format("providerConfig.%s is null", name), includeReasons);
         return result;
     }
 
-    const auto& provConf = config.providerConfig[name];
+    const auto& provConf = config.providerConfig[exchange];
     if (!provConf.isMember("seat")) {
         result.setIncompatible(
-               ML::format("providerConfig.%s.seat is null"), includeReasons);
+               ML::format("providerConfig.%s.seat is null", name), includeReasons);
         return result;
     }
 
     const auto& seat = provConf["seat"];
-    if (!seat.isUInt()) {
+    if (!seat.isIntegral()) {
         result.setIncompatible(
                 ML::format("providerConfig.%s.seat is not merdiumint or unsigned", name),
                 includeReasons);
@@ -129,13 +144,13 @@ CasaleExchangeConnector::parseBidRequest(
      * 2.1 should be backward-compatible, we "fake" the version and patch it to 2.1 so that
      * we do not throw
      */
-    HttpHeader fixedHeaders(header);
-    auto it = fixedHeaders.headers.find("x-openrtb-version");
-    if (it != std::end(fixedHeaders.headers) && it->second == "2.0") {
+    HttpHeader patchedHeaders(header);
+    auto it = patchedHeaders.headers.find("x-openrtb-version");
+    if (it != std::end(patchedHeaders.headers) && it->second == "2.0") {
         it->second = "2.1";
     }
 
-    auto request = OpenRTBExchangeConnector::parseBidRequest(handler, header, payload);
+    auto request = OpenRTBExchangeConnector::parseBidRequest(handler, patchedHeaders, payload);
 
     return request;
 
