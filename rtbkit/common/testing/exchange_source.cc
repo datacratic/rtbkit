@@ -215,15 +215,15 @@ namespace {
     static std::unordered_map<std::string, EventSource::Factory> eventFactories;
 }
 
-
-BidSource::Factory getBidFactory(std::string const & name) {
-  return getLibrary(name,
-		    "bid_request",
-		    bidFactories,
-		    bidLock,
-		    "bid source");
-}
-
+// specialize and bind the template function into the local function name
+typedef BidSource::Factory getterReturnType1;
+std::function<getterReturnType1 (std::string const &)>
+getBidFactory = std::bind(getLibrary<getterReturnType1>,
+		      std::placeholders::_1,
+		      "bid request",
+		      bidFactories,
+		      bidLock,
+		      "bid source");
 
 void BidSource::registerBidSourceFactory(std::string const & name, Factory callback) {
     Guard guard(bidLock);
@@ -238,15 +238,15 @@ std::unique_ptr<BidSource> BidSource::createBidSource(Json::Value const & json) 
     return std::unique_ptr<BidSource>(factory(json));
 }
 
-
-WinSource::Factory getWinFactory(std::string const & name) {
-   return getLibrary(name,
-		    "adserver",
-		    winFactories,
-		    winLock,
-		    "win source");
-}
-
+// specialize and bind the template function into the local function name
+typedef WinSource::Factory getterReturnType2;
+std::function<getterReturnType2 (std::string const &)>
+getWinFactory = std::bind(getLibrary<getterReturnType2>,
+		      std::placeholders::_1,
+		      "adserver",
+		      winFactories,
+		      winLock,
+		      "win source");
 
 void WinSource::registerWinSourceFactory(std::string const & name, Factory callback) {
     Guard guard(winLock);
@@ -266,15 +266,15 @@ std::unique_ptr<WinSource> WinSource::createWinSource(Json::Value const & json) 
 }
 
 
-
-EventSource::Factory getEventFactory(std::string const & name) {
-   return getLibrary(name,
-		     "adsever",
-		     eventFactories,
-		     eventLock,
-		     "event source");
-}
-
+// specialize and bind the template function into the local function name
+typedef EventSource::Factory getterReturnType3;
+std::function<getterReturnType3 (std::string const &)>
+getEventFactory = std::bind(getLibrary<getterReturnType3>,
+		      std::placeholders::_1,
+		      "adserver",
+		      eventFactories,
+		      eventLock,
+		      "event source");
 
 void EventSource::registerEventSourceFactory(std::string const & name, Factory callback) {
     Guard guard(eventLock);

@@ -8,9 +8,9 @@
 
 
 template <class T>
-inline T getLibrary(std::string const &name,
+inline T& getLibrary(std::string const &name,
 	     std::string const &lib_sufix, 
-	     std::unordered_map<std::string, T> container,
+	     std::unordered_map<std::string, T>& container,
 	     ML::Spinlock &lock,
 	     std::string const &errMsg = "") {
     // see if it's already existing
@@ -20,7 +20,7 @@ inline T getLibrary(std::string const &name,
         if (i != container.end()) return i->second;
     }
 
-    // else, try to load the bidder library
+    // else, try to load the library
     std::string path = "lib" + name + "_" + lib_sufix + ".so";
     void * handle = dlopen(path.c_str(), RTLD_NOW);
     if (!handle) {

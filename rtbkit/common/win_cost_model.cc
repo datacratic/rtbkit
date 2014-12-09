@@ -9,7 +9,7 @@
 #include "jml/arch/format.h"
 #include "jml/arch/spinlock.h"
 #include "rtbkit/common/injection.h"
-//#include <dlfcn.h>
+
 #include <unordered_map>
 #include <mutex>
 
@@ -24,23 +24,18 @@ std::unordered_map<std::string, WinCostModel::Model> models;
 typedef ML::Spinlock lock_type;
 ML::Spinlock lock;
 
-WinCostModel::Model const &
-getModel(std::string const & name) {
-  // this was made static because otherwise the compiler will complain about
-  // returning a reference to a temporary object.
-  // baffles me the reason why the previous implementation did not cause this error!
-  // Also, I dont know why we are returning a ref here, all other places where this
-  // same template is used. always returns by value???
-  static WinCostModel::Model ret;
-  ret = getLibrary(name,
-		   "win_cost_model",
-		   models,
-		   lock,
-		   "win cost model");
 
-  return ret;
-}
+// specialize and bind the template function into the local function name
+typedef WinCostModel::Model getterReturnType;
+std::function<getterReturnType const & (std::string const &)>
+getModel = std::bind(getLibrary<getterReturnType>,
+		     std::placeholders::_1,
+		     "win_cost_model",
+		     models,
+		     lock,
+		     "win cost model");
 
+  
 struct NoWinCostModel {
 
     static Amount evaluate(WinCostModel const & model,

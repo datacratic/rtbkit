@@ -170,14 +170,16 @@ static ML::Spinlock lock;
 static std::unordered_map<std::string, ExchangeConnector::Factory> factories;
 } // file scope
 
-ExchangeConnector::Factory
-getFactory(std::string const & name) {
-  return getLibrary(name,
-		    "exchange",
-		    factories,
-		    lock,
-		    "exchange connector");
-}
+
+// specialize and bind the template function into the localfunction name
+  typedef ExchangeConnector::Factory getterReturnType;
+std::function<getterReturnType (std::string const &)>
+getFactory = std::bind(getLibrary<getterReturnType>,
+		       std::placeholders::_1,
+		       "exchange",
+		       factories,
+		       lock,
+		       "exchange connector");
 
 void
 ExchangeConnector::

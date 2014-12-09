@@ -8,9 +8,8 @@
 #include "jml/arch/exception.h"
 #include "jml/arch/format.h"
 #include "jml/arch/spinlock.h"
-
-//#include <dlfcn.h>
 #include "rtbkit/common/injection.h"
+
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string.hpp>
 #include <unordered_map>
@@ -1113,35 +1112,17 @@ static Parsers parsers;
 typedef boost::lock_guard<ML::Spinlock> Guard;
 static ML::Spinlock lock;
 
-BidRequest::Parser getParser(std::string const & source) {
-  return getLibrary(source,
-		    "bid_request",
-		    parsers,
-		    lock,
-		    "bid request parser source");
 
-//    // see if it's already existing
-//    {
-//        Guard guard(lock);
-//        auto i = parsers.find(source);
-//        if (i != parsers.end()) return i->second;
-//    }
-//
-//    // else, try to load the parser library
-//    std::string path = "lib" + source + "_bid_request.so";
-//    void * handle = dlopen(path.c_str(), RTLD_NOW);
-//    if (!handle) {
-//        std::cerr << dlerror() << std::endl;
-//        throw ML::Exception("couldn't find bid request parser library " + path);
-//    }
-//
-//    // if it went well, it should be registered now
-//    Guard guard(lock);
-//    auto i = parsers.find(source);
-//    if (i != parsers.end()) return i->second;
-//
-//    throw ML::Exception("couldn't find bid request parser for source " + source);
-}
+// specialize and bind the template function into the localfunction name
+// specialize and bind the template function into the localfunction name
+typedef BidRequest::Parser getterReturnType;
+std::function<getterReturnType (std::string const &)>
+getParser = std::bind(getLibrary<getterReturnType>,
+		      std::placeholders::_1,
+		      "bid_request",
+		      parsers,
+		      lock,
+		      "bid request parser source");
 
 } // file scope
 

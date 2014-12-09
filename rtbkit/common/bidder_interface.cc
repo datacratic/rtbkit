@@ -52,14 +52,15 @@ namespace {
     static std::unordered_map<std::string, BidderInterface::Factory> factories;
 }
 
-
-BidderInterface::Factory getFactory(std::string const & name) {
-  return getLibrary(name,
-		    "bidder",
-		    factories,
-		    lock,
-		    "bidder");
-}
+// specialize and bind the template function into the localfunction name
+typedef BidderInterface::Factory getterReturnType;
+std::function<getterReturnType (std::string const &)>
+getFactory = std::bind(getLibrary<getterReturnType>,
+		       std::placeholders::_1,
+		       "bidder",
+		       factories,
+		       lock,
+		       "bidder");
 
 void BidderInterface::registerFactory(std::string const & name, Factory callback) {
     Guard guard(lock);
