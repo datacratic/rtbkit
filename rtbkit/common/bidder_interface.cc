@@ -6,7 +6,7 @@
 #include "jml/db/persistent.h"
 #include "rtbkit/common/messages.h"
 #include "bidder_interface.h"
-#include "rtbkit/common/injection.h"
+#include <dlfcn.h>
 
 using namespace Datacratic;
 using namespace RTBKIT;
@@ -52,15 +52,30 @@ namespace {
     static std::unordered_map<std::string, BidderInterface::Factory> factories;
 }
 
-// specialize and bind the template function into the localfunction name
-typedef BidderInterface::Factory getterReturnType;
-std::function<getterReturnType (std::string const &)>
-getFactory = std::bind(getLibrary<getterReturnType>,
-		       std::placeholders::_1,
-		       "bidder",
-		       factories,
-		       lock,
-		       "bidder");
+
+BidderInterface::Factory getFactory(std::string const & name) {
+    // see if it's already existing
+    {
+        Guard guard(lock);
+        auto i = factories.find(name);
+        if (i != factories.end()) return i->second;
+    }
+
+    // else, try to load the bidder library
+    std::string path = "lib" + name + "_bidder.so";
+    void * handle = dlopen(path.c_str(), RTLD_NOW);
+    if (!handle) {
+        std::cerr << dlerror() << std::endl;
+        throw ML::Exception("couldn't load bidder library " + path);
+    }
+
+    // if it went well, it should be registered now
+    Guard guard(lock);
+    auto i = factories.find(name);
+    if (i != factories.end()) return i->second;
+
+    throw ML::Exception("couldn't find bidder name " + name);
+}
 
 void BidderInterface::registerFactory(std::string const & name, Factory callback) {
     Guard guard(lock);

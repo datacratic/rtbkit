@@ -13,8 +13,8 @@
 
 #include "exchange_source.h"
 #include "soa/service/http_header.h"
-#include "rtbkit/common/injection.h"
 
+#include <dlfcn.h>
 #include <array>
 
 using namespace RTBKIT;
@@ -215,15 +215,30 @@ namespace {
     static std::unordered_map<std::string, EventSource::Factory> eventFactories;
 }
 
-// specialize and bind the template function into the local function name
-typedef BidSource::Factory getterReturnType1;
-std::function<getterReturnType1 (std::string const &)>
-getBidFactory = std::bind(getLibrary<getterReturnType1>,
-		      std::placeholders::_1,
-		      "bid request",
-		      bidFactories,
-		      bidLock,
-		      "bid source");
+
+BidSource::Factory getBidFactory(std::string const & name) {
+    // see if it's already existing
+    {
+        Guard guard(bidLock);
+        auto i = bidFactories.find(name);
+        if (i != bidFactories.end()) return i->second;
+    }
+
+    // else, try to load the exchange library
+    std::string path = "lib" + name + "_bid_request.so";
+    void * handle = dlopen(path.c_str(), RTLD_NOW);
+    if (!handle) {
+        throw ML::Exception("couldn't find bid request/source library " + path);
+    }
+
+    // if it went well, it should be registered now
+    Guard guard(bidLock);
+    auto i = bidFactories.find(name);
+    if (i != bidFactories.end()) return i->second;
+
+    throw ML::Exception("couldn't find bid source name " + name);
+}
+
 
 void BidSource::registerBidSourceFactory(std::string const & name, Factory callback) {
     Guard guard(bidLock);
@@ -238,15 +253,30 @@ std::unique_ptr<BidSource> BidSource::createBidSource(Json::Value const & json) 
     return std::unique_ptr<BidSource>(factory(json));
 }
 
-// specialize and bind the template function into the local function name
-typedef WinSource::Factory getterReturnType2;
-std::function<getterReturnType2 (std::string const &)>
-getWinFactory = std::bind(getLibrary<getterReturnType2>,
-		      std::placeholders::_1,
-		      "adserver",
-		      winFactories,
-		      winLock,
-		      "win source");
+
+WinSource::Factory getWinFactory(std::string const & name) {
+    // see if it's already existing
+    {
+        Guard guard(winLock);
+        auto i = winFactories.find(name);
+        if (i != winFactories.end()) return i->second;
+    }
+
+    // else, try to load the adserver library
+    std::string path = "lib" + name + "_adserver.so";
+    void * handle = dlopen(path.c_str(), RTLD_NOW);
+    if (!handle) {
+        throw ML::Exception("couldn't find adserver library " + path);
+    }
+
+    // if it went well, it should be registered now
+    Guard guard(winLock);
+    auto i = winFactories.find(name);
+    if (i != winFactories.end()) return i->second;
+
+    throw ML::Exception("couldn't find win source name " + name);
+}
+
 
 void WinSource::registerWinSourceFactory(std::string const & name, Factory callback) {
     Guard guard(winLock);
@@ -266,15 +296,30 @@ std::unique_ptr<WinSource> WinSource::createWinSource(Json::Value const & json) 
 }
 
 
-// specialize and bind the template function into the local function name
-typedef EventSource::Factory getterReturnType3;
-std::function<getterReturnType3 (std::string const &)>
-getEventFactory = std::bind(getLibrary<getterReturnType3>,
-		      std::placeholders::_1,
-		      "adserver",
-		      eventFactories,
-		      eventLock,
-		      "event source");
+
+EventSource::Factory getEventFactory(std::string const & name) {
+    // see if it's already existing
+    {
+        Guard guard(eventLock);
+        auto i = eventFactories.find(name);
+        if (i != eventFactories.end()) return i->second;
+    }
+
+    // else, try to load the adserver library
+    std::string path = "lib" + name + "_adserver.so";
+    void * handle = dlopen(path.c_str(), RTLD_NOW);
+    if (!handle) {
+        throw ML::Exception("couldn't find adserver library " + path);
+    }
+
+    // if it went well, it should be registered now
+    Guard guard(eventLock);
+    auto i = eventFactories.find(name);
+    if (i != eventFactories.end()) return i->second;
+
+    throw ML::Exception("couldn't find event source name " + name);
+}
+
 
 void EventSource::registerEventSourceFactory(std::string const & name, Factory callback) {
     Guard guard(eventLock);

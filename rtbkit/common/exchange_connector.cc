@@ -6,7 +6,7 @@
 */
 
 #include "exchange_connector.h"
-#include "rtbkit/common/injection.h"
+#include <dlfcn.h>
 
 using namespace std;
 
@@ -170,16 +170,30 @@ static ML::Spinlock lock;
 static std::unordered_map<std::string, ExchangeConnector::Factory> factories;
 } // file scope
 
+ExchangeConnector::Factory
+getFactory(std::string const & name) {
+    // see if it's already existing
+    {
+        Guard guard(lock);
+        auto i = factories.find(name);
+        if (i != factories.end()) return i->second;
+    }
 
-// specialize and bind the template function into the localfunction name
-  typedef ExchangeConnector::Factory getterReturnType;
-std::function<getterReturnType (std::string const &)>
-getFactory = std::bind(getLibrary<getterReturnType>,
-		       std::placeholders::_1,
-		       "exchange",
-		       factories,
-		       lock,
-		       "exchange connector");
+    // else, try to load the exchange library
+    std::string path = "lib" + name + "_exchange.so";
+    void * handle = dlopen(path.c_str(), RTLD_NOW);
+    if (!handle) {
+        std::cerr << dlerror() << std::endl;
+        throw ML::Exception("couldn't find exchange connector library " + path);
+    }
+
+    // if it went well, it should be registered now
+    Guard guard(lock);
+    auto i = factories.find(name);
+    if (i != factories.end()) return i->second;
+
+    throw ML::Exception("couldn't find exchange connector named " + name);
+}
 
 void
 ExchangeConnector::
