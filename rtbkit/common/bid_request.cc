@@ -9,6 +9,7 @@
 #include "jml/arch/format.h"
 #include "jml/arch/spinlock.h"
 #include "rtbkit/common/injection.h"
+#include "rtbkit/common/plugin_interface.h"
 
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string.hpp>
@@ -1107,35 +1108,6 @@ createFromJson(const Json::Value & json)
 }
 
 namespace {
-typedef std::unordered_map<std::string, BidRequest::Parser> Parsers;
-static Parsers parsers;
-typedef boost::lock_guard<ML::Spinlock> Guard;
-static ML::Spinlock lock;
-
-
-// specialize and bind the template function into the localfunction name
-// specialize and bind the template function into the localfunction name
-typedef BidRequest::Parser getterReturnType;
-std::function<getterReturnType (std::string const &)>
-getParser = std::bind(getLibrary<getterReturnType>,
-		      std::placeholders::_1,
-		      "bid_request",
-		      parsers,
-		      lock,
-		      "bid request parser source");
-
-} // file scope
-
-void
-BidRequest::
-registerParser(const std::string & source, Parser parser)
-{
-    Guard guard(lock);
-    if (!parsers.insert(make_pair(source, parser)).second)
-        throw ML::Exception("already had a bid request parser registered");
-}
-
-namespace {
 
 static const DefaultDescription<BidRequest> BidRequestDesc;
 
@@ -1164,9 +1136,9 @@ struct CanonicalParser {
 struct AtInit {
     AtInit()
     {
-        BidRequest::registerParser("recoset", CanonicalParser::parse);
-        BidRequest::registerParser("datacratic", CanonicalParser::parse);
-        BidRequest::registerParser("rtbkit", CanonicalParser::parse);
+        PluginInterface<BidRequest>::registerPlugin("recoset", CanonicalParser::parse);
+        PluginInterface<BidRequest>::registerPlugin("datacratic", CanonicalParser::parse);
+        PluginInterface<BidRequest>::registerPlugin("rtbkit", CanonicalParser::parse);
     }
 } atInit;
 } // file scope
@@ -1183,7 +1155,7 @@ parse(const std::string & source, const std::string & bidRequest)
     {
         return CanonicalParser::parse(bidRequest);
     }
-    Parser parser = getParser(source);
+    Parser parser = PluginInterface<BidRequest>::getPlugin(source);
 
     //cerr << "got parser for source " << source << endl;
 

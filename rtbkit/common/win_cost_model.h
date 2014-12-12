@@ -41,10 +41,12 @@ struct WinCostModel {
                                   Bid const & bid,
                                   Amount const & price)> Model;
 
-    /// Register a given type of model.
-    /// Should be done in a static initilalizer on shared library load.
-    static void registerModel(const std::string & name,
-                              Model model);
+    // --- plugin interface init
+    // plugin interface expects this type to be called Factory
+    typedef Model Factory;
+    // plugin interface needs to be able to request the root name of the plugin library
+    static const std::string libNameSufix() {return "win_cost_model";};
+
 
     static void createDescription(WinCostModelDescription&);
 

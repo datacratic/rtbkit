@@ -396,12 +396,14 @@ struct BidRequest {
 
     typedef boost::function<BidRequest * (const std::string)> Parser;
 
-    /** Register the given parser for the bid request.  Should be done
-        in a static initilalizer on shared library load.
-    */
-    static void registerParser(const std::string & source,
-                               Parser parser);
 
+    //plugin interface requirements
+    typedef Parser Factory; // plugin interface expects this tipe to be called Factory
+    // plugin interface needs to be able to request the root name of the plugin library
+    static const std::string libNameSufix() {return "bid_request";};
+    //static PluginInterface<BidRequest> pluginInterface;
+
+  
     /** Parse the given bid request from the given source.  The correct
         parser will be looked up in a registry based upon the source.
     */

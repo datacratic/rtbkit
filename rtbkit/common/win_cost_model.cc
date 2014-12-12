@@ -4,11 +4,10 @@
 
 */
 
+#include "rtbkit/common/plugin_interface.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "jml/arch/exception.h"
 #include "jml/arch/format.h"
-#include "jml/arch/spinlock.h"
-#include "rtbkit/common/injection.h"
 
 #include <unordered_map>
 #include <mutex>
@@ -17,25 +16,6 @@ namespace RTBKIT {
 
 namespace {
 
-// storage hash for model instances
-std::unordered_map<std::string, WinCostModel::Model> models;
-
-// lock to access it
-typedef ML::Spinlock lock_type;
-ML::Spinlock lock;
-
-
-// specialize and bind the template function into the local function name
-typedef WinCostModel::Model getterReturnType;
-std::function<getterReturnType const & (std::string const &)>
-getModel = std::bind(getLibrary<getterReturnType>,
-		     std::placeholders::_1,
-		     "win_cost_model",
-		     models,
-		     lock,
-		     "win cost model");
-
-  
 struct NoWinCostModel {
 
     static Amount evaluate(WinCostModel const & model,
@@ -49,7 +29,7 @@ struct NoWinCostModel {
 struct AtInit {
     AtInit()
     {
-        WinCostModel::registerModel("none", NoWinCostModel::evaluate);
+      PluginInterface<WinCostModel>::registerPlugin("none", NoWinCostModel::evaluate);
     }
 } atInit;
 } // file scope
@@ -74,7 +54,7 @@ evaluate(Bid const & bid, Amount const & price) const
         return NoWinCostModel::evaluate(*this, bid, price);
     }
 
-    auto model = getModel(name);
+    auto model = PluginInterface<WinCostModel>::getPlugin(name);
     if(!model) {
         throw ML::Exception("win cost model '%s' not found", name.c_str());
     }
@@ -138,18 +118,6 @@ reconstitute(ML::DB::Store_Reader & store)
     }
     else {
         ML::Exception("reconstituting wrong version");
-    }
-}
-
-void
-WinCostModel::
-registerModel(std::string const & name, Model model)
-{
-    std::lock_guard<lock_type> guard(lock);
-
-    auto result = models.insert(make_pair(name, model));
-    if(!result.second) {
-        throw ML::Exception("already had a win cost model '%s' registered", name.c_str());
     }
 }
 

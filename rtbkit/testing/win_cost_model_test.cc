@@ -12,6 +12,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "jml/utils/testing/watchdog.h"
+#include "rtbkit/common/plugin_interface.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
 #include "rtbkit/testing/bid_stack.h"
@@ -67,7 +68,7 @@ BOOST_AUTO_TEST_CASE( win_cost_model_test )
     ExchangeConnector::registerFactory<TestExchangeConnector>();
 
     // register the win cost model
-    WinCostModel::registerModel("test", linearWinCostModel);
+    PluginInterface<WinCostModel>::registerPlugin("test", linearWinCostModel);
 
     Json::Value routerConfig;
     routerConfig[0]["exchangeType"] = "test";

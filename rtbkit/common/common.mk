@@ -5,7 +5,8 @@ LIBBIDREQUEST_SOURCES := \
 	segments.cc \
 	json_holder.cc \
 	currency.cc \
-	expand_variable.cc
+	expand_variable.cc \
+	plugin_table.cc
 
 LIBBIDREQUEST_LINK := \
 	types boost_regex db openrtb value_description
@@ -22,7 +23,7 @@ LIBRTB_SOURCES := \
 	bidder_interface.cc \
 	win_cost_model.cc \
 	post_auction_proxy.cc \
-	analytics_publisher.cc
+	analytics_publisher.cc 
 
 LIBRTB_LINK := \
 	ACE arch utils jsoncpp boost_thread endpoint boost_regex zmq opstats bid_request
