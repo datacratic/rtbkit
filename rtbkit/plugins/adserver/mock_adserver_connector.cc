@@ -90,7 +90,6 @@ struct AtInit {
     AtInit()
     {
       PluginInterface<AdServerConnector>::registerPlugin("mock",
-	//AdServerConnector::registerFactory("mock",
 					   [](std::string const & serviceName,
 					      std::shared_ptr<ServiceProxies> const & proxies,
 					      Json::Value const & json) {

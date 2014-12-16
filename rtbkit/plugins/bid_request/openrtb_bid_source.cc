@@ -209,9 +209,7 @@ struct AtInit {
     AtInit()
     {
         PluginInterface<BidSource>::registerPlugin("openrtb",
-							  [](Json::Value const & json) {
-      
-	//BidSource::registerBidSourceFactory("openrtb", [](Json::Value const & json) {
+						   [](Json::Value const & json) {
             return new OpenRTBBidSource(json);
         });
     }

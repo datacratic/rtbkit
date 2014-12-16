@@ -68,8 +68,7 @@ struct AtInit {
     AtInit()
     {
         PluginInterface<WinSource>::registerPlugin("standard",
-							   [](Json::Value const & json) {
-	//WinSource::registerWinSourceFactory("standard", [](Json::Value const & json) {
+						   [](Json::Value const & json) {
             return new StandardWinSource(json);
         });
     }

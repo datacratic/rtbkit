@@ -85,7 +85,6 @@ struct AtInit {
     {
       PluginInterface<EventSource>::registerPlugin("mock",
 						   [](Json::Value const & json) {
-      //EventSource::registerEventSourceFactory("mock", [](Json::Value const & json) {
             return new MockEventSource(json);
         });
     }

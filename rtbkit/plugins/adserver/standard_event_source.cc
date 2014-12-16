@@ -80,8 +80,7 @@ struct AtInit {
     AtInit()
     {
         PluginInterface<EventSource>::registerPlugin("standard",
-							     [](Json::Value const & json) {
-	//EventSource::registerEventSourceFactory("standard", [](Json::Value const & json) {
+						     [](Json::Value const & json) {
 	    return new StandardEventSource(json);
         });
     }

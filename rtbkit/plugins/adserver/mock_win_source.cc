@@ -70,8 +70,7 @@ struct AtInit {
     AtInit()
     {
         PluginInterface<WinSource>::registerPlugin("mock",
-							 [](Json::Value const & json) {
-	//WinSource::registerWinSourceFactory("mock", [](Json::Value const & json) {
+						   [](Json::Value const & json) {
             return new MockWinSource(json);
         });
     }

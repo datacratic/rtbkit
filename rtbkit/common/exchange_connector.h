@@ -349,7 +349,7 @@ struct ExchangeConnector: public ServiceBase {
 							  return new T(*owner, name);
 					    });
     }
- 
+
     /** Create a new exchange connector from a factory. */
     static std::unique_ptr<ExchangeConnector>
     create(const std::string & exchangeType,

@@ -399,7 +399,6 @@ struct AtInit {
     AtInit()
     {
         PluginInterface<AdServerConnector>::registerPlugin("standard",
-	//AdServerConnector::registerFactory("standard",
 					   [](std::string const & serviceName,
 					      std::shared_ptr<ServiceProxies> const & proxies,
 					      Json::Value const & json) {
