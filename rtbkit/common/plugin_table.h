@@ -23,11 +23,6 @@ public:
   template <class T>
   T& getPlugin(const std::string& name, const std::string& libSufix);
 
-  // specializes getPlugin for each type of plugin
-  // because for each type of plugin we need library name information...
-  // there is no way to extrapolate the lib name :(
-  //WinCostModelFct& getPlugin(const std::string& name);
-  
   // destructor
   ~PluginTable();
 

@@ -208,7 +208,10 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        BidSource::registerBidSourceFactory("openrtb", [](Json::Value const & json) {
+        PluginInterface<OpenRTBBidSource>::registerPlugin("openrtb",
+							  [](Json::Value const & json) {
+      
+	//BidSource::registerBidSourceFactory("openrtb", [](Json::Value const & json) {
             return new OpenRTBBidSource(json);
         });
     }

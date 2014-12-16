@@ -91,9 +91,14 @@ struct AdServerConnector : public Datacratic::ServiceBase {
     static std::unique_ptr<AdServerConnector> create(std::string const & serviceName, std::shared_ptr<ServiceProxies> const & proxies,
                                                      Json::Value const & json);
 
-    typedef std::function<AdServerConnector * (std::string const & serviceName, std::shared_ptr<ServiceProxies> const & proxies,
+    typedef std::function<AdServerConnector * (std::string const & serviceName,
+					       std::shared_ptr<ServiceProxies> const & proxies,
                                                Json::Value const & json)> Factory;
-    static void registerFactory(std::string const & name, Factory factory);
+
+    /** plugin interface needs to be able to request the root name of the plugin library */
+    static const std::string libNameSufix() {return "adserver";};
+
+    //static void registerFactory(std::string const & name, Factory factory);
 
 private:
     // Connection to the post auction loops

@@ -67,7 +67,9 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        WinSource::registerWinSourceFactory("standard", [](Json::Value const & json) {
+        PluginInterface<StandardWinSource>::registerPlugin("standard",
+							   [](Json::Value const & json) {
+	//WinSource::registerWinSourceFactory("standard", [](Json::Value const & json) {
             return new StandardWinSource(json);
         });
     }

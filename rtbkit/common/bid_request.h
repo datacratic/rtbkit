@@ -22,7 +22,7 @@
 #include "rtbkit/common/currency.h"
 #include "tags.h"
 #include "rtbkit/openrtb/openrtb.h"
-
+#include "rtbkit/common/plugin_interface.h"
 
 namespace RTBKIT {
 
@@ -397,11 +397,10 @@ struct BidRequest {
     typedef boost::function<BidRequest * (const std::string)> Parser;
 
 
-    //plugin interface requirements
+    /** plugin interface requirements */
     typedef Parser Factory; // plugin interface expects this tipe to be called Factory
-    // plugin interface needs to be able to request the root name of the plugin library
+    /** plugin interface needs to be able to request the root name of the plugin library */
     static const std::string libNameSufix() {return "bid_request";};
-    //static PluginInterface<BidRequest> pluginInterface;
 
   
     /** Parse the given bid request from the given source.  The correct

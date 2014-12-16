@@ -106,7 +106,9 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        BidSource::registerBidSourceFactory("mock", [](Json::Value const & json) {
+        PluginInterface<MockBidSource>::registerPlugin("mock",
+						       [](Json::Value const & json) {
+	//BidSource::registerBidSourceFactory("mock", [](Json::Value const & json) {
             return new MockBidSource(json);
         });
     }

@@ -4,7 +4,6 @@
 
 */
 
-#include "rtbkit/common/plugin_interface.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "jml/arch/exception.h"
 #include "jml/arch/format.h"

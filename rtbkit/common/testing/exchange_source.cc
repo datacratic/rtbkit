@@ -216,73 +216,74 @@ namespace {
 }
 
 
-BidSource::Factory getBidFactory(std::string const & name) {
-    // see if it's already existing
-    {
-        Guard guard(bidLock);
-        auto i = bidFactories.find(name);
-        if (i != bidFactories.end()) return i->second;
-    }
+//BidSource::Factory getBidFactory(std::string const & name) {
+//    // see if it's already existing
+//    {
+//        Guard guard(bidLock);
+//        auto i = bidFactories.find(name);
+//        if (i != bidFactories.end()) return i->second;
+//    }
+//
+//    // else, try to load the exchange library
+//    std::string path = "lib" + name + "_bid_request.so";
+//    void * handle = dlopen(path.c_str(), RTLD_NOW);
+//    if (!handle) {
+//        throw ML::Exception("couldn't find bid request/source library " + path);
+//    }
+//
+//    // if it went well, it should be registered now
+//    Guard guard(bidLock);
+//    auto i = bidFactories.find(name);
+//    if (i != bidFactories.end()) return i->second;
+//
+//    throw ML::Exception("couldn't find bid source name " + name);
+//}
 
-    // else, try to load the exchange library
-    std::string path = "lib" + name + "_bid_request.so";
-    void * handle = dlopen(path.c_str(), RTLD_NOW);
-    if (!handle) {
-        throw ML::Exception("couldn't find bid request/source library " + path);
-    }
 
-    // if it went well, it should be registered now
-    Guard guard(bidLock);
-    auto i = bidFactories.find(name);
-    if (i != bidFactories.end()) return i->second;
-
-    throw ML::Exception("couldn't find bid source name " + name);
-}
-
-
-void BidSource::registerBidSourceFactory(std::string const & name, Factory callback) {
-    Guard guard(bidLock);
-    if (!bidFactories.insert(std::make_pair(name, callback)).second)
-        throw ML::Exception("already had a bid source factory registered");
-}
+//void BidSource::registerBidSourceFactory(std::string const & name, Factory callback) {
+//    Guard guard(bidLock);
+//    if (!bidFactories.insert(std::make_pair(name, callback)).second)
+//        throw ML::Exception("already had a bid source factory registered");
+//}
 
 
 std::unique_ptr<BidSource> BidSource::createBidSource(Json::Value const & json) {
     auto name = json.get("type", "unknown").asString();
-    auto factory = getBidFactory(name);
+
+    auto factory = PluginInterface<BidSource>::getPlugin(name);
     return std::unique_ptr<BidSource>(factory(json));
 }
 
 
-WinSource::Factory getWinFactory(std::string const & name) {
-    // see if it's already existing
-    {
-        Guard guard(winLock);
-        auto i = winFactories.find(name);
-        if (i != winFactories.end()) return i->second;
-    }
+//WinSource::Factory getWinFactory(std::string const & name) {
+//    // see if it's already existing
+//    {
+//        Guard guard(winLock);
+//        auto i = winFactories.find(name);
+//        if (i != winFactories.end()) return i->second;
+//    }
+//
+//    // else, try to load the adserver library
+//    std::string path = "lib" + name + "_adserver.so";
+//    void * handle = dlopen(path.c_str(), RTLD_NOW);
+//    if (!handle) {
+//        throw ML::Exception("couldn't find adserver library " + path);
+//    }
+//
+//    // if it went well, it should be registered now
+//    Guard guard(winLock);
+//    auto i = winFactories.find(name);
+//    if (i != winFactories.end()) return i->second;
+//
+//    throw ML::Exception("couldn't find win source name " + name);
+//}
 
-    // else, try to load the adserver library
-    std::string path = "lib" + name + "_adserver.so";
-    void * handle = dlopen(path.c_str(), RTLD_NOW);
-    if (!handle) {
-        throw ML::Exception("couldn't find adserver library " + path);
-    }
 
-    // if it went well, it should be registered now
-    Guard guard(winLock);
-    auto i = winFactories.find(name);
-    if (i != winFactories.end()) return i->second;
-
-    throw ML::Exception("couldn't find win source name " + name);
-}
-
-
-void WinSource::registerWinSourceFactory(std::string const & name, Factory callback) {
-    Guard guard(winLock);
-    if (!winFactories.insert(std::make_pair(name, callback)).second)
-        throw ML::Exception("already had a win source factory registered");
-}
+//void WinSource::registerWinSourceFactory(std::string const & name, Factory callback) {
+//    Guard guard(winLock);
+//    if (!winFactories.insert(std::make_pair(name, callback)).second)
+//        throw ML::Exception("already had a win source factory registered");
+//}
 
 
 std::unique_ptr<WinSource> WinSource::createWinSource(Json::Value const & json) {
@@ -291,41 +292,41 @@ std::unique_ptr<WinSource> WinSource::createWinSource(Json::Value const & json) 
         return 0;
     }
 
-    auto factory = getWinFactory(name);
+    auto factory = PluginInterface<WinSource>::getPlugin(name);
     return std::unique_ptr<WinSource>(factory(json));
 }
 
 
 
-EventSource::Factory getEventFactory(std::string const & name) {
-    // see if it's already existing
-    {
-        Guard guard(eventLock);
-        auto i = eventFactories.find(name);
-        if (i != eventFactories.end()) return i->second;
-    }
+//EventSource::Factory getEventFactory(std::string const & name) {
+//    // see if it's already existing
+//    {
+//        Guard guard(eventLock);
+//        auto i = eventFactories.find(name);
+//        if (i != eventFactories.end()) return i->second;
+//    }
+//
+//    // else, try to load the adserver library
+//    std::string path = "lib" + name + "_adserver.so";
+//    void * handle = dlopen(path.c_str(), RTLD_NOW);
+//    if (!handle) {
+//        throw ML::Exception("couldn't find adserver library " + path);
+//    }
+//
+//    // if it went well, it should be registered now
+//    Guard guard(eventLock);
+//    auto i = eventFactories.find(name);
+//    if (i != eventFactories.end()) return i->second;
+//
+//    throw ML::Exception("couldn't find event source name " + name);
+//}
 
-    // else, try to load the adserver library
-    std::string path = "lib" + name + "_adserver.so";
-    void * handle = dlopen(path.c_str(), RTLD_NOW);
-    if (!handle) {
-        throw ML::Exception("couldn't find adserver library " + path);
-    }
 
-    // if it went well, it should be registered now
-    Guard guard(eventLock);
-    auto i = eventFactories.find(name);
-    if (i != eventFactories.end()) return i->second;
-
-    throw ML::Exception("couldn't find event source name " + name);
-}
-
-
-void EventSource::registerEventSourceFactory(std::string const & name, Factory callback) {
-    Guard guard(eventLock);
-    if (!eventFactories.insert(std::make_pair(name, callback)).second)
-        throw ML::Exception("already had a event source factory registered");
-}
+//void EventSource::registerEventSourceFactory(std::string const & name, Factory callback) {
+//    Guard guard(eventLock);
+//    if (!eventFactories.insert(std::make_pair(name, callback)).second)
+//        throw ML::Exception("already had a event source factory registered");
+//}
 
 
 std::unique_ptr<EventSource> EventSource::createEventSource(Json::Value const & json) {
@@ -334,7 +335,7 @@ std::unique_ptr<EventSource> EventSource::createEventSource(Json::Value const & 
         return 0;
     }
 
-    auto factory = getEventFactory(name);
+    auto factory = PluginInterface<EventSource>::getPlugin(name);
     return std::unique_ptr<EventSource>(factory(json));
 }
 

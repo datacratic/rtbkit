@@ -12,6 +12,7 @@
 #include "rtbkit/common/bid_request.h"
 #include "rtbkit/common/bids.h"
 #include "rtbkit/core/agent_configuration/agent_config.h"
+#include "rtbkit/common/plugin_interface.h"
 
 namespace RTBKIT {
 

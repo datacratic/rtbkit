@@ -14,7 +14,6 @@ struct PluginInterface
   static typename T::Factory& getPlugin(const std::string& name);
 };
 
-// specializes the method for the current class
 template<class T>
 void PluginInterface<T>::registerPlugin(const std::string& name,
 					       typename T::Factory functor)
@@ -22,7 +21,6 @@ void PluginInterface<T>::registerPlugin(const std::string& name,
   PluginTable::instance().registerPlugin<typename T::Factory>(name, functor);
 }
 
-// specializes the method fo rthe current class
 template<class T>
 typename T::Factory& PluginInterface<T>::getPlugin(const std::string& name)
 {

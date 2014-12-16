@@ -12,6 +12,7 @@
 #include "rtbkit/common/auction_events.h"
 #include "rtbkit/core/router/router_types.h"
 #include "rtbkit/core/post_auction/events.h"
+#include "rtbkit/common/plugin_interface.h"
 
 namespace RTBKIT {
 
@@ -113,7 +114,8 @@ struct BidderInterface : public ServiceBase
                                              std::shared_ptr<ServiceProxies> const & proxies,
                                              Json::Value const & json)> Factory;
 
-    static void registerFactory(std::string const & name, Factory factory);
+    /** plugin interface needs to be able to request the root name of the plugin library */
+    static const std::string libNameSufix() {return "bidder";};
 
     std::string name;
     Router * router;

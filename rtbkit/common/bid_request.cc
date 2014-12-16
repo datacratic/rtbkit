@@ -7,7 +7,6 @@
 #include "rtbkit/common/bid_request.h"
 #include "jml/arch/exception.h"
 #include "jml/arch/format.h"
-#include "rtbkit/common/plugin_interface.h"
 
 #include <boost/thread/locks.hpp>
 #include <boost/algorithm/string.hpp>

@@ -89,10 +89,13 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        AdServerConnector::registerFactory("mock", [](std::string const & serviceName, std::shared_ptr<ServiceProxies> const & proxies,
-                                                      Json::Value const & json) {
+      PluginInterface<MockAdServerConnector>::registerPlugin("mock",
+	//AdServerConnector::registerFactory("mock",
+					   [](std::string const & serviceName,
+					      std::shared_ptr<ServiceProxies> const & proxies,
+					      Json::Value const & json) {
+					     
             auto server = new MockAdServerConnector(serviceName, proxies, json);
-
             int winPort = json.get("winPort", "12340").asInt();
             int eventPort = json.get("eventPort", "12341").asInt();
             server->init(winPort, eventPort);
