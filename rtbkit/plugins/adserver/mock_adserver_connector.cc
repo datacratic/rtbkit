@@ -89,7 +89,7 @@ namespace {
 struct AtInit {
     AtInit()
     {
-      PluginInterface<MockAdServerConnector>::registerPlugin("mock",
+      PluginInterface<AdServerConnector>::registerPlugin("mock",
 	//AdServerConnector::registerFactory("mock",
 					   [](std::string const & serviceName,
 					      std::shared_ptr<ServiceProxies> const & proxies,

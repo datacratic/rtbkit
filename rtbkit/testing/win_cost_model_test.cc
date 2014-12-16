@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE( win_cost_model_test )
     ExchangeConnector::registerFactory<TestExchangeConnector>();
 
     // register the win cost model
-    PluginInterface<WinCostModel>::registerPlugin("test", linearWinCostModel);
+    WinCostModel::registerModel("test", linearWinCostModel);
 
     Json::Value routerConfig;
     routerConfig[0]["exchangeType"] = "test";

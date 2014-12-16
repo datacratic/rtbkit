@@ -69,7 +69,7 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        PluginInterface<MockWinSource>::registerPlugin("mock",
+        PluginInterface<WinSource>::registerPlugin("mock",
 							 [](Json::Value const & json) {
 	//WinSource::registerWinSourceFactory("mock", [](Json::Value const & json) {
             return new MockWinSource(json);

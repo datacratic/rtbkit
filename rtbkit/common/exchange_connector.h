@@ -330,13 +330,17 @@ struct ExchangeConnector: public ServiceBase {
     static const std::string libNameSufix() {return "exchange";};
 
     /** Register the given exchange factory. */
+    // FIXME: this is being kept just for compatibility reasons.
+    // we don't want to break compatibility now, although this interface does not make
+    // sense any longer  
+    // so any use of it should be considered deprecated
     template<typename T>
     static void registerFactory() {
-    PluginInterface<ExchangeConnector>::registerPlugin(T::exchangeNameString(),
+        PluginInterface<ExchangeConnector>::registerPlugin(T::exchangeNameString(),
 						       [](ServiceBase * owner,
 							  std::string const & name) {
 							  return new T(*owner, name);
-						       });
+					    });
     }
  
     /** Create a new exchange connector from a factory. */

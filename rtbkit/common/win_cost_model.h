@@ -42,6 +42,16 @@ struct WinCostModel {
                                   Bid const & bid,
                                   Amount const & price)> Model;
 
+    // FIXME: this is being kept just for compatibility reasons.
+    // we don't want to break compatibility now, although this interface does not make
+    // sense any longer  
+    // so any use of it should be considered deprecated
+    static void registerModel(const std::string & name,
+                              Model model)
+    {
+        PluginInterface<WinCostModel>::registerPlugin(name, model);
+    }
+  
     // --- plugin interface init
     // plugin interface expects this type to be called Factory
     typedef Model Factory;

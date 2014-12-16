@@ -98,7 +98,15 @@ struct AdServerConnector : public Datacratic::ServiceBase {
     /** plugin interface needs to be able to request the root name of the plugin library */
     static const std::string libNameSufix() {return "adserver";};
 
-    //static void registerFactory(std::string const & name, Factory factory);
+    // FIXME: this is being kept just for compatibility reasons.
+    // we don't want to break compatibility now, although this interface does not make
+    // sense any longer  
+    // so any use of it should be considered deprecated
+    static void registerFactory(std::string const & name, Factory callback)
+    {
+      PluginInterface<AdServerConnector>::registerPlugin(name, callback);
+    }
+
 
 private:
     // Connection to the post auction loops

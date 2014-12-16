@@ -83,8 +83,8 @@ namespace {
 struct AtInit {
     AtInit()
     {
-      PluginInterface<MockEventSource>::registerPlugin("mock",
-						       [](Json::Value const & json) {
+      PluginInterface<EventSource>::registerPlugin("mock",
+						   [](Json::Value const & json) {
       //EventSource::registerEventSourceFactory("mock", [](Json::Value const & json) {
             return new MockEventSource(json);
         });

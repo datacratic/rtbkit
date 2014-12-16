@@ -398,7 +398,7 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        PluginInterface<StandardAdServerConnector>::registerPlugin("standard",
+        PluginInterface<AdServerConnector>::registerPlugin("standard",
 	//AdServerConnector::registerFactory("standard",
 					   [](std::string const & serviceName,
 					      std::shared_ptr<ServiceProxies> const & proxies,
