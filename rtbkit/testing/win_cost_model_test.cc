@@ -12,7 +12,6 @@
 #include <boost/test/unit_test.hpp>
 
 #include "jml/utils/testing/watchdog.h"
-#include "rtbkit/common/plugin_interface.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
 #include "rtbkit/testing/bid_stack.h"
