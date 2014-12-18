@@ -1,3 +1,9 @@
+/* plugin_table.cc
+   Flavio Moreira, 15 December 2014
+   Copyright (c) 2014 Datacratic.  All rights reserved.
+*/
+
+
 #include <typeinfo>
 #include <functional>
 #include <exception>
@@ -11,29 +17,25 @@
 namespace RTBKIT {
 
 // initing static pointer
-PluginTable* PluginTable::singleton = nullptr;
+//PluginTable* PluginTable::singleton = nullptr;
 
 // get singleton instance
 PluginTable&
 PluginTable::instance()
 {
-  if (singleton == nullptr)
-  {
-    singleton = new PluginTable();
-  }
-
-  return *singleton;
+  static PluginTable singleton;
+  return singleton;
 }
 
 // destructor
 PluginTable::~PluginTable()
 {
-  delete singleton;
-  singleton = nullptr;
+  //  delete singleton;
+  //singleton = nullptr;
 }
 
 
-// crticial section write to the table
+// critical block write to the table
 void
 PluginTable::write(const std::string& name,
 		   const std::string& typeName,
@@ -63,7 +65,7 @@ PluginTable::write(const std::string& name,
   table.insert(element);
 }
 
-// critical section reads from the container
+// critical block reads from the table
 boost::any&
 PluginTable::read(const std::string& name,
 		  const std::string& typeName,

@@ -1,5 +1,9 @@
-#ifndef __rtb__plugin_table_h__
-#define __rtb__plugin_table_h__
+/* plugin_table.h
+   Flavio Moreira, 15 December 2014
+   Copyright (c) 2014 Datacratic.  All rights reserved.
+*/
+
+#pragma once
 
 #include <string>
 #include <unordered_map>
@@ -25,6 +29,11 @@ public:
 
   // destructor
   ~PluginTable();
+  // delete copy constructors
+  PluginTable(PluginTable&) = delete;
+  // delete assignement operator
+  PluginTable& operator=(const PluginTable&) = delete;
+  
 
 private:
  
@@ -42,16 +51,14 @@ private:
   };
   std::unordered_map<std::string, Plugin> table;
 
-  // singleton pointer
-  static PluginTable* singleton;
-
   // lock
   ML::Spinlock lock;
 
-  // block default constructors
-  PluginTable(){};
-  PluginTable(PluginTable&){};
 
+  // default constructor can only be accessed by the class itself
+  // used by the statc method instance
+  PluginTable(){};  
+  
   // load library
   void loadLib(const std::string& path);
 
@@ -91,8 +98,7 @@ T&
 PluginTable::getPlugin(const std::string& name, const std::string& libSufix)
 {
   // get the typename
-  T mock;
-  std::string tName(typeid(mock).name());
+  std::string tName(typeid(T).name());
 
   // read plugi from container - cast and return
   return boost::any_cast<T&>(read(name, tName, libSufix));
@@ -101,4 +107,3 @@ PluginTable::getPlugin(const std::string& name, const std::string& libSufix)
  
 }; // namespace RTBKIT
 
-#endif // __rtb__plugin_table_h__

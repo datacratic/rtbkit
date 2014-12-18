@@ -1,5 +1,9 @@
-#ifndef __rtb__plugin_interface_h__
-#define __rtb__plugin_interface_h__
+/* plugin_interface.h
+   Flavio Moreira, 15 December 2014
+   Copyright (c) 2014 Datacratic.  All rights reserved.
+*/
+
+#pragma once
 
 #import "rtbkit/common/plugin_table.h"
 #import <string>
@@ -30,4 +34,3 @@ typename T::Factory& PluginInterface<T>::getPlugin(const std::string& name)
 
 };
 
-#endif // __rtb__plugin_interface_h__
