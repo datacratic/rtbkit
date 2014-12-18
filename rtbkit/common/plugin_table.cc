@@ -45,7 +45,7 @@ PluginTable::write(const std::string& name,
   if (name.empty()) {
     throw ML::Exception("'name' parameter cannot be empty");
   }
-  if (name.empty()) {
+  if (typeName.empty()) {
     throw ML::Exception("'typeName' parameter cannot be empty");
   }
 
@@ -75,7 +75,7 @@ PluginTable::read(const std::string& name,
   if (name.empty()) {
     throw ML::Exception("'name' parameter cannot be empty");
   }
-  if (name.empty()) {
+  if (typeName.empty()) {
     throw ML::Exception("'typeName' parameter cannot be empty");
   }
 
