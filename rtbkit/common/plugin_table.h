@@ -8,10 +8,20 @@
 #include <string>
 #include <unordered_map>
 #include <boost/any.hpp>
+#include <typeinfo>
+#include <functional>
+#include <exception>
+#include <mutex>
+#include <string>
+#include <dlfcn.h>
+#include <iostream>
+
 #include "jml/arch/spinlock.h"
+#include "jml/arch/exception.h"
 
 namespace RTBKIT {
 
+template<class T>
 struct PluginTable
 {
 public:
@@ -19,16 +29,16 @@ public:
 
   // allow plugins to register themselves from their Init/AtInit
   // all legacy plugins use this.
-  template <class T>
+  //template <class T>
   void registerPlugin(const std::string& name, T& functor);
 
   // get a plugin factory this is a generic version, but requires that
   // the library suffix that contains this plugin to be provided
-  template <class T>
+  //template <class T>
   T& getPlugin(const std::string& name, const std::string& libSufix);
 
   // destructor
-  ~PluginTable();
+  ~PluginTable(){};
   // delete copy constructors
   PluginTable(PluginTable&) = delete;
   // delete assignement operator
@@ -39,21 +49,10 @@ private:
  
   // data
   // -----
-  // functor container
-  // - the map key is a string pair containing name and typename
-  // this is just to avoid name conflict
-  // - the plugin holds the functor wrapped in an any type and also
-  // the typeName to double check agains the request without have to
-  // parse the the key.
-  struct Plugin {
-    std::string typeName;
-    boost::any functor;
-  };
-  std::unordered_map<std::string, Plugin> table;
+  std::unordered_map<std::string, T> table;
 
   // lock
   ML::Spinlock lock;
-
 
   // default constructor can only be accessed by the class itself
   // used by the statc method instance
@@ -62,48 +61,98 @@ private:
   // load library
   void loadLib(const std::string& path);
 
-  // critical sessions functions
-  // write to container
-  void write(const std::string& key,
-	     const std::string& typeName,
-	     boost::any fctWrapper);
-
-  // read from container
-  boost::any& read(const std::string& name,
-		   const std::string& typeName,
-		   const std::string& libSufix);
- 
 };
 
 
 // inject a new "factory" (functor) - called from the plugin dll
 template <class T>
 void
-  PluginTable::registerPlugin(const std::string& name, T& functor)
+PluginTable<T>::registerPlugin(const std::string& name, T& functor)
 {
-  // get the type name to complete the plugin data
-  std::string tName(typeid(functor).name());
+  // some safeguards...
+  if (name.empty()) {
+    throw ML::Exception("'name' parameter cannot be empty");
+  }
 
-  // wrapper the functor
-  boost::any wrapper(functor);
+  // assemble the element
+  auto element = std::pair<std::string, T>(name, functor);
 
-  // add plugin to container
-  write(name, tName, wrapper);
+  // lock and write
+  std::lock_guard<ML::Spinlock> guard(lock);
+  table.insert(element);
 }
 
  
 // get the functor from the name
 template <class T>
 T&
-PluginTable::getPlugin(const std::string& name, const std::string& libSufix)
+PluginTable<T>::getPlugin(const std::string& name, const std::string& libSufix)
 {
-  // get the typename
-  std::string tName(typeid(T).name());
+  // some safeguards...
+  if (name.empty()) {
+    throw ML::Exception("'name' parameter cannot be empty");
+  }
 
-  // read plugi from container - cast and return
-  return boost::any_cast<T&>(read(name, tName, libSufix));
+  // get the plugin or/and load the lib
+  for (int i=0; i<2; i++)
+  {
+    // check if it already exists
+    {
+      std::lock_guard<ML::Spinlock> guard(lock);
+      auto iter = table.find(name);
+      if(iter != table.end())
+      {
+	return iter->second;
+      }
+    }
+    
+    if (i == 0) // try to load it
+    {
+      // since it was not found we have to try to load the library
+      std::string path = "lib" + name + "_" + libSufix + ".so";
+      loadLib(path);
+    } // we can add alternative forms of plugin load here
+
+    ///////////
+    // now hopefully the plugin is loaded
+    // and we can load it in the next loop
+  }  
+
+  // else: getting the functor fails
+  throw ML::Exception("couldn't get requested plugin");
 }
 
+
+// get singleton instance
+template<class T>
+PluginTable<T>&
+PluginTable<T>::instance()
+{
+  static PluginTable<T> singleton;
+  return singleton;
+}
+
+// loads a dll
+template<class T>
+void
+PluginTable<T>::loadLib(const std::string& path)
+{
+  // some safeguards...
+  if (path.empty()) {
+    throw ML::Exception("'path' parameter cannot be empty");
+  }
+
+  // load lib
+  void * handle = dlopen(path.c_str(), RTLD_NOW);
+  
+  if (!handle) {
+    std::cerr << dlerror() << std::endl;
+    throw ML::Exception("couldn't load library from %s", path.c_str());
+  }
+}
+
+
+ 
  
 }; // namespace RTBKIT
 

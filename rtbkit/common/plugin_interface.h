@@ -22,13 +22,13 @@ template<class T>
 void PluginInterface<T>::registerPlugin(const std::string& name,
 					       typename T::Factory functor)
 {
-  PluginTable::instance().registerPlugin<typename T::Factory>(name, functor);
+  PluginTable<typename T::Factory>::instance().registerPlugin(name, functor);
 }
 
 template<class T>
 typename T::Factory& PluginInterface<T>::getPlugin(const std::string& name)
 {
-  return PluginTable::instance().getPlugin<typename T::Factory>(name, T::libNameSufix());
+  return PluginTable<typename T::Factory>::instance().getPlugin(name, T::libNameSufix());
 }
 
 
