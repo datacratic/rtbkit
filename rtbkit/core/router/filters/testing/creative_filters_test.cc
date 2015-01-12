@@ -70,6 +70,38 @@ BOOST_AUTO_TEST_CASE( testFormatFilter )
     check(filter, r0, creatives, 4, {          });
 }
 
+/******************************************************************************/
+/* FORMAT FILTER                                                              */
+/******************************************************************************/
+
+BOOST_AUTO_TEST_CASE( testNullFormatFilter )
+{
+    CreativeFormatFilter filter;
+    CreativeMatrix creatives;
+
+    AgentConfig c0;
+    c0.creatives.push_back(Creative());
+    c0.creatives.push_back(Creative(100, 100));
+    c0.creatives.push_back(Creative(300, 300));
+    c0.creatives.push_back(Creative(0, 100));
+    c0.creatives.push_back(Creative(100, 0));
+
+    BidRequest r0;
+    addImp(r0, OpenRTB::AdPosition::ABOVE, { {100, 100} });
+    addImp(r0, OpenRTB::AdPosition::ABOVE, { {200, 200} });
+    addImp(r0, OpenRTB::AdPosition::ABOVE, { {200, 100} });
+    addImp(r0, OpenRTB::AdPosition::ABOVE, { {100, 200} });
+
+    title("format-Null");
+    addConfig(filter, 0, c0, creatives);
+
+    check(filter, r0, creatives, 0, { {0}, {0}, {} , {0}, {0}});
+    check(filter, r0, creatives, 1, { {0}                    });
+    check(filter, r0, creatives, 2, { {0}, {}, {}, {0}       });
+    check(filter, r0, creatives, 3, { {0}, {}, {}, {}, {0}   });
+
+}
+
 
 /******************************************************************************/
 /* LANGUAGE FILTER                                                            */
