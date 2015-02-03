@@ -46,6 +46,12 @@ Logging::Category HttpBidderInterface::trace("HttpBidderInterface Trace", HttpBi
 
 }
 
+auto HttpBidderInterface::readFormat(const std::string& fmt) -> Format {
+    if (fmt == "short") return FMT_SHORT;
+    if (fmt == "openrtbx") return FMT_OPENRTBX;
+    ExcCheck(false, "unknown format string: " + fmt);
+}
+
 HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                                          std::shared_ptr<ServiceProxies> proxies,
                                          Json::Value const & json)
@@ -58,21 +64,22 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
         const auto& router = json["router"];
         const auto& adserver = json["adserver"];
 
-        routerHost
-            = router["host"].asString();
-        routerPath
-            = router["path"].asString();
-        routerHttpActiveConnections
-            = router.get("httpActiveConnections", 4).asInt();
+        routerHost = router["host"].asString();
+        routerPath = router["path"].asString();
+        routerHttpActiveConnections = router.get("httpActiveConnections", 4).asInt();
 
-        adserverHost
-            = adserver["host"].asString();
-        adserverWinPort
-            = adserver["winPort"].asInt();
-        adserverEventPort
-            = adserver["eventPort"].asInt();
-        adserverHttpActiveConnections
-            = adserver.get("httpActiveConnections", 4).asInt();
+        adserverHost = adserver["host"].asString();
+
+        adserverWinPort = adserver["winPort"].asInt();
+        adserverWinPath = adserver["winPath"].asString();
+        adserverWinFormat = readFormat(adserver["winFormat"].asString());
+
+        adserverEventPort = adserver["eventPort"].asInt();
+        adserverEventPath = adserver["eventPath"].asString();
+        adserverEventFormat = readFormat(adserver["eventFormat"].asString());
+
+        adserverHttpActiveConnections = adserver.get("httpActiveConnections", 4).asInt();
+
     } catch (const std::exception & e) {
         THROW(error) << "configuration file is invalid" << std::endl
                    << "usage : " << std::endl
@@ -86,7 +93,11 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                    << "\t{" << std::endl << "\t\"adserver\" : {" << std::endl
                    << "\t\t\"host\" : <string : hostname>" << std::endl  
                    << "\t\t\"winPort\" : <int : winPort>" << std::endl  
+                   << "\t\t\"winPath\" : <string : resource name>" << std::endl
+                   << "\t\t\"winFormat\" : <string : message format>" << std::endl
                    << "\t\t\"eventPort\" : <int eventPort>" << std::endl
+                   << "\t\t\"eventPath\" : <string : resource name>" << std::endl
+                   << "\t\t\"eventFormat\" : <string : message format>" << std::endl
                    << "\t\t\"httpActiveConnections\" : <int : concurrent connections>"
                    << std::endl
                    << "\t}" << std::endl << "}";
@@ -361,14 +372,36 @@ void HttpBidderInterface::sendWinLossMessage(
 
     Json::Value content;
 
-    content["timestamp"] = event.timestamp.secondsSinceEpoch();
-    content["bidRequestId"] = event.auctionId.toString();
-    content["impid"] = event.impId.toString();
-    content["userIds"] = event.uids.toJsonArray();
-    // ratio cannot be casted to json::value ...
-    content["price"] = (double) getAmountIn<CPM>(event.winPrice);
+    if (adserverWinFormat == FMT_SHORT) {
+        content["timestamp"] = event.timestamp.secondsSinceEpoch();
+        content["bidRequestId"] = event.auctionId.toString();
+        content["impid"] = event.impId.toString();
+        content["userIds"] = event.uids.toJsonArray();
+        // ratio cannot be casted to json::value ...
+        content["price"] = (double) getAmountIn<CPM>(event.winPrice);
 
-    //requestStr["passback"];
+        //requestStr["passback"];
+    }
+    else {
+        content["id"] = event.auctionId.toString();
+
+        Json::Value entry;
+        entry["impid"] = event.impId.toString();
+        entry["type"] = "win";
+        entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
+        entry["cid"] = event.response.agent;
+
+        Json::Value users;
+        for (const auto& item : event.uids) {
+            Json::Value user;
+            user["id"] = item.second.toString();
+            users.append(user);
+        }
+
+        entry["users"] = users;
+
+        content["events"].append(entry);
+    }
     
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverWins->post("/", callbacks, reqContent,
@@ -399,11 +432,23 @@ void HttpBidderInterface::sendCampaignEventMessage(
     
     Json::Value content;
 
-    content["timestamp"] = event.timestamp.secondsSinceEpoch();
-    content["bidRequestId"] = event.auctionId.toString();
-    content["impid"] = event.impId.toString();
-    content["type"] = event.label;
-    
+    if (adserverEventFormat == FMT_SHORT) {
+        content["timestamp"] = event.timestamp.secondsSinceEpoch();
+        content["bidRequestId"] = event.auctionId.toString();
+        content["impid"] = event.impId.toString();
+        content["type"] = event.label;
+    }
+    else {
+        content["id"] = event.auctionId.toString();
+
+        Json::Value entry;
+        entry["impid"] = event.impId.toString();
+        entry["type"] = event.label;
+        entry["cid"] = event.response.agent;
+
+        content["events"].append(entry);
+    }
+
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverEvents->post("/", callbacks, reqContent,
                          { } /* queryParams */);

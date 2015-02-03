@@ -97,11 +97,25 @@ private:
     std::shared_ptr<HttpClient> httpClientRouter;
     std::shared_ptr<HttpClient> httpClientAdserverWins;
     std::shared_ptr<HttpClient> httpClientAdserverEvents;
+    
     std::string routerHost;
     std::string routerPath;
+    
     std::string adserverHost;
+
+    enum Format {
+        FMT_SHORT,
+        FMT_OPENRTBX,
+    };
+    static Format readFormat(const std::string& fmt);
+
     uint16_t adserverWinPort;
+    std::string adserverWinPath;
+    Format adserverWinFormat;
+
     uint16_t adserverEventPort;
+    std::string adserverEventPath;
+    Format adserverEventFormat;
 
     void submitBids(AgentBids &info, size_t impressionsCount);
     bool prepareRequest(OpenRTB::BidRequest &request,
