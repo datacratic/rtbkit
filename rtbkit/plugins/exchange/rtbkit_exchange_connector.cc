@@ -6,7 +6,10 @@
 
 #include "rtbkit_exchange_connector.h"
 #include "rtbkit/plugins/exchange/http_auction_handler.h"
+<<<<<<< HEAD
 #include "soa/utils/scope.h"
+=======
+>>>>>>> parent of 11dbca1... HttpBidderInterface: including the list of available creatives in the impression extension field
 
 using namespace Datacratic;
 
@@ -38,27 +41,22 @@ parseBidRequest(HttpAuctionHandler &connection,
     auto request = 
         OpenRTBExchangeConnector::parseBidRequest(connection, header, payload);
 
-
     if (request != nullptr) {
-        auto failure = ScopeFailure([&]() noexcept { request.reset(); });
-
         for (const auto &imp: request->imp) {
-            if (!failure.ok()) break;
-
             if (!imp.ext.isMember("external-ids")) {
-                fail(failure, [&] {
-                    connection.sendErrorResponse("MISSING_EXTENSION_FIELD",
-                        ML::format("The impression '%s' requires the 'external-ids' extension field",
-                                   imp.id.toString()));
-                });
+                connection.sendErrorResponse("MISSING_EXTENSION_FIELD",
+                    ML::format("The impression '%s' requires the 'external-ids' extension field",
+                               imp.id.toString()));  
+                request.reset();
+                break;
             }
             else {
                 if(!imp.ext["external-ids"].isArray()) {
-                    fail(failure, [&] {
-                        connection.sendErrorResponse("UNSUPPORTED_EXTENSION_FIELD",
-                            ML::format("The impression '%s' requires the 'external-ids' extension field as an array of integer",
-                                   imp.id.toString()));
-                    });
+                    connection.sendErrorResponse("UNSUPPORTED_EXTENSION_FIELD",
+                        ML::format("The impression '%s' requires the 'external-ids' extension field as an array of integer",
+                               imp.id.toString()));
+                    request.reset();
+                    break;
                 }
             }
         }
