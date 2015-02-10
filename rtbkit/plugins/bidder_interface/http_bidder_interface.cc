@@ -457,6 +457,7 @@ void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
 
         for (const auto &spot: spots) {
             const int adSpotIndex = spot.first;
+            const auto& creativeIndexes = spot.second;
             ExcCheck(adSpotIndex >= 0 && adSpotIndex < request.imp.size(),
                      "adSpotIndex out of range");
             auto &imp = request.imp[adSpotIndex];

@@ -6,10 +6,6 @@
 
 #include "rtbkit_exchange_connector.h"
 #include "rtbkit/plugins/exchange/http_auction_handler.h"
-<<<<<<< HEAD
-#include "soa/utils/scope.h"
-=======
->>>>>>> parent of 11dbca1... HttpBidderInterface: including the list of available creatives in the impression extension field
 
 using namespace Datacratic;
 
