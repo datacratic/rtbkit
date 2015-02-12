@@ -591,8 +591,7 @@ bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
     auto bidderId = [] (const AccountKey& account) { return account[1]; };
 
     for (const auto& bidder : bidders) {
-        const AgentConfig& config = *bidder.second.agentConfig;
-        std::string id = bidderId(config.account[1]);
+        std::string id = bidderId(bidder.second.agentConfig->account);
 
         for (const auto& imp : bidder.second.imp) {
             auto& ext = request.imp[imp.first].ext;
