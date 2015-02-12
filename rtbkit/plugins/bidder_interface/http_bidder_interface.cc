@@ -606,9 +606,11 @@ bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
     for (const auto& augmentation : auction->augmentations) {
         auto& augExt = dataExt[augmentation.first];
 
-        for (const auto& accountAug : augmentation.second) {
-            std::string id = bidderId(AccountKey(accountAug.first));
-            augExt[id] = accountAug.second.data;
+        for (const auto& bidder : bidders) {
+            const AccountKey& account = bidder.second.agentConfig->account;
+
+            Augmentation aug = augmentation.second.filterForAccount(account);
+            if (!!aug.data) augExt[bidderId(account)] = aug.data;
         }
     }
 
