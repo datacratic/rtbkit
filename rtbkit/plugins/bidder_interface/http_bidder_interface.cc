@@ -591,13 +591,17 @@ bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
     auto bidderId = [] (const AccountKey& account) { return account[1]; };
 
     for (const auto& bidder : bidders) {
-        std::string id = bidderId(bidder.second.agentConfig->account);
+        const AgentConfig& config = *bidder.second.agentConfig;
+        std::string id = bidderId(config.account);
 
         for (const auto& imp : bidder.second.imp) {
             auto& ext = request.imp[imp.first].ext;
 
             auto& creatives = ext["datacratic"]["allowed"][id];
-            for (int creativeId : imp.second) creatives.append(creativeId);
+            for (size_t creativeIndex : imp.second) {
+                int creativeId = config.creatives[creativeIndex].id;
+                creatives.append(creativeId);
+            }
         }
     }
 
