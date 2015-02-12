@@ -97,17 +97,18 @@ private:
     std::shared_ptr<HttpClient> httpClientRouter;
     std::shared_ptr<HttpClient> httpClientAdserverWins;
     std::shared_ptr<HttpClient> httpClientAdserverEvents;
-    
-    std::string routerHost;
-    std::string routerPath;
-    
-    std::string adserverHost;
 
     enum Format {
-        FMT_SHORT,
-        FMT_OPENRTBX,
+        FMT_STANDARD,
+        FMT_DATACRATIC,
     };
     static Format readFormat(const std::string& fmt);
+
+    std::string routerHost;
+    std::string routerPath;
+    Format routerFormat;
+
+    std::string adserverHost;
 
     uint16_t adserverWinPort;
     std::string adserverWinPath;
@@ -118,10 +119,20 @@ private:
     Format adserverEventFormat;
 
     void submitBids(AgentBids &info, size_t impressionsCount);
+
     bool prepareRequest(OpenRTB::BidRequest &request,
                         const RTBKIT::BidRequest &originalRequest,
                         const std::shared_ptr<Auction> &auction,
                         const std::map<std::string, BidInfo> &bidders) const;
+    bool prepareStandardRequest(OpenRTB::BidRequest &request,
+                                const RTBKIT::BidRequest &originalRequest,
+                                const std::shared_ptr<Auction> &auction,
+                                const std::map<std::string, BidInfo> &bidders) const;
+    bool prepareDatacraticRequest(OpenRTB::BidRequest &request,
+                                  const RTBKIT::BidRequest &originalRequest,
+                                  const std::shared_ptr<Auction> &auction,
+                                  const std::map<std::string, BidInfo> &bidders) const;
+
     void injectBids(const std::string &agent, Id auctionId,
                     const Bids &bids, WinCostModel wcm);
 

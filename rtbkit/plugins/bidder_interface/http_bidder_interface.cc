@@ -47,8 +47,8 @@ Logging::Category HttpBidderInterface::trace("HttpBidderInterface Trace", HttpBi
 }
 
 auto HttpBidderInterface::readFormat(const std::string& fmt) -> Format {
-    if (fmt == "short") return FMT_SHORT;
-    if (fmt == "openrtbx") return FMT_OPENRTBX;
+    if (fmt == "standard") return FMT_STANDARD;
+    if (fmt == "datacratic") return FMT_DATACRATIC;
     ExcCheck(false, "unknown format string: " + fmt);
 }
 
@@ -66,6 +66,7 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
 
         routerHost = router["host"].asString();
         routerPath = router["path"].asString();
+        routerFormat = readFormat(router["format"].asString());
         routerHttpActiveConnections = router.get("httpActiveConnections", 4).asInt();
 
         adserverHost = adserver["host"].asString();
@@ -372,7 +373,7 @@ void HttpBidderInterface::sendWinLossMessage(
 
     Json::Value content;
 
-    if (adserverWinFormat == FMT_SHORT) {
+    if (adserverWinFormat == FMT_STANDARD) {
         content["timestamp"] = event.timestamp.secondsSinceEpoch();
         content["bidRequestId"] = event.auctionId.toString();
         content["impid"] = event.impId.toString();
@@ -382,7 +383,7 @@ void HttpBidderInterface::sendWinLossMessage(
 
         //requestStr["passback"];
     }
-    else {
+    else if (adserverWinFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
 
         Json::Value entry;
@@ -432,13 +433,13 @@ void HttpBidderInterface::sendCampaignEventMessage(
     
     Json::Value content;
 
-    if (adserverEventFormat == FMT_SHORT) {
+    if (adserverEventFormat == FMT_STANDARD) {
         content["timestamp"] = event.timestamp.secondsSinceEpoch();
         content["bidRequestId"] = event.auctionId.toString();
         content["impid"] = event.impId.toString();
         content["type"] = event.label;
     }
-    else {
+    else if (adserverEventFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
 
         Json::Value entry;
@@ -507,6 +508,20 @@ void HttpBidderInterface::registerLoopMonitor(LoopMonitor *monitor) const {
     monitor->addMessageLoop("httpBidderInterfaceLoop", &loop);
 }
 
+bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
+                                         const RTBKIT::BidRequest &originalRequest,
+                                         const std::shared_ptr<Auction> &auction,
+                                         const std::map<std::string, BidInfo> &bidders) const
+{
+    if (routerFormat == FMT_STANDARD)
+        return prepareStandardRequest(request, originalRequest, auction, bidders);
+
+    if (routerFormat == FMT_DATACRATIC)
+        return prepareDatacraticRequest(request, originalRequest, auction, bidders);
+
+    ExcAssert(false);
+}
+
 void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
                                      const std::map<std::string, BidInfo> &bidders) const
 {
@@ -537,7 +552,7 @@ void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
 
 }
 
-bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
+bool HttpBidderInterface::prepareStandardRequest(OpenRTB::BidRequest &request,
                                          const RTBKIT::BidRequest &originalRequest,
                                          const std::shared_ptr<Auction> &auction,
                                          const std::map<std::string, BidInfo> &bidders) const {
@@ -555,6 +570,47 @@ bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
         request.ext["rtbkit"]["augmentationList"] = augJson;
     }
 
+
+    // We update the tmax value before sending the BidRequest to substract our processing time
+    Date auctionExpiry = auction->expiry;
+    double remainingTimeMs = auctionExpiry.secondsSince(Date::now()) * 1000;
+    if (remainingTimeMs < 0) {
+        return false;
+    }
+
+    request.tmax.val = remainingTimeMs;
+    return true;
+}
+
+bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
+                                                   const RTBKIT::BidRequest &originalRequest,
+                                                   const std::shared_ptr<Auction> &auction,
+                                                   const std::map<std::string, BidInfo> &bidders) const
+{
+    // uses strategy slug as the bidder id.
+    auto bidderId = [] (const AccountKey& account) { return account[1]; };
+
+    for (const auto& bidder : bidders) {
+        const AgentConfig& config = *bidder.second.agentConfig;
+        std::string id = bidderId(config.account[1]);
+
+        for (const auto& imp : bidder.second.imp) {
+            auto& ext = request.imp[imp.first].ext;
+
+            auto& creatives = ext["datacratic"]["allowed"][id];
+            for (int creativeId : imp.second) creatives.append(creativeId);
+        }
+    }
+
+    auto& dataExt = request.ext["rtbkit"]["data"];
+    for (const auto& augmentation : auction->augmentations) {
+        auto& augExt = dataExt[augmentation.first];
+
+        for (const auto& accountAug : augmentation.second) {
+            std::string id = bidderId(AccountKey(accountAug.first));
+            augExt[id] = accountAug.second.data;
+        }
+    }
 
     // We update the tmax value before sending the BidRequest to substract our processing time
     Date auctionExpiry = auction->expiry;
