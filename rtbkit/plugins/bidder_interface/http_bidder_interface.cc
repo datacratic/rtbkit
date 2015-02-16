@@ -66,18 +66,18 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
 
         routerHost = router["host"].asString();
         routerPath = router["path"].asString();
-        routerFormat = readFormat(router["format"].asString());
+        routerFormat = readFormat(router.get("format", "standard").asString());
         routerHttpActiveConnections = router.get("httpActiveConnections", 4).asInt();
 
         adserverHost = adserver["host"].asString();
 
         adserverWinPort = adserver["winPort"].asInt();
-        adserverWinPath = adserver["winPath"].asString();
-        adserverWinFormat = readFormat(adserver["winFormat"].asString());
+        adserverWinPath = adserver.get("winPath", "/").asString();
+        adserverWinFormat = readFormat(adserver.get("winFormat", "standard").asString());
 
         adserverEventPort = adserver["eventPort"].asInt();
-        adserverEventPath = adserver["eventPath"].asString();
-        adserverEventFormat = readFormat(adserver["eventFormat"].asString());
+        adserverEventPath = adserver.get("eventPath", "/").asString();
+        adserverEventFormat = readFormat(adserver.get("eventFormat", "standard").asString());
 
         adserverHttpActiveConnections = adserver.get("httpActiveConnections", 4).asInt();
 
@@ -87,6 +87,7 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                    << "{" << std::endl << "\t\"router\" : {" << std::endl
                    << "\t\t\"host\" : <string : hostname with port>" << std::endl  
                    << "\t\t\"path\" : <string : resource name>" << std::endl
+                   << "\t\t\"format\" : <string : message format>" << std::endl
                    << "\t\t\"httpActiveConnections\" : <int : concurrent connections>"
                    << std::endl
                    << "\t\t"
@@ -435,7 +436,7 @@ void HttpBidderInterface::sendWinLossMessage(
     else ExcAssert(false);
     
     HttpRequest::Content reqContent { content, "application/json" };
-    httpClientAdserverWins->post("/", callbacks, reqContent,
+    httpClientAdserverWins->post(adserverWinPath, callbacks, reqContent,
                          { } /* queryParams */);
     
 }
@@ -482,7 +483,7 @@ void HttpBidderInterface::sendCampaignEventMessage(
     else ExcAssert(false);
 
     HttpRequest::Content reqContent { content, "application/json" };
-    httpClientAdserverEvents->post("/", callbacks, reqContent,
+    httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent,
                          { } /* queryParams */);
     
 }
