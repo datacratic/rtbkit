@@ -249,36 +249,65 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                      for (const auto &seatbid: response.seatbid) {
 
                          for (const auto &bid: seatbid.bid) {
-                             if (!bid.ext.isMember("external-id")) {
-                                 fail(failure, [&] {
-                                     LOG(error) << "Missing external-id ext field in BidResponse: "
-                                                << body << std::endl;
-                                     recordError("response");
-                                 });
-                             }
-
-                             if (!bid.ext.isMember("priority")) {
-                                 fail(failure, [&] {
-                                     LOG(error) << "Missing priority ext field in BidResponse: "
-                                                << body << std::endl;
-                                     recordError("response");
-                                 });
-                                 return;
-                             }
-
-                             uint64_t externalId = bid.ext["external-id"].asUInt();
-
                              string agent;
                              shared_ptr<const AgentConfig> config;
-                             tie(agent, config) = findAgent(externalId);
-                             if (config == nullptr) {
-                                 fail(failure, [&] {
-                                     LOG(error) << "Couldn't find config for externalId: "
-                                                << externalId << std::endl;
-                                     recordError("unknown");
-                                 });
-                                 return;
+                             double priority;
+
+                             if (routerFormat == FMT_STANDARD) {
+                                 if (!bid.ext.isMember("external-id")) {
+                                     fail(failure, [&] {
+                                                 LOG(error) << "Missing external-id ext field in BidResponse: "
+                                                     << body << std::endl;
+                                                 recordError("response");
+                                             });
+                                 }
+
+                                 if (!bid.ext.isMember("priority")) {
+                                     fail(failure, [&] {
+                                                 LOG(error) << "Missing priority ext field in BidResponse: "
+                                                     << body << std::endl;
+                                                 recordError("response");
+                                             });
+                                     return;
+                                 }
+                                 priority = bid.ext["priority"].asDouble();
+
+                                 uint64_t externalId = bid.ext["external-id"].asUInt();
+
+                                 tie(agent, config) = findAgent(externalId);
+                                 if (config == nullptr) {
+                                     fail(failure, [&] {
+                                                 LOG(error) << "Couldn't find config for externalId: "
+                                                     << externalId << std::endl;
+                                                 recordError("unknown");
+                                             });
+                                     return;
+                                 }
+
                              }
+                             else if (routerFormat == FMT_DATACRATIC) {
+
+                                 for (const auto& entry : bidders) {
+                                     config = entry.second.agentConfig;
+                                     if (config->account[1] == bid.cid.toString()) {
+                                         agent = entry.first;
+                                         break;
+                                     }
+                                 }
+
+                                 if (agent.empty()) {
+                                     fail(failure, [&] {
+                                                 LOG(error) << "Couldn't find config for cid: "
+                                                     << bid.cid << std::endl;
+                                                 recordError("unknown");
+                                             });
+                                     return;
+                                 }
+
+                                 priority = bid.ext["rtbkit"]["priority"].asDouble();
+                             }
+                             else ExcAssert(false);
+
                              ExcCheck(!agent.empty(), "Invalid agent");
 
                              Bid theBid;
@@ -306,7 +335,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
 
                              theBid.creativeIndex = creativeIndex;
                              theBid.price = USD_CPM(bid.price.val);
-                             theBid.priority = bid.ext["priority"].asDouble();
+                             theBid.priority = priority;
 
                              int spotIndex = indexOf(openRtbRequest.imp,
                                                     &OpenRTB::Impression::id, bid.impid);
@@ -403,6 +432,7 @@ void HttpBidderInterface::sendWinLossMessage(
 
         content["events"].append(entry);
     }
+    else ExcAssert(false);
     
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverWins->post("/", callbacks, reqContent,
@@ -449,6 +479,7 @@ void HttpBidderInterface::sendCampaignEventMessage(
 
         content["events"].append(entry);
     }
+    else ExcAssert(false);
 
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverEvents->post("/", callbacks, reqContent,
