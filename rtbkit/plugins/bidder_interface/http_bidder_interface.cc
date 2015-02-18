@@ -430,8 +430,13 @@ void HttpBidderInterface::sendWinLossMessage(
         }
 
         entry["users"] = users;
+        entry["ext"]["crid"] = event.response.creativeId;
 
         content["events"].append(entry);
+
+        const auto& ext = content["ext"];
+        ext["request"] = event.requestStr;
+        ext["extra"] = event.meta;
     }
     else ExcAssert(false);
     
