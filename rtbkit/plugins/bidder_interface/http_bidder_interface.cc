@@ -415,28 +415,28 @@ void HttpBidderInterface::sendWinLossMessage(
     }
     else if (adserverWinFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
+        content["ext"]["request"] = event.requestStr;
 
         Json::Value entry;
-        entry["impid"] = event.impId.toString();
-        entry["type"] = "win";
-        entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
-        entry["cid"] = event.response.agent;
+        {
+            entry["impid"] = event.impId.toString();
+            entry["type"] = "win";
+            entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
+            entry["cid"] = event.response.agent;
 
-        Json::Value users;
-        for (const auto& item : event.uids) {
-            Json::Value user;
-            user["id"] = item.second.toString();
-            users.append(user);
+            auto& ext = entry["ext"];
+            ext["extra"] = event.meta;
+            ext["crid"] = event.response.creativeId;
+
+            Json::Value users;
+            for (const auto& item : event.uids) {
+                Json::Value user;
+                user["id"] = item.second.toString();
+                users.append(user);
+            }
+            entry["users"] = users;
         }
-
-        entry["users"] = users;
-        entry["ext"]["crid"] = event.response.creativeId;
-
         content["events"].append(entry);
-
-        const auto& ext = content["ext"];
-        ext["request"] = event.requestStr;
-        ext["extra"] = event.meta;
     }
     else ExcAssert(false);
     
@@ -477,12 +477,18 @@ void HttpBidderInterface::sendCampaignEventMessage(
     }
     else if (adserverEventFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
+        content["ext"]["request"] = event.requestStr;
 
         Json::Value entry;
-        entry["impid"] = event.impId.toString();
-        entry["type"] = event.label;
-        entry["cid"] = event.response.agent;
+        {
+            entry["impid"] = event.impId.toString();
+            entry["type"] = "loss";
+            entry["cid"] = event.response.agent;
 
+            auto& ext = entry["ext"];
+            ext["crid"] = event.response.creativeId;
+            ext["extra"] = event.bid["meta"];
+        }
         content["events"].append(entry);
     }
     else ExcAssert(false);
