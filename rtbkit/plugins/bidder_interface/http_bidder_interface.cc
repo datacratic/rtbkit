@@ -414,7 +414,10 @@ void HttpBidderInterface::sendWinLossMessage(
     }
     else if (adserverWinFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
-        content["ext"]["rtbkit"]["request"] = Json::parse(event.requestStr.rawString());
+
+        auto& ext = content["ext"]["rtbkit"];
+        ext["request"] = event.requestStr;
+        ext["requestFormat"] = event.requestStrFormat;
 
         Json::Value entry;
         {
@@ -476,7 +479,10 @@ void HttpBidderInterface::sendCampaignEventMessage(
     }
     else if (adserverEventFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
-        content["ext"]["rtbkit"]["request"] = Json::parse(event.requestStr.rawString());
+
+        auto& ext = content["ext"]["rtbkit"];
+        ext["request"] = event.requestStr;
+        ext["requestFormat"] = event.requestStrFormat;
 
         Json::Value entry;
         {
