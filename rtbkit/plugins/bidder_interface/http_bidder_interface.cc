@@ -252,7 +252,8 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                          for (const auto &bid: seatbid.bid) {
                              string agent;
                              shared_ptr<const AgentConfig> config;
-                             double priority;
+
+                             Bid theBid;
 
                              if (routerFormat == FMT_STANDARD) {
                                  if (!bid.ext.isMember("external-id")) {
@@ -271,7 +272,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                                              });
                                      return;
                                  }
-                                 priority = bid.ext["priority"].asDouble();
+                                 theBid.priority = bid.ext["priority"].asDouble();
 
                                  uint64_t externalId = bid.ext["external-id"].asUInt();
 
@@ -305,13 +306,12 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                                      return;
                                  }
 
-                                 priority = bid.ext["rtbkit"]["priority"].asDouble();
+                                 theBid.ext = bid.ext["rtbkit"]["meta"];
+                                 theBid.priority = bid.ext["rtbkit"]["priority"].asDouble();
                              }
                              else ExcAssert(false);
 
                              ExcCheck(!agent.empty(), "Invalid agent");
-
-                             Bid theBid;
 
                              if (!bid.crid) {
                                  fail(failure, [&] {
@@ -336,7 +336,6 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
 
                              theBid.creativeIndex = creativeIndex;
                              theBid.price = USD_CPM(bid.price.val);
-                             theBid.priority = priority;
 
                              int spotIndex = indexOf(openRtbRequest.imp,
                                                     &OpenRTB::Impression::id, bid.impid);
@@ -415,7 +414,7 @@ void HttpBidderInterface::sendWinLossMessage(
     }
     else if (adserverWinFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
-        content["ext"]["request"] = event.requestStr;
+        content["ext"]["rtbkit"]["request"] = event.requestStr;
 
         Json::Value entry;
         {
@@ -424,8 +423,8 @@ void HttpBidderInterface::sendWinLossMessage(
             entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
             entry["cid"] = event.response.agent;
 
-            auto& ext = entry["ext"];
-            ext["extra"] = event.meta;
+            auto& ext = entry["ext"]["rtbkit"];
+            ext["meta"] = event.meta;
             ext["crid"] = event.response.creativeId;
 
             Json::Value users;
@@ -477,7 +476,7 @@ void HttpBidderInterface::sendCampaignEventMessage(
     }
     else if (adserverEventFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
-        content["ext"]["request"] = event.requestStr;
+        content["ext"]["rtbkit"]["request"] = event.requestStr;
 
         Json::Value entry;
         {
@@ -485,9 +484,9 @@ void HttpBidderInterface::sendCampaignEventMessage(
             entry["type"] = "loss";
             entry["cid"] = event.response.agent;
 
-            auto& ext = entry["ext"];
+            auto& ext = entry["ext"]["rtbkit"];
             ext["crid"] = event.response.creativeId;
-            ext["extra"] = event.bid["meta"];
+            ext["meta"] = event.bid["meta"];
         }
         content["events"].append(entry);
     }
