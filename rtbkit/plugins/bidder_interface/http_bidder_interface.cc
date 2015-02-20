@@ -424,7 +424,7 @@ void HttpBidderInterface::sendWinLossMessage(
             entry["cid"] = event.response.agent;
 
             auto& ext = entry["ext"]["rtbkit"];
-            ext["meta"] = event.responnse.meta;
+            ext["meta"] = event.response.meta;
             ext["crid"] = event.response.creativeId;
 
             Json::Value users;
