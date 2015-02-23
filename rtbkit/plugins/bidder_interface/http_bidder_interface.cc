@@ -665,7 +665,12 @@ bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
         }
     }
 
-    // We update the tmax value before sending the BidRequest to substract our processing time
+    auto& ext = request.ext["datacratic"];
+    ext["request"] = auction->requestStr;
+    ext["requestFormat"] = auction->requestStrFormat;
+
+    // We update the tmax value before sending the BidRequest to substract our
+    // processing time
     Date auctionExpiry = auction->expiry;
     double remainingTimeMs = auctionExpiry.secondsSince(Date::now()) * 1000;
     if (remainingTimeMs < 0) {
