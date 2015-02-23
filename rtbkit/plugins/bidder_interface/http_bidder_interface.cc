@@ -67,7 +67,7 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
         routerHost = router["host"].asString();
         routerPath = router["path"].asString();
         routerFormat = readFormat(router.get("format", "standard").asString());
-        routerHttpActiveConnections = router.get("httpActiveConnections", 4).asInt();
+        routerHttpActiveConnections = router.get("httpActiveConnections", 1024).asInt();
 
         adserverHost = adserver["host"].asString();
 
@@ -79,8 +79,7 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
         adserverEventPath = adserver.get("eventPath", "/").asString();
         adserverEventFormat = readFormat(adserver.get("eventFormat", "standard").asString());
 
-        adserverHttpActiveConnections = adserver.get("httpActiveConnections", 4).asInt();
-
+        adserverHttpActiveConnections = adserver.get("httpActiveConnections", 1024).asInt();
     } catch (const std::exception & e) {
         THROW(error) << "configuration file is invalid" << std::endl
                    << "usage : " << std::endl
@@ -427,7 +426,7 @@ void HttpBidderInterface::sendWinLossMessage(
             entry["cid"] = event.response.agent;
 
             auto& ext = entry["ext"]["rtbkit"];
-            ext["meta"] = Json::parse(event.response.meta);
+            ext["meta"] = Json::parse(event.response.meta.rawString());
             ext["crid"] = event.response.creativeId;
 
             Json::Value users;
@@ -492,7 +491,7 @@ void HttpBidderInterface::sendCampaignEventMessage(
 
             auto& ext = entry["ext"]["rtbkit"];
             ext["crid"] = event.response.creativeId;
-            ext["meta"] = Json::parse(event.bid["meta"].asString());
+            ext["meta"] = event.bid["meta"];
         }
         content["events"].append(entry);
     }
