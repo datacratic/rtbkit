@@ -421,7 +421,7 @@ void HttpBidderInterface::sendWinLossMessage(
         Json::Value entry;
         {
             entry["impid"] = event.impId.toString();
-            entry["type"] = "win";
+            entry["type"] = event.type == MatchedWinLoss::Loss ? "loss" : "win";
             entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
             entry["cid"] = event.response.agent;
 
@@ -486,7 +486,7 @@ void HttpBidderInterface::sendCampaignEventMessage(
         Json::Value entry;
         {
             entry["impid"] = event.impId.toString();
-            entry["type"] = "loss";
+            entry["type"] = event.label;
             entry["cid"] = event.response.agent;
 
             auto& ext = entry["ext"]["rtbkit"];
