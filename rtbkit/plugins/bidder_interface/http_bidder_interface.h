@@ -133,6 +133,12 @@ private:
                                   const std::shared_ptr<Auction> &auction,
                                   const std::map<std::string, BidInfo> &bidders) const;
 
+    void sendBidErrorMessage(
+            const std::shared_ptr<const AgentConfig>& agentConfig,
+            std::string const & agent,
+            std::shared_ptr<Auction> const & auction,
+            std::string const & type, std::string const & reason = "");
+
     void injectBids(const std::string &agent, Id auctionId,
                     const Bids &bids, WinCostModel wcm);
 

@@ -455,7 +455,8 @@ void HttpBidderInterface::sendBidLostMessage(
 
 void HttpBidderInterface::sendCampaignEventMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
-        std::string const & agent, MatchedCampaignEvent const & event) {
+        std::string const & agent, MatchedCampaignEvent const & event)
+{
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &, HttpClientError errorCode,
             int statusCode, const std::string &, std::string &&body)
@@ -503,25 +504,64 @@ void HttpBidderInterface::sendCampaignEventMessage(
     
 }
 
+void HttpBidderInterface::sendBidErrorMessage(
+        const std::shared_ptr<const AgentConfig>& agentConfig,
+        std::string const & agent, std::shared_ptr<Auction> const & auction,
+        std::string const & type, std::string const & reason)
+{
+    auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
+        [=](const HttpRequest &, HttpClientError errorCode,
+            int statusCode, const std::string &, std::string &&body)
+        {
+            if (errorCode != HttpClientError::None) {
+                 LOG(error) << "Error requesting "
+                            << adserverHost << ":" << adserverEventPort
+                            << " (" << httpErrorString(errorCode) << ")" << std::endl;
+                 recordError("network");
+              }
+        });
+
+    Json::Value content;
+    content["id"] = auction->id.toString();
+    content["crid"] = agentConfig->account[1];
+    content["type"] = type;
+    if (!reason.empty()) content["reason"] = reason;
+
+    HttpRequest::Content reqContent { content, "application/json" };
+    httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent, {});
+}
+
 void HttpBidderInterface::sendBidDroppedMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
-        std::string const & agent, std::shared_ptr<Auction> const & auction) {
+        std::string const & agent, std::shared_ptr<Auction> const & auction)
+{
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "DROPPED");
 }
 
 void HttpBidderInterface::sendBidInvalidMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & reason,
-        std::shared_ptr<Auction> const & auction) {
+        std::shared_ptr<Auction> const & auction)
+{
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "INVALID");
 }
 
 void HttpBidderInterface::sendNoBudgetMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
-        std::string const & agent, std::shared_ptr<Auction> const & auction) {
+        std::string const & agent, std::shared_ptr<Auction> const & auction)
+{
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "NOBUDGET");
 }
 
 void HttpBidderInterface::sendTooLateMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
-        std::string const & agent, std::shared_ptr<Auction> const & auction) {
+        std::string const & agent, std::shared_ptr<Auction> const & auction)
+{
+    if (adserverEventFormat == FMT_DATACRATIC)
+        sendBidErrorMessage(agentConfig, agent, auction, "TOOLATE");
 }
 
 void HttpBidderInterface::sendMessage(
