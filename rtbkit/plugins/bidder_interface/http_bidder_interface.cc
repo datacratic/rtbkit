@@ -79,6 +79,10 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
         adserverEventPath = adserver.get("eventPath", "/").asString();
         adserverEventFormat = readFormat(adserver.get("eventFormat", "standard").asString());
 
+        adserverErrorPort = adserver["errorPort"].asInt();
+        adserverErrorPath = adserver.get("errorPath", "/").asString();
+        adserverErrorFormat = readFormat(adserver.get("errorFormat", "standard").asString());
+
         adserverHttpActiveConnections = adserver.get("httpActiveConnections", 1024).asInt();
     } catch (const std::exception & e) {
         THROW(error) << "configuration file is invalid" << std::endl
@@ -99,6 +103,9 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                    << "\t\t\"eventPort\" : <int eventPort>" << std::endl
                    << "\t\t\"eventPath\" : <string : resource name>" << std::endl
                    << "\t\t\"eventFormat\" : <string : message format>" << std::endl
+                   << "\t\t\"errorPort\" : <int errorPort>" << std::endl
+                   << "\t\t\"errorPath\" : <string : resource name>" << std::endl
+                   << "\t\t\"errorFormat\" : <string : message format>" << std::endl
                    << "\t\t\"httpActiveConnections\" : <int : concurrent connections>"
                    << std::endl
                    << "\t}" << std::endl << "}";
@@ -121,6 +128,11 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
     httpClientAdserverEvents.reset(new HttpClient(eventHost, adserverHttpActiveConnections));
     httpClientAdserverEvents->sendExpect100Continue(false);
     loop.addSource("HttpBidderInterface::httpClientAdserverEvents", httpClientAdserverEvents);
+
+    std::string errorHost = adserverHost + ':' + std::to_string(adserverErrorPort);
+    httpClientAdserverErrors.reset(new HttpClient(errorHost, adserverHttpActiveConnections));
+    httpClientAdserverErrors->sendExpect100Continue(false);
+    loop.addSource("HttpBidderInterface::httpClientAdserverErrors", httpClientAdserverErrors);
 
     loop.addPeriodic("HttpBidderInterface::reportQueues", 1.0, [=](uint64_t) {
         recordLevel(httpClientRouter->queuedRequests(), "queuedRequests");
@@ -515,7 +527,7 @@ void HttpBidderInterface::sendBidErrorMessage(
         {
             if (errorCode != HttpClientError::None) {
                  LOG(error) << "Error requesting "
-                            << adserverHost << ":" << adserverEventPort
+                            << adserverHost << ":" << adserverErrorPort
                             << " (" << httpErrorString(errorCode) << ")" << std::endl;
                  recordError("network");
               }
@@ -528,7 +540,7 @@ void HttpBidderInterface::sendBidErrorMessage(
     if (!reason.empty()) content["reason"] = reason;
 
     HttpRequest::Content reqContent { content, "application/json" };
-    httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent, {});
+    httpClientAdserverErrors->post(adserverErrorPath, callbacks, reqContent, {});
 }
 
 void HttpBidderInterface::sendBidDroppedMessage(

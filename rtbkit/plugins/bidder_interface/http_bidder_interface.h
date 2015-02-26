@@ -97,6 +97,7 @@ private:
     std::shared_ptr<HttpClient> httpClientRouter;
     std::shared_ptr<HttpClient> httpClientAdserverWins;
     std::shared_ptr<HttpClient> httpClientAdserverEvents;
+    std::shared_ptr<HttpClient> httpClientAdserverErrors;
 
     enum Format {
         FMT_STANDARD,
@@ -117,6 +118,10 @@ private:
     uint16_t adserverEventPort;
     std::string adserverEventPath;
     Format adserverEventFormat;
+
+    uint16_t adserverErrorPort;
+    std::string adserverErrorPath;
+    Format adserverErrorFormat;
 
     void submitBids(AgentBids &info, size_t impressionsCount);
 
