@@ -73,6 +73,7 @@ void
 LocalBanker::setSpendRate(Amount newSpendRate)
 {
     spendRate = newSpendRate;
+    accounts.setSpendRate(spendRate);
 }
 
 void
@@ -327,7 +328,7 @@ LocalBanker::reauthorize()
                             gKey + ".newBalance");
                 }
 
-                int64_t spend = accounts.updateBalance(key, newBalance).value;
+                int64_t spend = accounts.accumulateBalance(key, newBalance).value;
                 recordLevel(spend, gKey + ".bidAmount");
                 int64_t rate = jsonAccount["rate"].asInt();
                 if (rate > spendRate.value) {
