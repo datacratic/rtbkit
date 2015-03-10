@@ -53,7 +53,7 @@ LocalBanker::init(const string & bankerUrl,
         {
             std::lock_guard<std::mutex> guard(this->mutex);
             swap(uninitializedAccounts, tempUninitialized);
-            this->recordCount(accounts.accounts.size(), "accounts");
+            this->recordLevel(accounts.accounts.size(), "accounts");
         }
         for (auto &key : tempUninitialized) {
             addAccountImpl(key);
@@ -320,16 +320,16 @@ LocalBanker::reauthorize()
                 auto key = AccountKey(jsonAccount["name"].asString());
                 Amount newBalance(MicroUSD(jsonAccount["balance"].asInt()));
 
-                string gKey = "account." + key.toString() + ":" + accountSuffixNoDot; 
+                string gKey = "account." + key.parent().toString() + ":" + accountSuffixNoDot; 
                 if (debug) {
-                    recordLevel(accounts.getBalance(key.toString() + ":" + accountSuffix).value,
+                    recordLevel(accounts.getBalance(key.toString()).value,
                             gKey + ".oldBalance");
                     recordLevel(newBalance.value,
                             gKey + ".newBalance");
                 }
 
                 int64_t spend = accounts.accumulateBalance(key, newBalance).value;
-                recordLevel(spend, gKey + ".bidAmount");
+                recordLevel(spend, gKey + ".bidAmountLastPeriod");
                 int64_t rate = jsonAccount["rate"].asInt();
                 if (rate > spendRate.value) {
                     setRate(key);
