@@ -324,12 +324,16 @@ LocalBanker::reauthorize()
                 if (debug) {
                     recordLevel(accounts.getBalance(key.toString()).value,
                             gKey + ".oldBalance");
-                    recordLevel(newBalance.value,
-                            gKey + ".newBalance");
                 }
 
                 int64_t spend = accounts.accumulateBalance(key, newBalance).value;
                 recordLevel(spend, gKey + ".bidAmountLastPeriod");
+
+                if (debug) {
+                    recordLevel(accounts.getBalance(key.toString()).value,
+                            gKey + ".newBalance");
+                }
+
                 int64_t rate = jsonAccount["rate"].asInt();
                 if (rate > spendRate.value) {
                     setRate(key);
