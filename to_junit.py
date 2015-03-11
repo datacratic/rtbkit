@@ -49,7 +49,7 @@ for f in failed:
         'type' : 'failure',
         'message' : 'Check log'
     })
-    builder.data(failContent)
+    builder.data(unicode(failContent, 'utf-8'))
     builder.end('failure')
     builder.end('testcase')
 

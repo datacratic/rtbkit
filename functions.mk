@@ -306,6 +306,9 @@ $$(LIB_$(1)_SO):	$$(dir $$(LIB_$(1)_SO))/.dir_exists $$(OBJFILES_$(1)) $$(foreac
 	$$(if $(verbose_build),@echo $$(LINK_$(1)_COMMAND2),@echo $$(LIB_$(1)_BUILD_NAME) $$(LIB_$(1)_FILENAME))
 	@$$(LINK_$(1)_COMMAND2)
 
+$$(tmpLIBNAME): $(LIB)/$$(tmpLIBNAME)$$(so)
+.PHONY:	$$(tmpLIBNAME)
+
 LIB_$(1)_DEPS := $(LIB)/$$(tmpLIBNAME)$$(so)
 
 libraries: $(LIB)/$$(tmpLIBNAME)$$(so)
