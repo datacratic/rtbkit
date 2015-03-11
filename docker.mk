@@ -79,7 +79,7 @@ DOCKER_GET_REVISION_SCRIPT?=$(JML_BUILD)/get_git_revision.sh
 # container after the container is created.  It can be used to modify the
 # container before it is committed.
 
-DOCKER_TAG:=latest
+DOCKER_TAG:= $(shell whoami)_latest
 
 
 
@@ -106,6 +106,7 @@ docker_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	echo docker commit `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`
 	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid` > $(TMPBIN)/$<.iid && cat $(TMPBIN)/$<.iid
 	$(if $(DOCKER_TAG),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):$(DOCKER_TAG))
+	$(if $(DOCKER_PUSH),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):latest)
 	@docker rm `cat $(TMPBIN)/$(<).cid`
 	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<))
 	@echo $(COLOR_WHITE)Created $(if $(DOCKER_PUSH),and pushed )$(COLOR_BOLD)$(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`$(COLOR_RESET) as image $(COLOR_WHITE)$(COLOR_BOLD)`cat $(TMPBIN)/$<.iid`$(COLOR_RESET)
