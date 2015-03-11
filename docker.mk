@@ -56,7 +56,7 @@ DOCKER_GET_REVISION_SCRIPT?=$(JML_BUILD)/get_git_revision.sh
 
 # DOCKER_PUSH: if this is defined, then docker will be asked to push the
 # container to the repository after it has been successfully built.
-#
+# N.B. the tag "latest" will be applied to the image before pushing
 # This should be added to local.mk, not edited here.
 
 #DOCKER_PUSH:=1
@@ -80,12 +80,11 @@ DOCKER_GET_REVISION_SCRIPT?=$(JML_BUILD)/get_git_revision.sh
 # container before it is committed.
 
 DOCKER_TAG:= $(shell whoami)_latest
-
-
+# this is the tag that will be applied to the image
 
 # Docker target (generic).  If you make docker_target_name, it will make
 # target_name and install it inside a docker image.
-#
+# 
 # In order to determine the tag, by default this rule will call the
 # get_git_revision script that will return a revision ID from git to tag
 # the image with.  The script will also ensure that everything used in the
