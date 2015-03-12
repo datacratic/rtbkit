@@ -70,6 +70,7 @@ DOCKER_GET_REVISION_SCRIPT?=$(JML_BUILD)/get_git_revision.sh
 # DOCKER_TAG: if this is defined, the given tag will also be applied to the
 # built image.  By default it's "latest" which is expected by most docker
 # tooling, but can be changed to something else or undefined if required.
+DOCKER_TAG:= $(shell whoami)_latest
 
 # DOCKER_COMMIT_ARGS: Anything in this variable (which should be overridden
 # on a per-target basis) will be passed to docker commit as arguments.
@@ -79,8 +80,6 @@ DOCKER_GET_REVISION_SCRIPT?=$(JML_BUILD)/get_git_revision.sh
 # container after the container is created.  It can be used to modify the
 # container before it is committed.
 
-DOCKER_TAG:= $(shell whoami)_latest
-# this is the tag that will be applied to the image
 
 # Docker target (generic).  If you make docker_target_name, it will make
 # target_name and install it inside a docker image.
@@ -93,11 +92,14 @@ DOCKER_TAG:= $(shell whoami)_latest
 
 #docker_%:	$(TMPBIN)/%.iid
 
-docker_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
+altroot_prep_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	@BUILD=$(BUILD) bash $(DOCKER_GET_REVISION_SCRIPT) $(<) > $(TMPBIN)/$(<).rid $(if $(DOCKER_ALLOW_DIRTY), || true,)
 	echo "revision" `cat $(TMPBIN)/$(<).rid`
 	@echo "Building $(<) for use within docker"
-	+make TMPBIN=$(TMPBIN) LIB=$(TMPBIN)/docker-$(<)/lib BIN=$(TMPBIN)/docker-$(<)/bin ETC=$(TMPBIN)/docker-$(<)/etc  BUILD_CONTAINER_LOCAL=$(TMPBIN)/docker-$(<)/local   $(<)
+	make TMPBIN=$(TMPBIN) LIB=$(TMPBIN)/docker-$(<)/opt/lib BIN=$(TMPBIN)/docker-$(<)/opt/bin ALTROOT=$(TMPBIN)/docker-$(<) $(<)
+
+docker_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
+	make altroot_prep_$(<)
 	@echo "Creating container"
 	@rm -f $(TMPBIN)/$(<).cid
 	docker run -cidfile $(TMPBIN)/$(<).cid -v `pwd`:/tmp/build $(DOCKER_BASE_IMAGE) sh /tmp/build/$(JML_BUILD)/docker_install_inside_container.sh /tmp/build/$(TMPBIN)/docker-$(<) $(if $(DOCKER_POST_INSTALL_SCRIPT),/tmp/build/$(DOCKER_POST_INSTALL_SCRIPT))
@@ -105,7 +107,7 @@ docker_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	echo docker commit `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`
 	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid` > $(TMPBIN)/$<.iid && cat $(TMPBIN)/$<.iid
 	$(if $(DOCKER_TAG),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):$(DOCKER_TAG))
-	$(if $(DOCKER_PUSH),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):latest)
 	@docker rm `cat $(TMPBIN)/$(<).cid`
 	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<))
 	@echo $(COLOR_WHITE)Created $(if $(DOCKER_PUSH),and pushed )$(COLOR_BOLD)$(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`$(COLOR_RESET) as image $(COLOR_WHITE)$(COLOR_BOLD)`cat $(TMPBIN)/$<.iid`$(COLOR_RESET)
+
