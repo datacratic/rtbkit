@@ -8,8 +8,14 @@
 
 import os
 import fileinput
+import re
 from xml.etree import ElementTree
 from StringIO import StringIO
+
+# thanks to
+# https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
+ansi_escape = re.compile(r'\x1b[^m]*m')
+
 
 passed = set()
 failed = set()
@@ -36,11 +42,11 @@ builder.start('testsuite', {
 })
 
 for f in failed:
-    failContent = ""
+    fail_content = ""
 
     if os.path.isfile("build/x86_64/tests/%s.failed" % f):
         with open("build/x86_64/tests/%s.failed" % f, "r") as failFile:
-            failContent = failFile.read()
+            fail_content = failFile.read()
     builder.start('testcase', {
         'time' : '0',
         'name' : f
@@ -49,7 +55,8 @@ for f in failed:
         'type' : 'failure',
         'message' : 'Check log'
     })
-    builder.data(unicode(failContent, 'utf-8'))
+    ansi_escape.sub('', fail_content)
+    builder.data(unicode(fail_content, 'utf-8'))
     builder.end('failure')
     builder.end('testcase')
 
@@ -66,5 +73,5 @@ tree = ElementTree.ElementTree()
 element = builder.close()
 tree._setroot(element)
 io = StringIO()
-tree.write(io, encoding='ascii', xml_declaration=True)
+tree.write(io, encoding='utf-8', xml_declaration=True)
 print io.getvalue()
