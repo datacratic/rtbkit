@@ -107,7 +107,9 @@ docker_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	echo docker commit `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`
 	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid` > $(TMPBIN)/$<.iid && cat $(TMPBIN)/$<.iid
 	$(if $(DOCKER_TAG),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):$(DOCKER_TAG))
+	$(if $(DOCKER_PUSH),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):latest)
 	@docker rm `cat $(TMPBIN)/$(<).cid`
-	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<))
+	$(if $(DOCKER_PUSH),$(if $(DOCKER_TAG), docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):$(DOCKER_TAG)))
+	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):latest)
 	@echo $(COLOR_WHITE)Created $(if $(DOCKER_PUSH),and pushed )$(COLOR_BOLD)$(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`$(COLOR_RESET) as image $(COLOR_WHITE)$(COLOR_BOLD)`cat $(TMPBIN)/$<.iid`$(COLOR_RESET)
 
