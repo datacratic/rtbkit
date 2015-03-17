@@ -21,8 +21,9 @@ passed = set()
 failed = set()
 
 for l in fileinput.input():
-    pieces = l.strip().replace("\x1b[0m", "").replace("\x1b[32m", "") \
-        .replace("\x1b[31m", "").split()
+#    pieces = l.strip().replace("\x1b[0m", "").replace("\x1b[32m", "") \
+#        .replace("\x1b[31m", "").split()
+    pieces = l.strip().replace(chr(27), "").split()
     if not len(pieces) == 2:
         continue
     if pieces[1] == "passed":
@@ -46,7 +47,7 @@ for f in failed:
 
     if os.path.isfile("build/x86_64/tests/%s.failed" % f):
         with open("build/x86_64/tests/%s.failed" % f, "r") as failFile:
-            fail_content = failFile.read()
+            fail_content = failFile.read().replace(chr(27), "")
     builder.start('testcase', {
         'time' : '0',
         'name' : f
