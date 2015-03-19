@@ -6,6 +6,9 @@ PYTHON_VERSION ?= $(PYTHON_VERSION_DETECTED)
 PYTHON_INCLUDE_PATH ?= $(VIRTUALENV)/include/python$(PYTHON_VERSION)
 PYTHON ?= python$(PYTHON_VERSION)
 PIP ?= pip
+# We force use of pip>=6.0 for wheel support and system wide pip.conf
+# Pinned version to avoid unexpected upgrades
+PIP_PKG ?= pip==6.0.8
 PYFLAKES ?= true
 
 PYTHON_PURE_LIB_PATH ?= $(BIN)
@@ -27,10 +30,9 @@ PYTHON_EXECUTABLE ?= $(VIRTUALENV)/bin/python
 
 endif
 
-# We force use of pip>=6.0 for wheel support and system wide pip.conf
 python_dependencies:
 	@if [ -f python_requirements.txt ]; then \
-		$(PIP) install -U pip>=6.0; \
+		$(PIP) install -U $(PIP_PKG); \
 		$(PIP) install -r python_requirements.txt; \
 	fi
 
