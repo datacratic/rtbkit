@@ -7,6 +7,8 @@ PYTHON_INCLUDE_PATH ?= $(VIRTUALENV)/include/python$(PYTHON_VERSION)
 PYTHON ?= python$(PYTHON_VERSION)
 PIP ?= pip
 PYFLAKES ?= true
+# Override this to run a cmd before installing python_requirements.txt
+PYTHON_DEPENDENCIES_PRE_CMD ?= true  
 
 PYTHON_PURE_LIB_PATH ?= $(BIN)
 PYTHON_PLAT_LIB_PATH ?= $(BIN)
@@ -28,7 +30,8 @@ PYTHON_EXECUTABLE ?= $(VIRTUALENV)/bin/python
 endif
 
 python_dependencies:
-	@if [ -f python_requirements.txt ]; then \
+	if [ -f python_requirements.txt ]; then \
+		$(PYTHON_DEPENDENCIES_PRE_CMD); \
 		$(PIP) install -r python_requirements.txt; \
 	fi
 
