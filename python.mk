@@ -27,8 +27,10 @@ PYTHON_EXECUTABLE ?= $(VIRTUALENV)/bin/python
 
 endif
 
+# We force use of pip>=6.0 for wheel support and system wide pip.conf
 python_dependencies:
 	@if [ -f python_requirements.txt ]; then \
+		$(PIP) install -U pip>=6.0; \
 		$(PIP) install -r python_requirements.txt; \
 	fi
 
