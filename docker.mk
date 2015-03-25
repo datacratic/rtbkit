@@ -92,24 +92,68 @@ DOCKER_TAG:= $(shell whoami)_latest
 
 #docker_%:	$(TMPBIN)/%.iid
 
-altroot_prep_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
-	@BUILD=$(BUILD) bash $(DOCKER_GET_REVISION_SCRIPT) $(<) > $(TMPBIN)/$(<).rid $(if $(DOCKER_ALLOW_DIRTY), || true,)
-	echo "revision" `cat $(TMPBIN)/$(<).rid`
-	@echo "Building $(<) for use within docker"
-	make TMPBIN=$(TMPBIN) LIB=$(TMPBIN)/docker-$(<)/opt/lib BIN=$(TMPBIN)/docker-$(<)/opt/bin ALTROOT=$(TMPBIN)/docker-$(<) $(<)
+altroot_prep_%: $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
+	@BUILD=$(BUILD) bash $(DOCKER_GET_REVISION_SCRIPT) $(*) > $(TMPBIN)/$(*).rid $(if $(DOCKER_ALLOW_DIRTY), || true,)
+	echo "revision" `cat $(TMPBIN)/$(*).rid`
+	@echo "Building $(*) for use within docker"
+	make TMPBIN=$(TMPBIN) LIB=$(TMPBIN)/docker-$(*)/opt/lib BIN=$(TMPBIN)/docker-$(*)/opt/bin ALTROOT=$(TMPBIN)/docker-$(*) $(*)
 
-docker_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
-	make altroot_prep_$(<)
+docker_%: $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
+	make altroot_prep_$(*)
 	@echo "Creating container"
-	@rm -f $(TMPBIN)/$(<).cid
-	docker run -cidfile $(TMPBIN)/$(<).cid -v `pwd`:/tmp/build $(DOCKER_BASE_IMAGE) sh /tmp/build/$(JML_BUILD)/docker_install_inside_container.sh /tmp/build/$(TMPBIN)/docker-$(<) $(if $(DOCKER_POST_INSTALL_SCRIPT),/tmp/build/$(DOCKER_POST_INSTALL_SCRIPT))
-	cat $(TMPBIN)/$(<).cid
-	echo docker commit `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`
-	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(<).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid` > $(TMPBIN)/$<.iid && cat $(TMPBIN)/$<.iid
-	$(if $(DOCKER_TAG),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):$(DOCKER_TAG))
-	$(if $(DOCKER_PUSH),docker tag `cat $(TMPBIN)/$(<).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):latest)
-	@docker rm `cat $(TMPBIN)/$(<).cid`
-	$(if $(DOCKER_PUSH),$(if $(DOCKER_TAG), docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):$(DOCKER_TAG)))
-	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(<):latest)
-	@echo $(COLOR_WHITE)Created $(if $(DOCKER_PUSH),and pushed )$(COLOR_BOLD)$(DOCKER_REGISTRY)$(DOCKER_USER)$(<):`cat $(TMPBIN)/$(<).rid`$(COLOR_RESET) as image $(COLOR_WHITE)$(COLOR_BOLD)`cat $(TMPBIN)/$<.iid`$(COLOR_RESET)
+	@rm -f $(TMPBIN)/$(*).cid
+	docker run -cidfile $(TMPBIN)/$(*).cid -v `pwd`:/tmp/build $(DOCKER_BASE_IMAGE) sh /tmp/build/$(JML_BUILD)/docker_install_inside_container.sh /tmp/build/$(TMPBIN)/docker-$(*) $(if $(DOCKER_POST_INSTALL_SCRIPT),/tmp/build/$(DOCKER_POST_INSTALL_SCRIPT))
+	cat $(TMPBIN)/$(*).cid
+	echo docker commit `cat $(TMPBIN)/$(*).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid`
+	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(*).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid` > $(TMPBIN)/$(*).iid && cat $(TMPBIN)/$(*).iid
+	$(if $(DOCKER_TAG),docker tag `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG))
+	$(if $(DOCKER_PUSH),docker tag `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
+	@docker rm `cat $(TMPBIN)/$(*).cid`
+	$(if $(DOCKER_PUSH),$(if $(DOCKER_TAG), docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG)))
+	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
+	@echo $(COLOR_WHITE)Created $(if $(DOCKER_PUSH),and pushed )$(COLOR_BOLD)$(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid`$(COLOR_RESET) as image $(COLOR_WHITE)$(COLOR_BOLD)`cat $(TMPBIN)/$(*).iid`$(COLOR_RESET)
+
+
+## Functions
+# install_templated_file
+#  1: source file
+#  2: destination file
+#  3: mode (444)
+#  4: make target to add the rule as a prerequisite
+#  5: variable definition file
+#  6: template filter  # must take a file as sole parameter and output
+                       # the result on stdout
+define install_templated_file
+$$(if $(trace),$$(warning called "$(0)" "$(1)" "$(2)" "$(3)" "$(4)" "$(5)" "$(6)))
+$(eval mode := $(if $(3),-m $(3),-m 0444))
+target_add_prereq := $(4)
+$(eval var_file := $(if $(5),$(5)))
+new_target := $(0)-$(1)-$(2)
+
+$$(new_target): $(1) $(var_file)
+	install -d $(owner) $(group) `dirname $(2)`
+	$(6) $(1) >$(2)~
+	install $(mode) $(owner) $(group) $(2)~ $(2)
+	rm $(2)~
+
+$(target_add_prereq): $$(new_target)
+.PHONY: $$(new_target)
+endef
+
+# install_directory
+#  $(1): source dir
+#  $(2): destination dir
+#  $(3): make target to add the rule as a prerequisite
+define install_directory
+$$(if $(trace),$$(warning called "$(0)" "$(1)" "$(2)" "$(3)"))
+target_add_prereq := $(3)
+
+new_target := $(0)-$(1)-$(2)
+$$(new_target):
+	mkdir -p $(2)
+	cp -vR $(1) $(2)
+
+$(target_add_prereq): $$(new_target)
+.PHONY: $$(new_target)
+endef
 
