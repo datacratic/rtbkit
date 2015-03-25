@@ -92,14 +92,13 @@ DOCKER_TAG:= $(shell whoami)_latest
 
 #docker_%:	$(TMPBIN)/%.iid
 
-altroot_prep_%: $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
+altroot_prep_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	@BUILD=$(BUILD) bash $(DOCKER_GET_REVISION_SCRIPT) $(*) > $(TMPBIN)/$(*).rid $(if $(DOCKER_ALLOW_DIRTY), || true,)
 	echo "revision" `cat $(TMPBIN)/$(*).rid`
 	@echo "Building $(*) for use within docker"
 	make TMPBIN=$(TMPBIN) LIB=$(TMPBIN)/docker-$(*)/opt/lib BIN=$(TMPBIN)/docker-$(*)/opt/bin ALTROOT=$(TMPBIN)/docker-$(*) $(*)
 
-docker_%: $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
-	make altroot_prep_$(*)
+docker_%: altroot_prep_%  $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	@echo "Creating container"
 	@rm -f $(TMPBIN)/$(*).cid
 	docker run -cidfile $(TMPBIN)/$(*).cid -v `pwd`:/tmp/build $(DOCKER_BASE_IMAGE) sh /tmp/build/$(JML_BUILD)/docker_install_inside_container.sh /tmp/build/$(TMPBIN)/docker-$(*) $(if $(DOCKER_POST_INSTALL_SCRIPT),/tmp/build/$(DOCKER_POST_INSTALL_SCRIPT))
