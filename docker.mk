@@ -130,9 +130,9 @@ $(eval var_file := $(if $(5),$(5)))
 $(eval new_target := $(0)-$(1)-$(2))
 
 $(new_target): $(1) $(var_file)
-	install -d $(owner) $(group) `dirname $(2)`
+	install -d `dirname $(2)`
 	$(6) $(1) >$(2)~
-	install $(mode) $(owner) $(group) $(2)~ $(2)
+	install $(mode) $(2)~ $(2)
 	rm $(2)~
 
 $(target_add_prereq): $(new_target)
