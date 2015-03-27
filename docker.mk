@@ -105,8 +105,8 @@ docker_%: altroot_prep_%  $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	cat $(TMPBIN)/$(*).cid
 	echo docker commit `cat $(TMPBIN)/$(*).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid`
 	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(*).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid` > $(TMPBIN)/$(*).iid && cat $(TMPBIN)/$(*).iid
-	$(if $(DOCKER_TAG),docker tag `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG))
-	$(if $(DOCKER_PUSH),docker tag `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
+	$(if $(DOCKER_TAG),docker tag -f `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG))
+	$(if $(DOCKER_PUSH),docker tag -f `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
 	@docker rm `cat $(TMPBIN)/$(*).cid`
 	$(if $(DOCKER_PUSH),$(if $(DOCKER_TAG), docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG)))
 	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
