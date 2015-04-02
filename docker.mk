@@ -71,6 +71,7 @@ DOCKER_GET_REVISION_SCRIPT?=$(JML_BUILD)/get_git_revision.sh
 # built image.  By default it's "latest" which is expected by most docker
 # tooling, but can be changed to something else or undefined if required.
 DOCKER_TAG:= $(shell whoami)_latest
+DOCKER_TAGS += $(DOCKER_TAG)
 
 # DOCKER_COMMIT_ARGS: Anything in this variable (which should be overridden
 # on a per-target basis) will be passed to docker commit as arguments.
@@ -101,14 +102,14 @@ altroot_prep_%: % $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 docker_%: altroot_prep_%  $(DOCKER_GLOBAL_DEPS) $(DOCKER_TARGET_DEPS)
 	@echo "Creating container"
 	@rm -f $(TMPBIN)/$(*).cid
-	docker run -cidfile $(TMPBIN)/$(*).cid -v `pwd`:/tmp/build $(DOCKER_BASE_IMAGE) sh /tmp/build/$(JML_BUILD)/docker_install_inside_container.sh /tmp/build/$(TMPBIN)/docker-$(*) $(if $(DOCKER_POST_INSTALL_SCRIPT),/tmp/build/$(DOCKER_POST_INSTALL_SCRIPT))
+	docker run --cidfile $(TMPBIN)/$(*).cid -v `pwd`:/tmp/build $(DOCKER_BASE_IMAGE) sh /tmp/build/$(JML_BUILD)/docker_install_inside_container.sh /tmp/build/$(TMPBIN)/docker-$(*) $(if $(DOCKER_POST_INSTALL_SCRIPT),/tmp/build/$(DOCKER_POST_INSTALL_SCRIPT))
 	cat $(TMPBIN)/$(*).cid
 	echo docker commit `cat $(TMPBIN)/$(*).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid`
 	docker commit $(DOCKER_COMMIT_ARGS) `cat $(TMPBIN)/$(*).cid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid` > $(TMPBIN)/$(*).iid && cat $(TMPBIN)/$(*).iid
-	$(if $(DOCKER_TAG),docker tag -f `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG))
+	$(foreach tag,$(DOCKER_TAGS),docker tag -f `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(tag);)
 	$(if $(DOCKER_PUSH),docker tag -f `cat $(TMPBIN)/$(*).iid` $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
 	@docker rm `cat $(TMPBIN)/$(*).cid`
-	$(if $(DOCKER_PUSH),$(if $(DOCKER_TAG), docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG)))
+	#$(if $(DOCKER_PUSH),$(if $(DOCKER_TAG), docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):$(DOCKER_TAG)))
 	$(if $(DOCKER_PUSH),docker push $(DOCKER_REGISTRY)$(DOCKER_USER)$(*):latest)
 	@echo $(COLOR_WHITE)Created $(if $(DOCKER_PUSH),and pushed )$(COLOR_BOLD)$(DOCKER_REGISTRY)$(DOCKER_USER)$(*):`cat $(TMPBIN)/$(*).rid`$(COLOR_RESET) as image $(COLOR_WHITE)$(COLOR_BOLD)`cat $(TMPBIN)/$(*).iid`$(COLOR_RESET)
 
