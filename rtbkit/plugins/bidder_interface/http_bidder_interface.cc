@@ -363,6 +363,35 @@ void HttpBidderInterface::sendLossMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & id) {
 
+    auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
+        [=](const HttpRequest &, HttpClientError errorCode,
+            int statusCode, const std::string &, std::string &&body)
+        {
+            if (errorCode != HttpClientError::None) {
+                 LOG(error) << "Error requesting "
+                            << adserverHost << ":" << adserverEventPort
+                            << " (" << httpErrorString(errorCode) << ")" << std::endl;
+                 recordError("network");
+              }
+        });
+
+    Json::Value content;
+
+    if (adserverEventFormat == FMT_DATACRATIC) {
+        content["id"] = id;
+
+        Json::Value entry;
+        {
+            entry["cid"] = agent;
+            entry["type"] = "loss";
+            entry["id"] = id;
+        }
+        content["events"].append(entry);
+
+    } else ExcAssert(false);
+
+    HttpRequest::Content reqContent { content, "application/json" };
+    httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent, {} /* queryParams */);
 }
 
 void HttpBidderInterface::sendWinLossMessage(
