@@ -529,7 +529,7 @@ void HttpBidderInterface::sendBidErrorMessage(
 
     Json::Value content;
     content["id"] = auction->id.toString();
-    content["crid"] = agentConfig->account[1];
+    content["cid"] = agent;
     content["type"] = type;
     if (!reason.empty()) content["reason"] = reason;
 
@@ -542,7 +542,7 @@ void HttpBidderInterface::sendBidDroppedMessage(
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "DROPPED");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "DROPPED");
 }
 
 void HttpBidderInterface::sendBidInvalidMessage(
@@ -551,7 +551,7 @@ void HttpBidderInterface::sendBidInvalidMessage(
         std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "INVALID");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "INVALID");
 }
 
 void HttpBidderInterface::sendNoBudgetMessage(
@@ -559,7 +559,7 @@ void HttpBidderInterface::sendNoBudgetMessage(
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "NOBUDGET");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "NOBUDGET");
 }
 
 void HttpBidderInterface::sendTooLateMessage(
@@ -567,7 +567,7 @@ void HttpBidderInterface::sendTooLateMessage(
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "TOOLATE");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "TOOLATE");
 }
 
 void HttpBidderInterface::sendMessage(
