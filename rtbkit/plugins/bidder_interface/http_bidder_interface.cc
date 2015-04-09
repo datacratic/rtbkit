@@ -434,7 +434,7 @@ void HttpBidderInterface::sendWinLossMessage(
         {
             entry["impid"] = event.impId.toString();
             entry["type"] = event.type == MatchedWinLoss::Loss ? "loss" : "win";
-            entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
+            entry["price"] = event.type == MatchedWinLoss::Loss ? 0.0 : (double) getAmountIn<CPM>(event.winPrice);
             entry["cid"] = event.response.account[1];
             entry["ext"]["datacratic"]["meta"] = Json::parse(event.response.meta.rawString());
 
