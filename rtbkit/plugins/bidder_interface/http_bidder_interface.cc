@@ -397,7 +397,6 @@ void HttpBidderInterface::sendLossMessage(
 void HttpBidderInterface::sendWinLossMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         MatchedWinLoss const & event) {
-    if (event.type == MatchedWinLoss::Loss) return;
 
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &, HttpClientError errorCode,
@@ -453,7 +452,6 @@ void HttpBidderInterface::sendWinLossMessage(
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverWins->post(adserverWinPath, callbacks, reqContent,
                          { } /* queryParams */);
-    
 }
 
 
