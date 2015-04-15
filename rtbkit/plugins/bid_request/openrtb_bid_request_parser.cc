@@ -6,7 +6,7 @@
 */
 
 #include "openrtb_bid_request_parser.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 #include "rtbkit/openrtb/openrtb.h"
 #include "rtbkit/openrtb/openrtb_parsing.h"
 

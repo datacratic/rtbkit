@@ -7,7 +7,7 @@
 
 #include "rtbkit/core/router/router_runner.h"
 #include "rtbkit/plugins/exchange/http_exchange_connector.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 
 namespace RTBKIT {
 
@@ -92,7 +92,7 @@ struct MockExchangeConnector : public HttpExchangeConnector {
 
             auto & resp = current->winningResponse(spotNum);
             result += ML::format("{\"id\":\"%s\",\"max_price\":%ld,\"account\":\"%s\"}",
-                             ML::jsonEscape(auction.request->imp.at(spotNum).id.toString()).c_str(),
+                             Datacratic::jsonEscape(auction.request->imp.at(spotNum).id.toString()).c_str(),
                              (int64_t)(MicroUSD_CPM(resp.price.maxPrice)),
                              resp.account.toString('.'));
         }

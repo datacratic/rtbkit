@@ -9,7 +9,7 @@
 #include "bids.h"
 
 #include "jml/utils/exc_check.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 
 using namespace std;
 using namespace ML;

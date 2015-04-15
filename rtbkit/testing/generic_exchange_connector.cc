@@ -7,7 +7,7 @@
 
 #include "generic_exchange_connector.h"
 #include "rtbkit/common/bid_request.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 #include "rtbkit/core/agent_configuration/agent_config.h"
 #include <boost/algorithm/string/trim.hpp>
 #include "rtbkit/core/router/router.h"

@@ -7,7 +7,7 @@
 #include "fbx_bid_request.h"
 #include "fbx.h"
 #include "fbx_parsing.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 
 using namespace std;
 

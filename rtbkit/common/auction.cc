@@ -12,7 +12,7 @@
 #include "jml/utils/parse_context.h"
 #include "jml/utils/less.h"
 #include "jml/utils/string_functions.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 #include "jml/db/persistent.h"
 
 #include "ace/Acceptor.h"

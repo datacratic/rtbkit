@@ -16,12 +16,13 @@
 #include "soa/jsoncpp/reader.h"
 #include "jml/utils/rng.h"
 #include "jml/utils/exc_assert.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 
 #include <unordered_map>
 
 using namespace std;
 using namespace ML;
+using namespace Datacratic;
 
 namespace RTBKIT {
 namespace Synth {

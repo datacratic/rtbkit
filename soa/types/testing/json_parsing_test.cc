@@ -8,7 +8,7 @@
 #define BOOST_TEST_MAIN
 #define BOOST_TEST_DYN_LINK
 
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 #include "jml/utils/info.h"
 
 #include <boost/test/unit_test.hpp>
@@ -16,6 +16,7 @@
 #include <math.h>
 
 using namespace ML;
+using namespace Datacratic;
 
 using boost::unit_test::test_suite;
 

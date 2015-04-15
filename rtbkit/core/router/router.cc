@@ -24,7 +24,7 @@
 #include "jml/utils/pair_utils.h"
 #include "jml/utils/exc_assert.h"
 #include "jml/db/persistent.h"
-#include "jml/utils/json_parsing.h"
+#include "soa/types/json_parsing.h"
 #include "profiler.h"
 #include "rtbkit/core/banker/banker.h"
 #include "rtbkit/core/banker/null_banker.h"
