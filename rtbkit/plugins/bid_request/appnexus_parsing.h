@@ -30,7 +30,7 @@ struct DefaultDescription<AppNexus::AdPosition>
     void parseJsonTyped(AppNexus::AdPosition * val,
                    JsonParsingContext & context) const
     {
-        string appNexAdPos = context.expectStringAscii();
+        string appNexAdPos = context.expectString();
 
         if (appNexAdPos == "unknown") {
           val->val = AppNexus::AdPosition::UNKNOWN;

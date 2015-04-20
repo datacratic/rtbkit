@@ -58,7 +58,7 @@ struct HistoricalPositionDescriptor
                                 JsonParsingContext & context) const
     {
         if (context.isString()) {
-            string s = context.expectStringAscii();
+            string s = context.expectString();
             if (s == "NONE" || s == "none") {
                 val->val = OpenRTB::AdPosition::UNKNOWN;
             }
@@ -859,7 +859,7 @@ struct UserIdsDescription
         auto onMember = [&] ()
             {
                 string key = context.path.fieldName();
-                Id value(context.expectStringAscii());
+                Id value(context.expectString());
                 val->add(value, key);
             };
         

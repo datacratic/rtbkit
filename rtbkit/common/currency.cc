@@ -554,7 +554,7 @@ struct CurrencyCodeDescription
     virtual void parseJsonTyped(CurrencyCode * val,
                                 JsonParsingContext & context) const
     {
-        std::string s = context.expectStringAscii();
+        std::string s = context.expectString();
         *val = parseCurrencyCode(s);
     }
 

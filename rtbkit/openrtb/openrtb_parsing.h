@@ -26,7 +26,7 @@ struct DefaultDescription<OpenRTB::ContentCategory>
     virtual void parseJsonTyped(OpenRTB::ContentCategory * val,
                                 JsonParsingContext & context) const
     {
-        val->val = context.expectStringAscii();
+        val->val = context.expectString();
     }
 
     virtual void printJsonTyped(const OpenRTB::ContentCategory * val,
@@ -43,7 +43,7 @@ struct DefaultDescription<OpenRTB::MimeType>
     virtual void parseJsonTyped(OpenRTB::MimeType * val,
                                 JsonParsingContext & context) const
     {
-        val->type = context.expectStringAscii();
+        val->type = context.expectString();
     }
 
     virtual void printJsonTyped(const OpenRTB::MimeType * val,

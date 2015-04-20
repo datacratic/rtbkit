@@ -133,7 +133,7 @@ fromJson(ML::Parse_Context& context)
 
             case 'a':
                 if (fieldName == "account")
-                    bid.account = AccountKey(expectJsonStringAscii(context));
+                    bid.account = AccountKey(expectJsonString(context));
 
                 else foundField = false;
                 break;
@@ -155,7 +155,7 @@ fromJson(ML::Parse_Context& context)
 
             case 'p':
                 if (fieldName == "price")
-                    bid.price = Amount::parse(expectJsonStringAscii(context));
+                    bid.price = Amount::parse(expectJsonString(context));
 
                 else if (fieldName == "priority")
                     bid.priority = context.expect_double();
@@ -240,7 +240,7 @@ fromJson(const std::string& raw)
 
     auto onBidEntry = [&] (int, ML::Parse_Context& context)
         {
-            result.dataSources.insert(expectJsonStringAscii(context));
+            result.dataSources.insert(expectJsonString(context));
         };
 
     auto onBidsEntry = [&] (const string& fieldName, ML::Parse_Context& context)

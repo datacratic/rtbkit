@@ -170,7 +170,7 @@ namespace Datacratic {
         virtual void parseJsonTyped(RTBKIT::AccountKey * val,
                                     JsonParsingContext & context) const
         {
-            *val = RTBKIT::AccountKey(context.expectStringAscii());
+            *val = RTBKIT::AccountKey(context.expectString());
         }
 
         virtual void printJsonTyped(const RTBKIT::AccountKey * val,
