@@ -407,7 +407,7 @@ void HttpBidderInterface::sendWinLossMessage(
             entry["type"] = event.type == MatchedWinLoss::Loss ? "loss" : "win";
             entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
             entry["cid"] = event.response.account[1];
-            entry["ext"]["datacratic"]["meta"] = Json::parse(event.response.meta.rawString());
+            entry["ext"]["datacratic"]["meta"] = Json::parse(event.response.meta);
 
             Json::Value users;
             for (const auto& item : event.uids) {

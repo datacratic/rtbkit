@@ -258,14 +258,14 @@ fromOpenRtb(OpenRTB::BidRequest && req,
             string key;
             if (d.id)
                 key = d.id.toString();
-            else key = d.name.extractAscii();
+            else key = d.name;
 
             vector<string> values;
             for (auto & v: d.segment) {
                 if (v.id)
                     values.push_back(v.id.toString());
                 else if (!v.name.empty())
-                    values.push_back(v.name.extractAscii());
+                    values.push_back(v.name);
             }
 
             result->segments.addStrings(key, values);
@@ -281,7 +281,7 @@ fromOpenRtb(OpenRTB::BidRequest && req,
         else if (result->user->id)
             result->userIds.add(result->user->id, ID_PROVIDER);
         else if(result->device && !result->device->ip.empty() && !result->device->ua.empty()) {
-            const std::string &strToHash = (result->device->ip + result->device->ua.extractAscii());
+            const std::string &strToHash = (result->device->ip + result->device->ua);
             result->userAgentIPHash = Id(CityHash64(strToHash.c_str(), strToHash.length()));
             result->userIds.add(result->userAgentIPHash, ID_PROVIDER);
         }
@@ -309,7 +309,7 @@ fromOpenRtb(OpenRTB::BidRequest && req,
         // the user
 
         if(result->device && !result->device->ip.empty() && !result->device->ua.empty()) {
-            const std::string &strToHash = (result->device->ip + result->device->ua.extractAscii());
+            const std::string &strToHash = (result->device->ip + result->device->ua);
             result->userAgentIPHash = Id(CityHash64(strToHash.c_str(), strToHash.length()));
             result->userIds.add(result->userAgentIPHash, ID_PROVIDER);
         }
@@ -333,7 +333,7 @@ fromOpenRtb(OpenRTB::BidRequest && req,
     result->badv = std::move(req.badv);
     vector<string> badv ;
     for (auto s: req.badv)
-    	badv.push_back (s.extractAscii());
+    	badv.push_back (s);
     result->restrictions.addStrings("badv", badv);
 
 

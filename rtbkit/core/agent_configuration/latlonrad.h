@@ -12,7 +12,6 @@
 #include "soa/jsoncpp/value.h"
 #include <vector>
 
-#include "soa/types/string.h"
 #include <iostream>
 
 

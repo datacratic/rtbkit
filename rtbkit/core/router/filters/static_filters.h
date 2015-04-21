@@ -191,7 +191,7 @@ struct LanguageFilter : public FilterBaseT<LanguageFilter>
 
     void filter(FilterState& state) const
     {
-        state.narrowConfigs(impl.filter(state.request.language.utf8String()));
+        state.narrowConfigs(impl.filter(state.request.language));
     }
 
 private:
@@ -216,12 +216,12 @@ struct LocationFilter : public FilterBaseT<LocationFilter>
 
     void filter(FilterState& state) const
     {
-        Datacratic::UnicodeString location = state.request.location.fullLocationString();
+        std::string location = state.request.location.fullLocationString();
         state.narrowConfigs(impl.filter(location));
     }
 
 private:
-    typedef RegexFilter<boost::u32regex, Datacratic::UnicodeString> BaseFilter;
+    typedef RegexFilter<boost::u32regex, std::string> BaseFilter;
     IncludeExcludeFilter<BaseFilter> impl;
 };
 

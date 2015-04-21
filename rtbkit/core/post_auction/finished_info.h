@@ -10,7 +10,6 @@
 
 #include "rtbkit/common/auction.h"
 #include "rtbkit/common/auction_events.h"
-#include "soa/types/string.h"
 
 #include <memory>
 
@@ -37,7 +36,7 @@ struct FinishedInfo {
     Id auctionId;       ///< Auction ID from host
     Id adSpotId;          ///< Spot ID from host
     int spotIndex;
-    Datacratic::UnicodeString bidRequestStr;
+    std::string bidRequestStr;
     std::string bidRequestStrFormat;
     JsonHolder augmentations;
     std::set<Id> uids;                ///< All UIDs for this user

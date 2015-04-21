@@ -16,7 +16,6 @@
 #include <memory>
 #include <vector>
 #include "soa/types/id.h"
-#include "soa/types/string.h"
 #include "soa/types/url.h"
 #include "jml/utils/compact_vector.h"
 #include "soa/jsoncpp/value.h"

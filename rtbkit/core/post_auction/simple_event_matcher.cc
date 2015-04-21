@@ -513,7 +513,7 @@ doBidResult(
         doError("doBidResult.adSpotIdNotFound",
                 "adspot ID " + adSpotId.toString() +
                 " not found in auction " +
-                submission.bidRequestStr().utf8String());
+                submission.bidRequestStr());
     }
 
     const Auction::Response & response = submission.bid;

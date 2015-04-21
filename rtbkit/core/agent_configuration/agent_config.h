@@ -79,7 +79,7 @@ struct Creative {
     TagFilterExpression eligibilityFilter;
 
     IncludeExclude<std::string> languageFilter;
-    IncludeExclude<CachedRegex<boost::u32regex, Datacratic::UnicodeString> > locationFilter;
+    IncludeExclude<CachedRegex<boost::u32regex, std::string> > locationFilter;
     IncludeExclude<std::string> exchangeFilter;
    
     // Needed for PMP filter
@@ -166,7 +166,7 @@ struct UserPartition {
     /** Return true if the user matches the user partition. */
     bool matches(const UserIds & ids,
                  const std::string& ip,
-                 const Datacratic::UnicodeString& userAgent) const;
+                 const std::string& userAgent) const;
 
     /** Parse from JSON. */
     void fromJson(const Json::Value & json);
@@ -285,7 +285,7 @@ struct AgentConfig {
     IncludeExclude<DomainMatcher> hostFilter;
     IncludeExclude<CachedRegex<boost::regex, std::string> > urlFilter;
     IncludeExclude<CachedRegex<boost::regex, std::string> > languageFilter;
-    IncludeExclude<CachedRegex<boost::u32regex, Datacratic::UnicodeString> > locationFilter;
+    IncludeExclude<CachedRegex<boost::u32regex, std::string> > locationFilter;
     LatLonRadList latLongDevFilter; // latitude and longitude device filter
 
 

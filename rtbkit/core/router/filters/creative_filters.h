@@ -100,7 +100,7 @@ struct CreativeLanguageFilter : public CreativeFilter<CreativeLanguageFilter>
     void filter(FilterState& state) const
     {
         state.narrowAllCreatives(
-                impl.filter(state.request.language.utf8String()));
+                impl.filter(state.request.language));
     }
 
 private:
@@ -136,7 +136,7 @@ struct CreativeLocationFilter : public CreativeFilter<CreativeLocationFilter>
     }
 
 private:
-    typedef CreativeRegexFilter<boost::u32regex, Datacratic::UnicodeString> BaseFilter;
+    typedef CreativeRegexFilter<boost::u32regex, std::string> BaseFilter;
     CreativeIncludeExcludeFilter<BaseFilter> impl;
 };
 

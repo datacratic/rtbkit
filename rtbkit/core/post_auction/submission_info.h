@@ -10,7 +10,6 @@
 
 #include "rtbkit/common/auction.h"
 #include "rtbkit/common/auction_events.h"
-#include "soa/types/string.h"
 
 namespace RTBKIT {
 
@@ -32,8 +31,8 @@ struct SubmissionInfo {
     std::shared_ptr<BidRequest> bidRequest;
     std::string bidRequestStrFormat;
 
-    Datacratic::UnicodeString bidRequestStr() const {
-        return Datacratic::UnicodeString(bidRequest->toJsonStr());
+    std::string bidRequestStr() const {
+        return bidRequest->toJsonStr();
     }
 
     JsonHolder augmentations;

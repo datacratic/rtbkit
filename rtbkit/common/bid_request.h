@@ -10,7 +10,6 @@
 
 #include "soa/jsoncpp/json.h"
 #include "soa/types/date.h"
-#include "soa/types/string.h"
 #include "jml/arch/exception.h"
 #include "jml/utils/compact_vector.h"
 #include "jml/utils/less.h"
@@ -235,8 +234,8 @@ struct Location {
 
     std::string countryCode;
     std::string regionCode;
-    Datacratic::UnicodeString cityName;
-    Datacratic::UnicodeString postalCode;
+    std::string cityName;
+    std::string postalCode;
 
     int dma;
     int metro;
@@ -245,7 +244,7 @@ struct Location {
     static Location createFromJson(const Json::Value & json);
 
     /** Return a location string with COUNTRY:REGION:CITY:POSTAL:DMA:METRO */
-    Datacratic::UnicodeString fullLocationString() const;
+    std::string fullLocationString() const;
 
     /** Return a canonical JSON version of the bid request. */
     Json::Value toJson() const;
@@ -316,11 +315,11 @@ struct BidRequest {
        optimization algorithm can make use of them.
     */
        
-    Datacratic::UnicodeString language;   ///< User's language.
+    std::string language;   ///< User's language.
     Location location;      ///< Best available location information
     Url url;
     std::string ipAddress;
-    Datacratic::UnicodeString userAgent;
+    std::string userAgent;
 
     /** This field should be used to indicate what User IDs are available
         in the bid request.  These are normally used by the augmentors to
@@ -351,7 +350,7 @@ struct BidRequest {
     OpenRTB::List<OpenRTB::ContentCategory> blockedCategories;
 
     /** Blocked TLD Advertisers (badv) */
-    std::vector<Datacratic::UnicodeString> badv ;
+    std::vector<std::string> badv ;
 
     /** Amount of extras that will be paid if we win the auction.  These will
         be accumulated in the banker against the winning account.
@@ -417,10 +416,6 @@ struct BidRequest {
         parser will be looked up in a registry based upon the source.*/
     static BidRequest *
     parse(const std::string & source, const std::string & bidRequest);
-
-    static BidRequest *
-    parse(const std::string & source, 
-          const Datacratic::UnicodeString & bidRequest);
 
     void serialize(ML::DB::Store_Writer & store) const;
     void reconstitute(ML::DB::Store_Reader & store);

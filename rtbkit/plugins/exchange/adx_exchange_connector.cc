@@ -678,9 +678,9 @@ parseBidRequest(HttpAuctionHandler & connection,
         static sregex oe = sregex::compile("(,gzip\\(gfe\\))+$") ;
         device.ua = regex_replace (gbr.user_agent(), oe, string());
 #else
-        device.ua = Datacratic::UnicodeString(gbr.user_agent());
+        device.ua = gbr.user_agent();
 #endif
-        br.userAgent = Datacratic::UnicodeString(gbr.user_agent());
+        br.userAgent = gbr.user_agent();
     }
 
     // See function comment.
@@ -801,7 +801,7 @@ getResponse(const HttpAuctionHandler & connection,
 
                     Json::Value meta;
                     Json::Reader reader;
-                    if (!reader.parse(resp.meta.rawString(), meta)) {
+                    if (!reader.parse(resp.meta, meta)) {
                         return getErrorResponse(
                                 connection,
                                 "Cannot decode meta information");

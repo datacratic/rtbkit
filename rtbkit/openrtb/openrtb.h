@@ -26,7 +26,6 @@
 #include <vector>
 #include <memory>
 #include "soa/types/id.h"
-#include "soa/types/string.h"
 #include "soa/types/url.h"
 #include "jml/utils/compact_vector.h"
 #include "soa/jsoncpp/value.h"
@@ -686,9 +685,9 @@ struct Video {
 struct Publisher {
     ~Publisher();
     Datacratic::Id id;                       ///< Unique ID representing the publisher
-    Datacratic::UnicodeString name;             ///< Publisher name
+    std::string name;             ///< Publisher name
     Datacratic::List<ContentCategory> cat; ///< Content categories     
-    Datacratic::UnicodeString domain;               ///< Domain name of publisher
+    std::string domain;               ///< Domain name of publisher
     Json::Value ext;             ///< Extensions go here, new in OpenRTB 2.1
 };
 
@@ -761,10 +760,10 @@ struct Impression {
     Datacratic::Id id;                             ///< Impression ID within BR
     Datacratic::Optional<Banner> banner;           ///< If it's a banner ad
     Datacratic::Optional<Video> video;             ///< If it's a video ad
-    Datacratic::UnicodeString displaymanager;          ///< What renders the ad
-    Datacratic::UnicodeString displaymanagerver;        ///< What version of that thing
+    std::string displaymanager;          ///< What renders the ad
+    std::string displaymanagerver;        ///< What version of that thing
     Datacratic::TaggedBoolDef<0> instl;            ///< Is it interstitial
-    Datacratic::UnicodeString tagid;                   ///< ad tag ID for auction
+    std::string tagid;                   ///< ad tag ID for auction
     Datacratic::TaggedDoubleDef<0> bidfloor;        ///< CPM bid floor
     std::string bidfloorcur;                ///< Bid floor currency
     Datacratic::TaggedInt secure;           ///< Flag that requires secure https assets (1 == yes) (OpenRTB 2.2)
@@ -798,16 +797,16 @@ struct Content {
     ~Content();
     Datacratic::Id id;                   ///< Unique ID identifying the content
     Datacratic::TaggedInt episode;       ///< Episode number of a series
-    Datacratic::UnicodeString title;        ///< Content title
-    Datacratic::UnicodeString series;       ///< Content series
-    Datacratic::UnicodeString season;       ///< Content season
+    std::string title;        ///< Content title
+    std::string series;       ///< Content series
+    std::string season;       ///< Content season
     Datacratic::Url url;                 ///< Original content URL
     Datacratic::List<ContentCategory> cat; ///< IAB content category (table 6.1)
     VideoQuality videoquality; ///< Video quality (table 6.14)
     Datacratic::CSList keywords;         ///< Content keywords
-    Datacratic::UnicodeString contentrating;    ///< Content rating (eg Mature)
-    Datacratic::UnicodeString userrating;       ///< Content user rating (eg 3 stars)
-    Datacratic::UnicodeString context;          ///< Content context (table 6.13)
+    std::string contentrating;    ///< Content rating (eg Mature)
+    std::string userrating;       ///< Content user rating (eg 3 stars)
+    std::string context;          ///< Content context (table 6.13)
     Datacratic::TaggedBool livestream;   ///< Is this being live streamed?
     SourceRelationship sourcerelationship;  ///< 1 = direct, 0 = indirect
     Datacratic::Optional<Producer> producer;  ///< Content producer
@@ -828,8 +827,8 @@ struct Content {
 struct Context {
     ~Context();
     Datacratic::Id id;        ///< Site ID on the exchange
-    Datacratic::UnicodeString name;  ///< Site name
-    Datacratic::UnicodeString domain;///< Site or app domain
+    std::string name;  ///< Site name
+    std::string domain;///< Site or app domain
     Datacratic::List<ContentCategory> cat;        ///< IAB content categories for site/app
     Datacratic::List<ContentCategory> sectioncat; ///< IAB content categories for subsection
     Datacratic::List<ContentCategory> pagecat;    ///< IAB content categories for page/view
@@ -860,7 +859,7 @@ struct Context {
 struct SiteInfo {
     Datacratic::Url page;          ///< URL of the page to be shown
     Datacratic::Url ref;           ///< Referrer URL that got user to page
-    Datacratic::UnicodeString search; ///< Search string that got user to page
+    std::string search; ///< Search string that got user to page
 };
 
 struct Site: public Context, public SiteInfo {
@@ -884,7 +883,7 @@ struct Site: public Context, public SiteInfo {
 */
 struct AppInfo {
     std::string ver;             ///< Application version
-    Datacratic::UnicodeString bundle;      ///< Application bundle name (unique across multiple exchanges)
+    std::string bundle;      ///< Application bundle name (unique across multiple exchanges)
     Datacratic::TaggedBool paid;        ///< Is a paid version of the app
     Datacratic::Url storeurl;           ///< For QAG 1.5 compliance, new in OpenRTB 2.1
 };
@@ -919,8 +918,8 @@ struct Geo {
     std::string region;          ///< Region code (ISO 3166-2)
     std::string regionfips104;   ///< Region using FIPS 10-4
     std::string metro;           ///< Metropolitan region (Google Metro code)
-    Datacratic::UnicodeString city;        ///< City name (UN Code for Trade and Transport Loc)
-    Datacratic::UnicodeString zip;             ///< Zip or postal code
+    std::string city;        ///< City name (UN Code for Trade and Transport Loc)
+    std::string zip;             ///< Zip or postal code
     LocationType type;      ///< Source of Geo data (table 6.15)
     Json::Value ext;        ///< Extensions go here, new in OpenRTB 2.1
 
@@ -957,7 +956,7 @@ struct Geo {
 struct Device {
     ~Device();
     Datacratic::TaggedBool dnt;        ///< If 1 then do not track is on
-    Datacratic::UnicodeString ua;         ///< User agent of device
+    std::string ua;         ///< User agent of device
     std::string ip;             ///< IP address of device
     Datacratic::Optional<Geo> geo;     ///< Geolocation of device
     std::string didsha1;        ///< Device ID: SHA1
@@ -967,12 +966,12 @@ struct Device {
     std::string macsha1;       ///< MAC ADDRESS: SHA1 (OpenRTB 2.2)
     std::string macmd5;        ///< MAC ADDRESS: MD5 (OpenRTB 2.2)
     std::string ipv6;           ///< IPv6 address
-    Datacratic::UnicodeString carrier;    ///< Carrier or ISP (derived from IP address)
-    Datacratic::UnicodeString language;   ///< Browser language.  ISO 639-1 (alpha-2).
-    Datacratic::UnicodeString make;       ///< Device make
-    Datacratic::UnicodeString model;      ///< Device model
-    Datacratic::UnicodeString os;         ///< Device OS
-    Datacratic::UnicodeString osv;         ///< Device OS version
+    std::string carrier;    ///< Carrier or ISP (derived from IP address)
+    std::string language;   ///< Browser language.  ISO 639-1 (alpha-2).
+    std::string make;       ///< Device make
+    std::string model;      ///< Device model
+    std::string os;         ///< Device OS
+    std::string osv;         ///< Device OS version
     Datacratic::TaggedBool js;         ///< Javascript is supported? 1 or 0
     ConnectionType connectiontype;    ///< Connection type (table 6.10)
     DeviceType devicetype; ///< Device type (table 6.16)
@@ -999,8 +998,8 @@ struct Device {
 */
 struct Segment {
     Datacratic::Id id;                         ///< Segment ID
-    Datacratic::UnicodeString name;                   ///< Segment name
-    Datacratic::UnicodeString value;                  ///< Segment value
+    std::string name;                   ///< Segment name
+    std::string value;                  ///< Segment value
     Json::Value ext;               ///< Extensions go here, new in OpenRTB 2.1
 
     /// Datacratic Extensions
@@ -1026,7 +1025,7 @@ struct Segment {
 */
 struct Data {
     Datacratic::Id id;                           ///< Exchange specific data prov ID
-    Datacratic::UnicodeString name;                  ///< Data provider name
+    std::string name;                  ///< Data provider name
     std::vector<Segment> segment;         ///< Segment of data
     Json::Value ext;                 ///< Extensions go here, new in OpenRTB 2.1
 
@@ -1063,7 +1062,7 @@ struct User {
     Datacratic::TaggedInt yob;             ///< Year of birth
     std::string gender;             ///< Gender: Male, Female, Other
     Datacratic::CSList keywords;           ///< List of keywords of consumer intent
-    Datacratic::UnicodeString customdata;         ///< Custom data from exchange
+    std::string customdata;         ///< Custom data from exchange
     Datacratic::Optional<Geo> geo;                   ///< Geolocation of user at registration
     std::vector<Data> data;         ///< User data segments
     Json::Value ext;           ///< Extensions go here, new in OpenRTB 2.1
@@ -1127,7 +1126,7 @@ struct BidRequest {
     Datacratic::TaggedBool allimps;                ///< All impressions in BR (for road-blocking)
     std::vector<std::string> cur;                ///< Allowable currencies
     Datacratic::List<ContentCategory> bcat;        ///< Blocked advertiser categories (table 6.1)
-    std::vector<Datacratic::UnicodeString> badv;           ///< Blocked advertiser domains
+    std::vector<std::string> badv;           ///< Blocked advertiser domains
     Datacratic::Optional<Regulations> regs; ///< Regulations Object list (OpenRTB 2.2)
     Json::Value ext;                   ///< Protocol extensions
     Json::Value unparseable;           ///< Unparseable fields get put here
@@ -1166,10 +1165,10 @@ struct Bid {
     Datacratic::Id impid;                     ///< ID of the impression we're bidding on
     Datacratic::TaggedDouble price;           ///< Price to bid
     Datacratic::Id adid;                      ///< Id of ad to be served if won
-    Datacratic::UnicodeString nurl;                  ///< Win notice/ad markup URL
-    Datacratic::UnicodeString adm;                   ///< Ad markup
+    std::string nurl;                  ///< Win notice/ad markup URL
+    std::string adm;                   ///< Ad markup
     std::vector<std::string> adomain;       ///< Advertiser domains
-    Datacratic::UnicodeString iurl;                  ///< Image URL for content checking
+    std::string iurl;                  ///< Image URL for content checking
     Datacratic::Id cid;                       ///< Campaign ID
     Datacratic::Id crid;                      ///< Creative ID
     Datacratic::List<CreativeAttribute> attr; ///< Creative attributes
@@ -1230,7 +1229,7 @@ struct BidResponse {
     std::vector<SeatBid> seatbid;
     Datacratic::Id bidid;
     std::string cur;
-    Datacratic::UnicodeString customData;
+    std::string customData;
     NoBidReason nbr; ///< reason for not bidding
     Json::Value ext;
 };

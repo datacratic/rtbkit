@@ -1535,8 +1535,8 @@ struct BidRequestJS
                 else if (args[0]->IsString()) {
                     // Parse from a string
                     //cerr << "parse string" << endl;
-                    Datacratic::UnicodeString request = 
-                         getArg<Datacratic::UnicodeString>(args, 0, "request");
+                    string request = 
+                         getArg<string>(args, 0, "request");
                     string source = getArg<string>(args, 1, "datacratic", "source");
                     new BidRequestJS(args.This(),
                                      ML::make_std_sp(BidRequest::parse(source, request)));

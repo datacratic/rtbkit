@@ -276,7 +276,7 @@ bool contains(const OpenRTB::List<T> & list, const T & value){
     return std::find(list.cbegin(), list.cend(), value) != list.cend();
 }
 
-bool contains(const vector<Utf8String> & list, const Utf8String & value){
+bool contains(const vector<std::string> & list, const std::string & value){
     return std::find(list.cbegin(), list.cend(), value) != list.cend();
 }
 
@@ -307,7 +307,7 @@ bidRequestCreativeFilter(const BidRequest & request,
 
     // Check for blockeds adomains
     for ( const auto& adomain : crinfo->adomain) {
-        Utf8String utf_adomain(adomain, false);
+        std::string utf_adomain(adomain, false);
         if (contains(request.badv, utf_adomain)) {
             this->recordHit("blockedAdomain");
             return false;

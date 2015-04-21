@@ -265,7 +265,7 @@ onBidRequest(OpenRTB::BidRequest & br) {
     // Blocked advertisers, put into restrictions segment
     std::vector<string> badvs;
     for(auto b : br.badv)
-        badvs.push_back(b.utf8String());
+        badvs.push_back(b);
 
     ctx.br->restrictions.addStrings("badv", badvs);
     ctx.br->badv = std::move(br.badv);
@@ -458,7 +458,7 @@ onDevice(OpenRTB::Device & device) {
         ctx.br->ipAddress = device.ipv6;
     // Assign ctx.br->userAgentIPHash
     if(!device.ua.empty()) {
-        const std::string &strToHash = (device.ip + device.ua.extractAscii());
+        const std::string &strToHash = device.ip + device.ua;
         ctx.br->userAgentIPHash = Id(CityHash64(strToHash.c_str(), strToHash.length()));
         // Do we have a user id provider (set as "prov" key) (was in set in onUser()) ?
         // If not 3) add user agent + ip hash
@@ -606,7 +606,7 @@ onData(OpenRTB::Data & data) {
     if(data.id)
         key = data.id.toString();
     else
-        key = data.name.extractAscii();
+        key = data.name;
 
     std::vector<std::string> values;
 
@@ -614,7 +614,7 @@ onData(OpenRTB::Data & data) {
         if(s.id)
             values.push_back(s.id.toString());
         else if(!s.name.empty())
-            values.push_back(s.name.extractAscii());
+            values.push_back(s.name);
         else
             // Values with no name
             values.push_back("unknown_segment");

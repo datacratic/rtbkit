@@ -12,7 +12,6 @@
 #include "rtbkit/common/auction.h"
 #include "rtbkit/common/auction_events.h"
 #include "soa/types/id.h"
-#include "soa/types/string.h"
 #include "rtbkit/common/analytics_publisher.h"
 
 
@@ -53,7 +52,7 @@ struct MatchedWinLoss
 
     Auction::Response response;
 
-    Datacratic::UnicodeString requestStr;
+    std::string requestStr;
     std::string requestStrFormat;
 
     UserIds uids;
@@ -103,7 +102,7 @@ struct MatchedCampaignEvent
 
     Datacratic::Date timestamp;
 
-    Datacratic::UnicodeString requestStr;
+    std::string requestStr;
     std::string requestStrFormat;
 
     Auction::Response response;

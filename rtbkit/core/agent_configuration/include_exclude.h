@@ -12,9 +12,9 @@
 #include "jml/utils/lightweight_hash.h"
 #include "soa/types/url.h"
 #include "soa/jsoncpp/value.h"
+#include "soa/utf8cpp/source/utf8.h"
 #include <boost/regex.hpp>
 #include <boost/regex/icu.hpp>
-#include "soa/types/string.h"
 #include <vector>
 #include <set>
 #include <iostream>
@@ -32,20 +32,10 @@ inline bool matches(const T & t1, const T & t2)
     return t1 == t2;
 }
 
-inline bool matches(const boost::u32regex & rex, const Utf8String & val)
+inline bool matches(const boost::u32regex & rex, const std::string & val)
 {
-    std::string raw(val.rawData(), val.rawLength());
     boost::match_results<std::string::const_iterator> matches;
-    bool result = boost::u32regex_search(raw, matches, rex) ;
-    return result;
-}
-
-inline bool matches(const boost::u32regex & rex, const Utf32String & val)
-{
-    std::string raw;
-    utf8::utf32to8(val.begin(), val.end(), std::back_inserter(raw));
-    boost::match_results<std::string::const_iterator> matches;
-    bool result = boost::u32regex_search(raw, matches, rex) ;
+    bool result = boost::u32regex_search(val, matches, rex) ;
     return result;
 }
 
@@ -55,6 +45,7 @@ inline bool matches(const boost::regex & rex, const std::string & val)
     //cerr << "matching " << val << " with rex " << rex.str() << endl;
     return boost::regex_search(val, rex);
 }
+
 #if 0
 inline bool matches(const std::string & str, const std::string & val)
 {
@@ -85,8 +76,8 @@ inline Json::Value jsonPrint(const boost::u32regex & rex)
     utf8::utf32to8(unicodeStr.begin(),
                    unicodeStr.begin() + unicodeStr.length(),
                    std::back_inserter(utf8result));
-    Utf8String utf8str(std::string(utf8result.begin(), utf8result.end()));
-    return utf8str;
+    std::string utf8Str(utf8result.begin(), utf8result.end());
+    return utf8Str;
 }
 
 
@@ -113,17 +104,6 @@ inline uint64_t hashString(const std::string & str)
     uint64_t res = std::hash<std::string>()(str);
     //cerr << "hashString of " << str << " returned " << res << endl;
     return res;
-}
-
-inline uint64_t hashString(const Utf8String & str)
-{
-    return std::hash<std::string>()(std::string(str.rawData(), str.rawLength()));
-}
-
-
-inline uint64_t hashString(const Utf32String & str)
-{
-    return std::hash<std::u32string>()(str.rawString());
 }
 
 inline uint64_t hashString(const std::wstring & str)

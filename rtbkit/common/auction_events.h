@@ -41,7 +41,7 @@ struct SubmittedAuctionEvent {
     std::shared_ptr<BidRequest> bidRequest() const;
     void bidRequest(std::shared_ptr<BidRequest> event);
 
-    Datacratic::UnicodeString bidRequestStr;     ///< Bid request as string on the wire
+    std::string bidRequestStr;     ///< Bid request as string on the wire
     Auction::Response bidResponse; ///< Bid response that was sent
     std::string bidRequestStrFormat;  ///< Format of stringified request(i.e "datacratic")
 

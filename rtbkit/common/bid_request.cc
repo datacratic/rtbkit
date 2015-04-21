@@ -336,11 +336,6 @@ bool isEmpty(const Json::Value & val)
     return val.isNull();
 }
 
-bool isEmpty(const Datacratic::UnicodeString &str)
-{
-    return (str.rawLength() == 0) ;
-}
-
 template<typename T>
 void addIfNotEmpty(Json::Value & obj, const std::string & key,
                    const T & val)
@@ -422,11 +417,11 @@ getDefaultDescription(RTBKIT::FormatSet *)
 /* LOCATION                                                                  */
 /*****************************************************************************/
 
-Datacratic::UnicodeString
+std::string
 Location::
 fullLocationString() const
 {
-    Datacratic::UnicodeString result(countryCode + ":" + regionCode + ":") ;
+    std::string result(countryCode + ":" + regionCode + ":") ;
     result += cityName ;
     result += ":";
     result += postalCode;
@@ -435,7 +430,7 @@ fullLocationString() const
     result += ":";
     result += boost::lexical_cast<string>(metro);
     return result;
-    //Datacratic::UnicodeString result(countryCode +":"+ regionCode +":" +
+    //std::string result(countryCode +":"+ regionCode +":" +
  //   return ML::format("%s:%s:%s:%s:%d",
  //                     countryCode.c_str(), regionCode.c_str(),
  //                     cityName.c_str(), postalCode.c_str(), dma);
@@ -448,8 +443,8 @@ toJson() const
     Json::Value result;
     addIfNotEmpty(result, "countryCode",  countryCode);
     addIfNotEmpty(result, "regionCode",   regionCode);
-    addIfNotEmpty(result, "cityName",     cityName.utf8String());
-    addIfNotEmpty(result, "postalCode",   postalCode.utf8String());
+    addIfNotEmpty(result, "cityName",     cityName);
+    addIfNotEmpty(result, "postalCode",   postalCode);
     addIfNotEmpty(result, "dma",          dma, -1);
     addIfNotEmpty(result, "metro",        metro, -1);
     addIfNotEmpty(result, "timezoneOffsetMinutes", timezoneOffsetMinutes, -1);
@@ -925,8 +920,8 @@ toJson() const
     addIfNotEmpty(result, "isTest", isTest, false);
     addIfNotEmpty(result, "url", url);
     addIfNotEmpty(result, "ipAddress", ipAddress);
-    addIfNotEmpty(result, "userAgent", userAgent.utf8String());
-    addIfNotEmpty(result, "language", language.utf8String());
+    addIfNotEmpty(result, "userAgent", userAgent);
+    addIfNotEmpty(result, "language", language);
     addIfNotEmpty(result, "protocolVersion", protocolVersion);
     addIfNotEmpty(result, "exchange", exchange);
     addIfNotEmpty(result, "provider", provider);
@@ -1165,13 +1160,6 @@ parse(const std::string & source, const std::string & bidRequest)
     }
 
     return result;
-}
-
-BidRequest *
-BidRequest::
-parse(const std::string & source, const Datacratic::UnicodeString & bidRequest)
-{
-    return BidRequest::parse(source, bidRequest.utf8String());
 }
 
 SegmentResult

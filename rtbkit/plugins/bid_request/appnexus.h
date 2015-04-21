@@ -12,7 +12,6 @@
 #include "soa/types/basic_value_descriptions.h"
 #include "soa/jsoncpp/json.h"
 #include "soa/types/id.h"
-#include "soa/types/string.h"
 #include "soa/types/url.h"
 #include "rtbkit/openrtb/openrtb.h"
 #include <string>
@@ -80,7 +79,7 @@ struct Tag {
     Datacratic::TaggedBoolDef<false> estimatedPriceVerified;
     // /Subsection: Pricing data
     // Subsection: Owner-specific data
-    Datacratic::UnicodeString tagData;                  // "Other data related to TinyTag ID"
+    std::string tagData;                  // "Other data related to TinyTag ID"
     Datacratic::TaggedBoolDef<false> exclusiveDefault;
     Datacratic::TaggedInt defaultCreativeId;
     // /Subsection: Owner-specific data
@@ -110,7 +109,7 @@ const std::unordered_map<int, std::string> deviceOs = {
 struct BidInfo {
     // Subsection: user
     Datacratic::TaggedInt64 userId64;
-    Datacratic::UnicodeString userAgent;
+    std::string userAgent;
     Datacratic::TaggedIntDef<0> operatingSystem;
     // \"Accept-Language\" header from browser (using ISO-639 language and ISO-3166 country codes)
     std::string acceptedLanguages;   // "en-US,en;q=0.8"
@@ -123,9 +122,9 @@ struct BidInfo {
     // /Subsection: user
     // Subsection: geographical data
     std::string ipAddress;           // TODO IP octets validation
-    Datacratic::UnicodeString country;         // TODO no enum values in spec
-    Datacratic::UnicodeString region;          // TODO no enum values in spec
-    Datacratic::UnicodeString city;                // TODO no enum values in spec
+    std::string country;         // TODO no enum values in spec
+    std::string region;          // TODO no enum values in spec
+    std::string city;                // TODO no enum values in spec
     std::string postalCode;          // TODO validate postalCodes US etc. :-(
     Datacratic::TaggedInt dma;                    // TODO no enum values in spec
     std::string timeZone;            // TODO no enum values in spec
@@ -136,7 +135,7 @@ struct BidInfo {
     // /Subsection: userdata from server-side cookie storage
     // Subsection: Inventory (page) information
     Datacratic::Id sellingMemberId;
-    Datacratic::UnicodeString url;             // TODO? validate valid URL
+    std::string url;             // TODO? validate valid URL
     std::string domain;
     std::string inventoryClass;  // DEPRECATED, TODO enum, values in inventoryClasses
     std::vector<InventoryAudit> inventoryAudits;
