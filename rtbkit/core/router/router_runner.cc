@@ -18,6 +18,8 @@
 #include "rtbkit/common/bidder_interface.h"
 #include "rtbkit/core/router/router.h"
 #include "rtbkit/core/banker/slave_banker.h"
+#include "rtbkit/core/banker/local_banker.h"
+#include "rtbkit/core/banker/split_banker.h"
 #include "soa/service/process_stats.h"
 #include "jml/arch/timers.h"
 #include "jml/utils/file_functions.h"
@@ -101,7 +103,9 @@ doOptions(int argc, char ** argv,
         ("local-banker", value<string>(&localBankerUri),
          "address of where the local banker can be found.")
         ("local-banker-debug", bool_switch(&localBankerDebug),
-         "enable local banker debug for more precise tracking by account");
+         "enable local banker debug for more precise tracking by account")
+        ("banker-choice", value<string>(&bankerChoice),
+         "split or local banker can be chosen.");
 
     options_description all_opt = opts;
     all_opt
@@ -167,25 +171,28 @@ init()
     }
     router->init();
 
-    banker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
+    slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
     if (localBankerUri != "") {
         localBanker = make_shared<LocalBanker>(proxies, ROUTER, router->serviceName());
         localBanker->init(localBankerUri);
         localBanker->setDebug(localBankerDebug);
-        auto spendRate = Amount::parse(bankerArgs.spendRate);
-        localBanker->setSpendRate(spendRate);
-        router->setLocalBanker(localBanker);
+        localBanker->setSpendRate(bankerArgs.spendRate());
     }
-
-    if (proxies->params.isMember("goBankerCampaigns")) {
-        Json::Value campaigns = proxies->params["goBankerCampaigns"];
-        if (campaigns.isArray()) {
-            unordered_set<string> campaignSet;
-            for (auto cmp : campaigns) {
-                campaignSet.insert(cmp.asString());
+    if (localBanker && bankerChoice == "split") {
+        unordered_set<string> campaignSet;
+        if (proxies->params.isMember("goBankerCampaigns")) {
+            Json::Value campaigns = proxies->params["goBankerCampaigns"];
+            if (campaigns.isArray()) {
+                for (auto cmp : campaigns) {
+                    campaignSet.insert(cmp.asString());
+                }
             }
-            router->setGoBankerCampaigns(campaignSet);
         }
+        banker = make_shared<SplitBanker>(slaveBanker, localBanker, campaignSet);
+    } else if (localBanker && bankerChoice == "local") {
+        banker = localBanker;
+    } else {
+        banker = slaveBanker;
     }
 
     router->setBanker(banker);
@@ -196,7 +203,7 @@ void
 RouterRunner::
 start()
 {
-    banker->start();
+    slaveBanker->start();
     if (localBanker) localBanker->start();
     router->start();
 
@@ -210,7 +217,7 @@ RouterRunner::
 shutdown()
 {
     router->shutdown();
-    banker->shutdown();
+    slaveBanker->shutdown();
     if (localBanker) localBanker->shutdown();
 }
 

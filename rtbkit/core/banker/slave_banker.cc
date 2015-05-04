@@ -474,7 +474,7 @@ reauthorizeBudgetBatched(uint64_t numTimeoutsExpired)
 
     Json::Value request;
     auto onAccount = [&](const AccountKey& key, const ShadowAccount& Account) {
-        request[key.toString()] = body;
+        request[getShadowAccountStr(key)] = body;
     };
     accounts.forEachInitializedAndActiveAccount(onAccount);
 
@@ -507,7 +507,7 @@ onReauthorizeBudgetBatchedResponse(
     Json::Value response = Json::parse(payload);
     for (const auto& key : response.getMemberNames()) {
         auto account = Account::fromJson(response[key]);
-        accounts.syncFromMaster(AccountKey(key), account);
+        accounts.syncFromMaster(AccountKey(key).parent(), account);
     }
 
     lastReauthorize = Date::now();
@@ -635,12 +635,12 @@ constexpr bool SlaveBankerArguments::Defaults::TcpNoDelay;
 const std::string SlaveBankerArguments::Defaults::SpendRate{"100000USD/1M"};
 
 SlaveBankerArguments::SlaveBankerArguments()
-    : spendRate(Defaults::SpendRate)
+    : spendRateStr(Defaults::SpendRate)
     , syncRate(Defaults::SyncRate)
     , batched(Defaults::Batched)
     , useHttp(Defaults::UseHttp)
     , httpTimeout(Defaults::HttpTimeout)
-    , httpConnections(0)
+    , httpConnections(Defaults::HttpConnections)
     , tcpNoDelay(Defaults::TcpNoDelay)
 {
 }
@@ -658,7 +658,7 @@ SlaveBankerArguments::makeProgramOptions(std::string title)
 
     po::options_description options(std::move(title));
     options.add_options()
-        ("spend-rate", po::value<string>(&spendRate),
+        ("spend-rate", po::value<string>(&spendRateStr),
          "Amount of budget in USD to be periodically re-authorized (default 100000USD/1M)")
         ("banker-sync-rate", po::value<double>(&syncRate),
          "frequency at which the slave banker syncs itself with the master banker.")
@@ -668,7 +668,7 @@ SlaveBankerArguments::makeProgramOptions(std::string title)
          "Communicate with the MasterBanker over http")
         ("banker-http-timeouts", po::value<double>(&httpTimeout),
          "banker sync request timeout over http.")
-        ("http-connections", po::value<int>(&httpConnections),
+        ("http-connections", po::value<int>(&httpConnections)->default_value(Defaults::HttpConnections),
          "Number of active http connections to use when http is enabled")
         ("banker-tcp-nodelay", po::bool_switch(&tcpNoDelay),
           "Enable the TCP_NODELAY option for the http banker interface (use with caution)");
@@ -686,7 +686,7 @@ std::shared_ptr<SlaveBanker>
 SlaveBankerArguments::
 makeBanker(std::shared_ptr<ServiceProxies> proxies, const std::string& accountSuffix) const
 {
-    auto spendRate = CurrencyPool(Amount::parse(this->spendRate));
+    auto spendRate = CurrencyPool(Amount::parse(spendRateStr));
     auto banker = std::make_shared<SlaveBanker>(accountSuffix, spendRate, syncRate, batched);
 
     banker->setApplicationLayer(makeApplicationLayer(std::move(proxies)));
@@ -728,6 +728,11 @@ SlaveBankerArguments::makeApplicationLayer(std::shared_ptr<ServiceProxies> proxi
     }
 
     return layer;
+}
+
+Amount
+SlaveBankerArguments::spendRate() const {
+    return Amount::parse(spendRateStr);
 }
 
 } // namespace RTBKIT
