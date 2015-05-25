@@ -26,7 +26,7 @@ nodejs_dependencies: package.json
 dependencies: nodejs_dependencies
 
 environment_ld_preload_hash := $(shell echo $(NODE_PRELOAD) $(NODE_PATH) $(NODE) | md5sum | cut -f 1 -d ' ' )
-$(TMP)/environment_$(environment_ld_preload_hash):
+$(TMP)/environment_$(environment_ld_preload_hash): $(TMP)/.dir_exists
 	@touch $@
 
 $(BIN)/node_runner: $(BIN)/.dir_exists $(TMP)/environment_$(environment_ld_preload_hash)
