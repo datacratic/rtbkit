@@ -127,7 +127,7 @@ struct HttpExchangeConnector
                     break;
                 }
 
-                //std::cerr << "Thread: " << i << ", load/dt: " << load/dt << std::endl;
+                std::cerr << "Thread: " << i << ", load/dt: " << load/dt << std::endl;
                 maximum = std::max(load/dt, maximum);
             }
 
