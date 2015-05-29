@@ -33,6 +33,21 @@ Logging::Category bidswitchExchangeConnectorError("[ERROR] Bidswitch Exchange Co
 /* BIDSWITCH EXCHANGE CONNECTOR                                                */
 /*****************************************************************************/
 
+namespace {
+
+    template<typename T>
+    Json::Value jsonEncode(const std::vector<T>& vec) {
+        Json::Value ret(Json::arrayValue);
+        ret.resize(vec.size());
+        for (typename std::vector<T>::size_type i = 0; i < vec.size(); ++i) {
+            ret[i] = vec[i];
+        }
+
+        return ret;
+    }
+
+}
+
 BidSwitchExchangeConnector::
 BidSwitchExchangeConnector(ServiceBase & owner, const std::string & name)
     : OpenRTBExchangeConnector(owner, name),
@@ -55,13 +70,49 @@ BidSwitchExchangeConnector(const std::string & name,
 void
 BidSwitchExchangeConnector::init() {
 
+    #define GENERATE_MACRO_FOR(field) \
+        [](const Json::Value& value, CreativeInfo& data) { \
+            Datacratic::jsonDecode(value, field); \
+            return true; \
+        }
+
     // nurl might contain macros
     configuration_.addField(
         "nurl",
-        [](const Json::Value & value, CreativeInfo & data) {
-            Datacratic::jsonDecode(value, data.nurl);
-            return true;
-        }).optional().snippet();
+        GENERATE_MACRO_FOR(data.nurl)
+    ).optional().snippet();
+
+    configuration_.addField(
+        "advertiser_name",
+        GENERATE_MACRO_FOR(data.ext.advertiserName)
+    ).optional();
+
+    configuration_.addField(
+        "agency_name",
+        GENERATE_MACRO_FOR(data.ext.agencyName)
+    ).optional();
+
+    configuration_.addField(
+        "lpdomain",
+        GENERATE_MACRO_FOR(data.ext.lpDomain)
+    ).optional();
+
+    configuration_.addField(
+        "language",
+        GENERATE_MACRO_FOR(data.ext.language)
+    ).optional();
+
+    configuration_.addField(
+        "vast_url",
+        GENERATE_MACRO_FOR(data.ext.vastUrl)
+    ).optional().snippet();
+
+    configuration_.addField(
+        "duration",
+        GENERATE_MACRO_FOR(data.ext.duration)
+    ).optional();
+
+    #undef GENERATE_MACRO_FOR
 }
 
 namespace {
@@ -294,7 +345,6 @@ parseBidRequest(HttpAuctionHandler & connection,
     return res;
 }
 
-
 void
 BidSwitchExchangeConnector::
 setSeatBid(Auction const & auction,
@@ -353,7 +403,34 @@ setSeatBid(Auction const & auction,
     b.adid = crinfo->adid;
     b.adomain = crinfo->adomain;
     b.iurl = cpinfo->iurl;
+
+    auto& ext = b.ext;
+    if (!crinfo->ext.advertiserName.empty())
+       ext["advertiser_name"] = crinfo->ext.advertiserName;
+    if (!crinfo->ext.agencyName.empty())
+        ext["agency_name"] = crinfo->ext.agencyName;
+    if (!crinfo->ext.lpDomain.empty())
+        ext["lpdomain"] = jsonEncode(crinfo->ext.lpDomain);
+    if (!crinfo->ext.language.empty())
+        ext["language"] = crinfo->ext.language;
+    if (!crinfo->ext.vastUrl.empty())
+        ext["vast_url"] = configuration_.expand(crinfo->ext.vastUrl, {creative, resp, *auction.request, spotNum});
+    if (crinfo->ext.duration)
+        ext["duration"] = crinfo->ext.duration;
 }
+
+Json::Value
+BidSwitchExchangeConnector::
+getResponseExt(
+    const HttpAuctionHandler& connectio,
+    const Auction& auction) const {
+
+    Json::Value ext;
+    ext["protocol"] = "4.0";
+
+    return ext;
+}
+
 
 namespace {
 bool empty_intersection(const set<int32_t>& x, const set<int32_t>& y) {

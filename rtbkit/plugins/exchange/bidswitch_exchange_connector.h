@@ -70,6 +70,15 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
             std::vector<int32_t> vendor_type_;
             std::set<int32_t> attribute_ ;
         } Google;
+
+        struct {
+            std::string advertiserName; ///< The name of the advertiser serving the creative
+            std::string agencyName; ///< The name of the agency representing the advertiser
+            std::vector<std::string> lpDomain; ///< The actual landing page domain of the creative if different from adomain value
+            std::string language; ///< Alpha-2/ISO 639-1 code of the creative language
+            std::string vastUrl; ///< The url pointing to the location of the VAST document for the bid response
+            int duration; ///< Video ad duration if seconds
+        } ext;
     };
 
     typedef CreativeConfiguration<CreativeInfo> BidSwitchCreativeConfiguration;
@@ -95,6 +104,10 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
     virtual void setSeatBid(Auction const & auction,
                             int spotNum,
                             OpenRTB::BidResponse & response) const;
+
+    Json::Value
+    getResponseExt(const HttpAuctionHandler& connection,
+                   const Auction& auction) const;
 
     void init();
 };
