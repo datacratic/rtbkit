@@ -244,20 +244,9 @@ CreativeConfiguration<CreativeData>::handleCreativeCompatibility(
 
     for (const auto & pair : fields_) {
         const auto & field = pair.second;
-        const auto & value = [&]() -> const Json::Value & {
-            auto const & value = config[field.getName()];
-            if (field.isRequired()) {
-                return value;
-            }
+        auto value = field.extractJsonValue(config);
 
-            if (value == Json::Value::null) {
-                return field.getDefaultValue();
-            } else {
-                return value;
-            }
-        }();
-
-        if (value == Json::Value::null) {
+        if (value.isNull()) {
             auto message =
                 exchange_ + ": " + creative.name + " does not have the " +
                 std::string(field.isRequired() ? "required" : "optional") +
