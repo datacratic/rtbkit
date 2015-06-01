@@ -560,9 +560,29 @@ bidRequestCreativeFilter(const BidRequest & request,
             return false ;
         }
 
+        auto allowed_vendor_type = std::move(gext.allowed_vendor_type);
+        /* Note that if site.publisher.id or app.publisher.id field value equals to “google_1”
+           then the vendors listed in https://storage.googleapis.com/adx-rtb-dictionaries/gdn-vendors.txt
+           are also allowed for bidding.
+        */
+        const Id google_1("google_1");
+        if (   (request.site && request.site->publisher && request.site->publisher->id == google_1)
+            || (request.app && request.app->publisher && request.app->publisher->id == google_1))
+        {
+            const int32_t gdn_vendors[] = {
+                #define ITEM(id, _) \
+                   id,
+                #include "gdn-vendors.itm"
+                #undef ITEM
+            };
+
+            std::copy(std::begin(gdn_vendors), std::end(gdn_vendors), std::inserter(allowed_vendor_type, allowed_vendor_type.begin()));
+
+        }
+
         // check for vendors
         for (const auto vendor: crinfo->google.vendor_type) {
-            if (0 == gext.allowed_vendor_type.count(vendor)) {
+            if (0 == allowed_vendor_type.count(vendor)) {
                 this->recordHit ("google.now_allowed_vendor");
                 return false ;
             }
