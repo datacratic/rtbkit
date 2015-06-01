@@ -66,10 +66,21 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
         Id adid;                ///< ID for ad to be service if bid wins
         std::string nurl;       ///< Win notice URL
         std::vector<std::string> adomain;    ///< Advertiser Domain
-        struct {
-            std::vector<int32_t> vendor_type_;
-            std::set<int32_t> attribute_ ;
-        } Google;
+        std::string adm; ///< Creative markup for banner ads
+        struct Google {
+            std::vector<int32_t> vendor_type;
+            std::set<int32_t> attribute ;
+        } google;
+
+        struct YieldOne {
+            YieldOne()
+                : creative_type("")
+                , creative_category_id(-1)
+            { }
+
+            std::string creative_type;
+            int32_t creative_category_id;
+        } yieldOne;
 
         struct {
             std::string advertiserName; ///< The name of the advertiser serving the creative
@@ -108,6 +119,12 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
     Json::Value
     getResponseExt(const HttpAuctionHandler& connection,
                    const Auction& auction) const;
+
+    Json::Value
+    toExt(const CreativeInfo::Google& gobj) const;
+
+    Json::Value
+    toExt(const CreativeInfo::YieldOne& yobj) const;
 
     void init();
 };
