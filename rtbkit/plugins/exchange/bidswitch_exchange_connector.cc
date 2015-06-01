@@ -253,7 +253,7 @@ struct GoogleExtension {
             if (value.isNull() || !value.isArray()) return;
 
             for (auto elem: value) {
-                if (elem.isInt()) {
+                if (elem.isIntegral()) {
                     out.insert(elem.asInt());
                 }
                 else {
@@ -261,6 +261,7 @@ struct GoogleExtension {
                     return;
                 }
             }
+
         };
 
         parseIntSet(ge.allowed_vendor_type, value["allowed_vendor_type"]);
@@ -583,7 +584,7 @@ bidRequestCreativeFilter(const BidRequest & request,
         // check for vendors
         for (const auto vendor: crinfo->google.vendor_type) {
             if (0 == allowed_vendor_type.count(vendor)) {
-                this->recordHit ("google.now_allowed_vendor");
+                this->recordHit ("google.not_allowed_vendor");
                 return false ;
             }
         }
