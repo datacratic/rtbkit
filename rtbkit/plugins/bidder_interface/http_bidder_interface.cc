@@ -187,10 +187,27 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
     if (!ok) {
         return;
     }
-    StructuredJsonPrintingContext context;
-    desc.printJson(&openRtbRequest, context);
-    auto requestStr = context.output.toString();
 
+    string requestStr;
+    if (routerFormat == FMT_DATACRATIC) {
+        Json::Value jReq(Json::objectValue);
+        jReq["id"] = openRtbRequest.id.toString();
+
+        DefaultDescription<OpenRTB::Impression> impDesc;
+        for (auto & imp : openRtbRequest.imp) {
+            StructuredJsonPrintingContext ctx;
+            impDesc.printJson(&imp, ctx);
+            jReq["imp"].append(ctx.output);
+        }
+
+        jReq["ext"]["datacratic"] = openRtbRequest.ext["datacratic"];
+        jReq["ext"]["rtbkit"] = openRtbRequest.ext["rtbkit"];
+        requestStr = jReq.toString();
+    } else {
+        StructuredJsonPrintingContext context;
+        desc.printJson(&openRtbRequest, context);
+        requestStr = context.output.toString();
+    }
 
     Date sentResponseTime = Date::now();
     /* We need to capture by copy inside the lambda otherwise we might get
