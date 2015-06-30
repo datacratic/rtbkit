@@ -92,6 +92,7 @@ NullBanker::
 getProviderIndicators() const
 {
     MonitorIndicator ind;
+    ind.serviceName = "NullBanker";
     ind.status = true;
     ind.message = "OK";
     return ind;
