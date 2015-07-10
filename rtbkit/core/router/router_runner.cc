@@ -59,7 +59,8 @@ RouterRunner() :
     slowModeTolerance(MonitorClient::DefaultTolerance),
     slowModeMoneyLimit(""),
     analyticsOn(false),
-    analyticsConnections(1)
+    analyticsConnections(1),
+    dableSlowMode(false)
 {
 }
 
@@ -105,7 +106,9 @@ doOptions(int argc, char ** argv,
         ("local-banker-debug", bool_switch(&localBankerDebug),
          "enable local banker debug for more precise tracking by account")
         ("banker-choice", value<string>(&bankerChoice),
-         "split or local banker can be chosen.");
+         "split or local banker can be chosen.")
+        ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
+         "disable the slow mode.");
 
     options_description all_opt = opts;
     all_opt
@@ -161,6 +164,9 @@ init()
                                       slowModeTimeout, amountSlowModeMoneyLimit);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
+    if(dableSlowMode) {
+       router->unsafeDisableMonitor();
+    }
     if (analyticsOn) {
         const auto & analyticsUri = proxies->params["analytics-uri"].asString();
         if (!analyticsUri.empty()) {
