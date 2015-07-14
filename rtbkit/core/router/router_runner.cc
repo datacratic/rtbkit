@@ -195,7 +195,8 @@ init()
     } else if (bankerChoice == "null") {
         banker = make_shared<NullBanker>(true, router->serviceName());
     } else {
-        banker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
+        slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
+        banker = slaveBanker;
     }
 
     router->setBanker(banker);
