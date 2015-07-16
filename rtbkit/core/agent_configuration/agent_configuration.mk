@@ -7,6 +7,7 @@ LIBAGENT_CONFIGURATION_SOURCES := \
 	agent_configuration_listener.cc \
 	agent_configuration_service.cc \
 	latlonrad.cc \
+	fees.cc \
 
 LIBAGENT_CONFIGURATION_LINK := \
 	rtb zeromq boost_thread opstats gc services utils monitor
