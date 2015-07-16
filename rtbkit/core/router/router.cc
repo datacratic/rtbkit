@@ -367,6 +367,13 @@ unsafeDisableMonitor()
 
 void
 Router::
+unsafeDisableSlowMode()
+{
+    monitorClient.testMode = true;
+}
+
+void
+Router::
 unsafeDisableAuctionProbability()
 {
     disableAuctionProb = true;
