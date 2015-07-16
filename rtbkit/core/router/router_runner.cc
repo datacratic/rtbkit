@@ -165,7 +165,7 @@ init()
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
     if(dableSlowMode) {
-       router->unsafeDisableMonitor();
+       router->unsafeDisableSlowMode();
     }
     if (analyticsOn) {
         const auto & analyticsUri = proxies->params["analytics-uri"].asString();
