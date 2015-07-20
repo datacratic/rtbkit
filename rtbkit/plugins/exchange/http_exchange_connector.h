@@ -116,23 +116,22 @@ struct HttpExchangeConnector
                 return 0.0;
             }
 
-            double maximum = 0.0;
+            double sum = 0.0;
             for (auto i = 0; i < sample.size(); i++) {
                 auto sec = double(sample[i].ru_utime.tv_sec - lastSample[i].ru_utime.tv_sec);
                 auto usec = double(sample[i].ru_utime.tv_usec - lastSample[i].ru_utime.tv_usec);
 
                 auto load = sec + usec * 0.000001;
                 if (load >= dt) {
-                    maximum = 1.0;
-                    break;
+                    sum += 1.0;
+                } else {
+                    sum += load/dt;
                 }
-
-                //std::cerr << "Thread: " << i << ", load/dt: " << load/dt << std::endl;
-                maximum = std::max(load/dt, maximum);
             }
 
             lastSample = std::move(sample);
-            return maximum;
+            double value = sum / double(sample.size());
+            return value;
         };
     }
 
