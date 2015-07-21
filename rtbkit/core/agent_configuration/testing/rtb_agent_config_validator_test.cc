@@ -11,6 +11,100 @@
 using namespace std;
 using namespace RTBKIT;
 
+BOOST_AUTO_TEST_CASE( test_agent_config_fees )
+{
+    AgentConfig config;
+    std::string payload;
+
+    // Normal case : No fees / NO EXCEPTION expected
+    payload = R"JSON( {
+            "account" : ["hello", "worlds"],
+            "creatives": [
+            {
+                "name": "MaCreative",
+                "height": 250,
+                "width": 300,
+                "languageFilter": {
+                "include": []
+                },
+                "id": 5
+            }]}
+        )JSON";
+
+
+    config.parse(payload);
+
+    // Normal case : NullFees : NO EXCEPTION expected
+    payload = R"JSON( {
+            "account" : ["hello", "worlds"],
+            "creatives": [
+            {
+                "name": "MaCreative",
+                "height": 250,
+                "width": 300,
+                "languageFilter": {
+                "include": []
+                },
+                "id": 5,
+                "fees": {
+                    "type": "none"
+                }
+            }]}
+        )JSON";
+
+
+    config.parse(payload);
+
+    // Normal case : Flat Fees : NO EXCEPTION expected
+    payload = R"JSON( {
+            "account" : ["hello", "worlds"],
+            "creatives": [
+            {
+                "name": "MaCreative",
+                "height": 250,
+                "width": 300,
+                "languageFilter": {
+                "include": []
+                },
+                "id": 5,
+                "fees": {
+                    "type": "flat",
+                    "params" : {
+                        "a" : "10USD/1M"
+                    }
+                }
+            }]}
+        )JSON";
+
+
+    config.parse(payload);
+
+    // Normal case : NO EXCEPTION expected
+    payload = R"JSON( {
+            "account" : ["hello", "worlds"],
+            "creatives": [
+            {
+                "name": "MaCreative",
+                "height": 250,
+                "width": 300,
+                "languageFilter": {
+                "include": []
+                },
+                "id": 5,
+                "fees": {
+                    "type": "linear",
+                    "params": {
+                        "a": 0.1,
+                        "b": -0.2
+                    }
+                }
+            }]}
+        )JSON";
+
+
+    config.parse(payload);
+}
+
 BOOST_AUTO_TEST_CASE( test_agent_config_language_filter )
 {
     AgentConfig config;
