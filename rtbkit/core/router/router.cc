@@ -370,6 +370,7 @@ Router::
 unsafeDisableSlowMode()
 {
     monitorClient.testMode = true;
+    monitorClient.testResponse = true;
 }
 
 void
