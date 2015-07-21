@@ -130,8 +130,8 @@ struct HttpExchangeConnector
                 }
             }
 
+            double value = sum / sample.size();
             lastSample = std::move(sample);
-            double value = sum / double(sample.size());
             return value;
         };
     }
