@@ -114,7 +114,7 @@ doOptions(int argc, char ** argv,
         ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
          "disable the slow mode.")
         ("filters-configuration", value<string>(&enableJsonFiltersFile),
-        "configuration file with enabled filters data");
+          "configuration file with enabled filters data");
 
     options_description all_opt = opts;
     all_opt
@@ -175,7 +175,6 @@ init()
     if (dableSlowMode) {
        router->unsafeDisableSlowMode();
     }
-
     if (analyticsOn) {
         const auto & analyticsUri = proxies->params["analytics-uri"].asString();
         if (!analyticsUri.empty()) {

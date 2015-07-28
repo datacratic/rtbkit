@@ -2938,7 +2938,7 @@ startExchange(const std::string & type,
 
     exchangeBuffer.push(item);
 
- }
+}
 
 void
 Router::
