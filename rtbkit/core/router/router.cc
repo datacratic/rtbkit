@@ -34,10 +34,17 @@
 #include "rtbkit/common/messages.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "rtbkit/common/bidder_interface.h"
+#include "jml/utils/file_functions.h"
 
 using namespace std;
 using namespace ML;
 
+
+static inline Json::Value loadJsonFromFile(const std::string & filename)
+{
+    ML::File_Read_Buffer buf (filename);
+    return Json::parse(std::string(buf.start(), buf.end()));
+}
 
 namespace RTBKIT {
 
@@ -118,7 +125,8 @@ Router(ServiceBase & parent,
        Amount maxBidAmount,
        int secondsUntilSlowMode,
        Amount slowModeAuthorizedMoneyLimit,
-       Seconds augmentationWindow)
+       Seconds augmentationWindow,
+       std::string enableJsonFiltersFile)
     : ServiceBase(serviceName, parent),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -156,7 +164,8 @@ Router(ServiceBase & parent,
       monitorProviderClient(getZmqContext()),
       maxBidAmount(maxBidAmount),
       slowModeTolerance(MonitorClient::DefaultTolerance),
-      augmentationWindow(augmentationWindow)
+      augmentationWindow(augmentationWindow),
+      enableJsonFiltersFile(enableJsonFiltersFile)
 {
     monitorProviderClient.addProvider(this);
 }
@@ -172,7 +181,8 @@ Router(std::shared_ptr<ServiceProxies> services,
        Amount maxBidAmount,
        int secondsUntilSlowMode,
        Amount slowModeAuthorizedMoneyLimit,
-       Seconds augmentationWindow)
+       Seconds augmentationWindow,
+       std::string enableJsonFiltersFile)
     : ServiceBase(serviceName, services),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -210,7 +220,9 @@ Router(std::shared_ptr<ServiceProxies> services,
       monitorProviderClient(getZmqContext()),
       maxBidAmount(maxBidAmount),
       slowModeTolerance(MonitorClient::DefaultTolerance),
-      augmentationWindow(augmentationWindow)
+      augmentationWindow(augmentationWindow),
+      enableJsonFiltersFile(enableJsonFiltersFile)
+
 {
     monitorProviderClient.addProvider(this);
 }
@@ -240,7 +252,13 @@ init()
     registerServiceProvider(serviceName(), { "rtbRequestRouter" });
 
     filters.init(this);
-    filters.initWithDefaultFilters();
+
+    if (!enableJsonFiltersFile.empty()) {
+        filtersConfig = loadJsonFromFile(enableJsonFiltersFile);
+        filters.initWithFiltersFromJson(filtersConfig);
+    }
+    else
+        filters.initWithDefaultFilters();
 
     banker.reset(new NullBanker());
 
@@ -2919,8 +2937,8 @@ startExchange(const std::string & type,
     addExchange(item);
 
     exchangeBuffer.push(item);
-    filters.initWithDefaultFilters();
-}
+
+ }
 
 void
 Router::

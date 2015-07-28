@@ -224,7 +224,29 @@ initWithDefaultFilters()
 
 }
 
+void
+FilterPool::
+initWithFiltersFromJson(const Json::Value & json)
+{
 
+    GcLockBase::SharedGuard guard(gc);
+
+    Data* oldData = data.load();
+    unique_ptr<Data> newData;
+
+    const auto& members = json.getMemberNames();
+
+    do {
+        newData.reset(new Data);
+
+        for (const auto& name: members) {
+            newData->addFilter(FilterRegistry::makeFilter(name));
+            if (events) events->recordHit("filters.addFilter.%s", name);
+        }
+
+    } while (!setData(oldData, newData));
+
+}
 
 unsigned
 FilterPool::

@@ -61,7 +61,8 @@ RouterRunner() :
     analyticsOn(false),
     analyticsConnections(1),
     augmentationWindowms(5),
-    dableSlowMode(false)
+    dableSlowMode(false),
+    enableJsonFiltersFile("rtbkit/examples/filter-config.json")
 {
 }
 
@@ -111,7 +112,9 @@ doOptions(int argc, char ** argv,
          ("augmenter-timeout",value<int>(&augmentationWindowms),
          "configure the augmenter  timeout (in milliseconds)")
         ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
-         "disable the slow mode.");
+         "disable the slow mode.")
+        ("filters-configuration", value<string>(&enableJsonFiltersFile),
+        "configuration file with enabled filters data");
 
     options_description all_opt = opts;
     all_opt
@@ -166,12 +169,13 @@ init()
                                       enableBidProbability,
                                       logAuctions, logBids,
                                       USD_CPM(maxBidPrice),
-                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow);
+                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow, enableJsonFiltersFile);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
-    if(dableSlowMode) {
+    if (dableSlowMode) {
        router->unsafeDisableSlowMode();
     }
+
     if (analyticsOn) {
         const auto & analyticsUri = proxies->params["analytics-uri"].asString();
         if (!analyticsUri.empty()) {

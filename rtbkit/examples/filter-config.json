@@ -1,0 +1,10 @@
+ {
+  
+  "filters": [
+    "locationFilter",
+    "languageFilter",
+    "hourOfWeekFilter"
+    ]
+}
+
+
