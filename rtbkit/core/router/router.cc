@@ -34,17 +34,10 @@
 #include "rtbkit/common/messages.h"
 #include "rtbkit/common/win_cost_model.h"
 #include "rtbkit/common/bidder_interface.h"
-#include "jml/utils/file_functions.h"
 
 using namespace std;
 using namespace ML;
 
-
-static inline Json::Value loadJsonFromFile(const std::string & filename)
-{
-    ML::File_Read_Buffer buf (filename);
-    return Json::parse(std::string(buf.start(), buf.end()));
-}
 
 namespace RTBKIT {
 
@@ -126,7 +119,7 @@ Router(ServiceBase & parent,
        int secondsUntilSlowMode,
        Amount slowModeAuthorizedMoneyLimit,
        Seconds augmentationWindow,
-       std::string enableJsonFiltersFile)
+       Json::Value filtersConfig)
     : ServiceBase(serviceName, parent),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -165,7 +158,7 @@ Router(ServiceBase & parent,
       maxBidAmount(maxBidAmount),
       slowModeTolerance(MonitorClient::DefaultTolerance),
       augmentationWindow(augmentationWindow),
-      enableJsonFiltersFile(enableJsonFiltersFile)
+      filtersConfig(filtersConfig)
 {
     monitorProviderClient.addProvider(this);
 }
@@ -182,7 +175,7 @@ Router(std::shared_ptr<ServiceProxies> services,
        int secondsUntilSlowMode,
        Amount slowModeAuthorizedMoneyLimit,
        Seconds augmentationWindow,
-       std::string enableJsonFiltersFile)
+       Json::Value filtersConfig)
     : ServiceBase(serviceName, services),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -221,7 +214,7 @@ Router(std::shared_ptr<ServiceProxies> services,
       maxBidAmount(maxBidAmount),
       slowModeTolerance(MonitorClient::DefaultTolerance),
       augmentationWindow(augmentationWindow),
-      enableJsonFiltersFile(enableJsonFiltersFile)
+      filtersConfig(filtersConfig)
 
 {
     monitorProviderClient.addProvider(this);
@@ -253,10 +246,8 @@ init()
 
     filters.init(this);
 
-    if (!enableJsonFiltersFile.empty()) {
-        filtersConfig = loadJsonFromFile(enableJsonFiltersFile);
+    if (filtersConfig != Json::Value::null)
         filters.initWithFiltersFromJson(filtersConfig);
-    }
     else
         filters.initWithDefaultFilters();
 

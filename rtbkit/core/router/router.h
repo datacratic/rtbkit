@@ -114,7 +114,7 @@ struct Router : public ServiceBase,
            int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
            Amount slowModeAuthorizedMoneyLimit = USD_CPM(100),
            Seconds augmentationWindow = std::chrono::milliseconds(5),
-           std::string enableJsonFiltersFile = "");
+           Json::Value filtersConfig =  Json::Value::null);
 
     Router(std::shared_ptr<ServiceProxies> services = std::make_shared<ServiceProxies>(),
            const std::string & serviceName = "router",
@@ -127,7 +127,7 @@ struct Router : public ServiceBase,
            int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
            Amount slowModeAuthorizedMoneyLimit = USD_CPM(100),
            Seconds augmentationWindow = std::chrono::milliseconds(5),
-           std::string  enableJsonFiltersFile = "");
+           Json::Value filtersConfig = Json::Value::null);
 
     ~Router();
 
@@ -808,7 +808,6 @@ public:
 
     double slowModeTolerance;
     Seconds augmentationWindow;
-    std::string enableJsonFiltersFile;
     Json::Value filtersConfig;
 };
 

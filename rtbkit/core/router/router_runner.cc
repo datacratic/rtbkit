@@ -147,6 +147,7 @@ init()
 
     exchangeConfig = loadJsonFromFile(exchangeConfigurationFile);
     bidderConfig = loadJsonFromFile(bidderConfigurationFile);
+    filtersConfig = loadJsonFromFile(enableJsonFiltersFile);
 
     const auto amountSlowModeMoneyLimit = Amount::parse(slowModeMoneyLimit);
     const auto maxBidPriceAmount = USD_CPM(maxBidPrice);
@@ -169,7 +170,7 @@ init()
                                       enableBidProbability,
                                       logAuctions, logBids,
                                       USD_CPM(maxBidPrice),
-                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow, enableJsonFiltersFile);
+                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow, filtersConfig);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
     if (dableSlowMode) {
