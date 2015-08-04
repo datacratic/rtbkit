@@ -1,10 +1,11 @@
  {
-  
-  "filters": [
-    "locationFilter",
-    "languageFilter",
-    "hourOfWeekFilter"
-    ]
+     "filters": [
+     "locationFilter": { "include": [ "^CA", "^US" ], "exclude": [ "^US:NY" ] },
+     "segmentFilter": {
+         "sample1": { "include" : [], "exclude": ["bad"] },
+         "sample2": { "include" : ["good"], "exclude": [] },
+         "colors": { "include" : ["blue", "red"], "exclude": ["black", "white"] }
+  ]
 }
 
 
