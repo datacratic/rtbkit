@@ -166,7 +166,27 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                 [&](const pair<string, BidInfo> &bidder)
         {
             std::string agent = bidder.first;
-            const auto &info = router->agents[agent];
+            /* Since it is possible to delete a configuration from the REST interface of
+             * the agent configuration service, the user might delete the configuration
+             * while some requests for this configuration are already in flight. When
+             * that happens, since we're capturing our context by copy in the closure,
+             * we hold a "private" copy of the current agents and their configurations,
+             * which means that we might still hold configurations that have been deleted
+             * and erased in the router.
+             *
+             * This is why we are checking if the agent still exists. If not, we're skipping
+             * it. This is not ideal and introduces an extra check but this is the simplest way
+             * Note that this will be trigger the "couldn't fint configuration for
+             * externalId" error below. In other words, all requests that are "in flight"
+             * for a configuration that has been deleted will trigger a logging message.
+             * We will return a 204 for these requests
+             */
+            auto agentIt = router->agents.find(agent);
+            if (agentIt == std::end(router->agents)) {
+                return false;
+            }
+            const auto &info = agentIt->second;
+            ExcAssert(info.config);
             return info.config->externalId == externalId;
         });
 
@@ -203,7 +223,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                 Date responseReceivedTime = Date::now();
                 const double responseTime = responseReceivedTime.secondsSince(sentResponseTime);
                 recordOutcome(1000.0 * responseTime, "httpResponseTimeMs");
-                 //cerr << "Response: " << "HTTP " << statusCode << std::endl << body << endl;
+               // cerr << "Response: " << "HTTP " << statusCode << std::endl << body << endl;
 
                  /* We need to make sure that we re-inject bids into the router for each
                   * agent. When receiving a BidResponse, if the SeatBid array contains
@@ -569,7 +589,7 @@ void HttpBidderInterface::sendPingMessage(
 }
 
 void HttpBidderInterface::registerLoopMonitor(LoopMonitor *monitor) const {
-    monitor->addMessageLoop("httpBidderInterfaceLoop", &loop);
+    monitor->addMessageLoop(serviceName(), &loop);
 }
 
 bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
@@ -589,6 +609,15 @@ bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
 void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
                                      const std::map<std::string, BidInfo> &bidders) const
 {
+    static const Json::Value null(Json::nullValue);
+
+    static constexpr const char *ExternalIdsFieldName = "external-ids";
+    static constexpr const char *CreativeIdsFieldName = "creative-ids";
+
+    // Make sure to tag every impression, even impressions that do not satisfy
+    // filters
+    for (auto& imp: request.imp)
+        imp.ext[ExternalIdsFieldName] = imp.ext[CreativeIdsFieldName] = null;
 
     for (const auto &bidder: bidders) {
         const auto &agentConfig = bidder.second.agentConfig;
@@ -600,16 +629,20 @@ void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
             ExcCheck(adSpotIndex >= 0 && adSpotIndex < request.imp.size(),
                      "adSpotIndex out of range");
             auto &imp = request.imp[adSpotIndex];
-            auto &externalIds = imp.ext["external-ids"];
+            auto &externalIds = imp.ext[ExternalIdsFieldName];
             externalIds.append(agentConfig->externalId);
 
-            auto& creativesExtField = imp.ext["creative-indexes"];
+            auto& creativesExtField = imp.ext[CreativeIdsFieldName];
 
 
             auto &creativesList = creativesExtField[std::to_string(agentConfig->externalId)];
+            const auto& creatives = agentConfig->creatives;
             for (int index: creativeIndexes) {
-                creativesList.append(index);
+                ExcAssert(index < creatives.size());
+
+                creativesList.append(creatives[index].id);
             }
+
         }
 
     }

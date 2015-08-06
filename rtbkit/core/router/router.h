@@ -112,7 +112,8 @@ struct Router : public ServiceBase,
            bool logBids = false,
            Amount maxBidAmount = USD_CPM(40),
            int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
-           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100));
+           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100),
+           Seconds augmentationWindow = std::chrono::milliseconds(5));
 
     Router(std::shared_ptr<ServiceProxies> services = std::make_shared<ServiceProxies>(),
            const std::string & serviceName = "router",
@@ -123,7 +124,8 @@ struct Router : public ServiceBase,
            bool logBids = false,
            Amount maxBidAmount = USD_CPM(40),
            int secondsUntilSlowMode = MonitorClient::DefaultCheckTimeout,
-           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100));
+           Amount slowModeAuthorizedMoneyLimit = USD_CPM(100),
+           Seconds augmentationWindow = std::chrono::milliseconds(5));
 
     ~Router();
 
@@ -166,6 +168,10 @@ struct Router : public ServiceBase,
         to unbounded overspend, so please do really only use it for testing.
     */
     void unsafeDisableAuctionProbability();
+
+    /** Disable the monitor client
+    */
+    void unsafeDisableSlowMode();
 
     /** Start the router running in a separate thread.  The given function
         will be called when the thread is stopped. */
@@ -796,6 +802,7 @@ public:
     MonitorIndicator getProviderIndicators() const;
 
     double slowModeTolerance;
+    Seconds augmentationWindow;
 };
 
 

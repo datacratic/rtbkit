@@ -7,10 +7,13 @@
 */
 
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/epoll.h>
+#include <sys/prctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -67,7 +70,10 @@ rusageDescription()
 
 namespace {
 
+
+
 Logging::Category warnings("Runner::warning");
+
 
 tuple<int, int>
 CreateStdPipe(bool forWriting)
@@ -94,12 +100,17 @@ namespace Datacratic {
 
 Runner::
 Runner()
-    : EpollLoop(nullptr),
-      closeStdin(false), running_(false),
+    : closeStdin(false), running_(false),
       startDate_(Date::negativeInfinity()), endDate_(startDate_),
       childPid_(-1),
+      wakeup_(EFD_NONBLOCK | EFD_CLOEXEC),
       statusRemaining_(sizeof(ProcessStatus))
 {
+    Epoller::init(4);
+
+    handleEvent = [&] (const struct epoll_event & event) {
+        return this->handleEpollEvent(event);
+    };
 }
 
 Runner::
@@ -108,10 +119,38 @@ Runner::
     waitTermination();
 }
 
+Epoller::HandleEventResult
+Runner::
+handleEpollEvent(const struct epoll_event & event)
+{
+    if (event.data.ptr == &task_.statusFd) {
+        // fprintf(stderr, "parent: handle child status input\n");
+        handleChildStatus(event);
+    }
+    else if (event.data.ptr == &task_.stdOutFd) {
+        // fprintf(stderr, "parent: handle child output from stdout\n");
+        handleOutputStatus(event, task_.stdOutFd, stdOutSink_);
+    }
+    else if (event.data.ptr == &task_.stdErrFd) {
+        // fprintf(stderr, "parent: handle child output from stderr\n");
+        handleOutputStatus(event, task_.stdErrFd, stdErrSink_);
+    }
+    else if (event.data.ptr == nullptr) {
+        // stdInSink cleanup for now...
+        handleWakeup(event);
+    }
+    else {
+        throw ML::Exception("this should never occur");
+    }
+
+    return Epoller::DONE;
+}
+
 void
 Runner::
 handleChildStatus(const struct epoll_event & event)
 {
+    // cerr << "handleChildStatus\n";
     ProcessStatus status;
 
     if ((event.events & EPOLLIN) != 0) {
@@ -138,6 +177,7 @@ handleChildStatus(const struct epoll_event & event)
             statusRemaining_ -= s;
 
             if (statusRemaining_ > 0) {
+                cerr << "warning: reading status fd in multiple chunks\n";
                 continue;
             }
 
@@ -146,37 +186,50 @@ handleChildStatus(const struct epoll_event & event)
             // Set up for next message
             statusRemaining_ = sizeof(statusBuffer_);
 
+#if 0
+            cerr << "got status " << status.state
+                 << " " << Task::statusStateAsString(status.state)
+                 << " " << status.pid << " " << status.childStatus
+                 << " " << status.launchErrno << " "
+                 << strerror(status.launchErrno) << " "
+                 << strLaunchError(status.launchErrorCode)
+                 << endl;
+#endif
+
             task_.statusState = status.state;
             task_.runResult.usage = status.usage;
 
             if (status.launchErrno
                 || status.launchErrorCode != LaunchError::NONE) {
+                //cerr << "*** launch error" << endl;
                 // Error
                 task_.runResult.updateFromLaunchError
                     (status.launchErrno,
                      strLaunchError(status.launchErrorCode));
-
-                task_.postTerminate(*this);
-
+                task_.statusState = ProcessState::STOPPED;
                 childPid_ = -2;
                 ML::futex_wake(childPid_);
 
-                running_ = false;
-                endDate_ = Date::now();
-                ML::futex_wake(running_);
+                if (stdInSink_ && stdInSink_->state != OutputSink::CLOSED) {
+                    stdInSink_->requestClose();
+                }
+                attemptTaskTermination();
                 break;
             }
 
             switch (status.state) {
             case ProcessState::LAUNCHING:
                 childPid_ = status.pid;
+                // cerr << " childPid_ = status.pid (launching)\n";
                 break;
             case ProcessState::RUNNING:
                 childPid_ = status.pid;
+                // cerr << " childPid_ = status.pid (running)\n";
                 ML::futex_wake(childPid_);
                 break;
             case ProcessState::STOPPED:
                 childPid_ = -3;
+                // cerr << " childPid_ = -3 (stopped)\n";
                 ML::futex_wake(childPid_);
                 task_.runResult.updateFromStatus(status.childStatus);
                 task_.statusState = ProcessState::DONE;
@@ -198,10 +251,13 @@ handleChildStatus(const struct epoll_event & event)
     }
 
     if ((event.events & EPOLLHUP) != 0) {
-        removeFd(task_.statusFd, true);
+        //cerr << "*** hangup" << endl;
+        removeFd(task_.statusFd);
         ::close(task_.statusFd);
         task_.statusFd = -1;
     }
+
+    // cerr << "handleChildStatus done\n";
 }
 
 void
@@ -216,7 +272,9 @@ handleOutputStatus(const struct epoll_event & event,
     if ((event.events & EPOLLIN) != 0) {
         while (1) {
             ssize_t len = ::read(outputFd, buffer, sizeof(buffer));
+            // cerr << "returned len: " << len << endl;
             if (len < 0) {
+                // perror("  len -1");
                 if (errno == EWOULDBLOCK) {
                     break;
                 }
@@ -242,7 +300,11 @@ handleOutputStatus(const struct epoll_event & event,
         }
 
         if (data.size() > 0) {
+            // cerr << "sending child output to output handler\n";
             sink->notifyReceived(move(data));
+        }
+        else {
+            cerr << "ignoring child output due to size == 0\n";
         }
     }
 
@@ -251,7 +313,7 @@ handleOutputStatus(const struct epoll_event & event,
         sink->notifyClosed();
         sink.reset();
         if (outputFd > -1) {
-            removeFd(outputFd, true);
+            removeFd(outputFd);
             ::close(outputFd);
             outputFd = -1;
         }
@@ -261,9 +323,39 @@ handleOutputStatus(const struct epoll_event & event,
 
 void
 Runner::
+handleWakeup(const struct epoll_event & event)
+{
+    // cerr << "handleWakup\n";
+    while (!wakeup_.tryRead());
+
+    if ((event.events & EPOLLIN) != 0) {
+        if (stdInSink_) {
+            if (stdInSink_->connectionState_
+                == AsyncEventSource::DISCONNECTED) {
+                attemptTaskTermination();
+                removeFd(wakeup_.fd());
+            }
+            else {
+                wakeup_.signal();
+            }
+        }
+    }
+}
+
+void
+Runner::
 attemptTaskTermination()
 {
-    /* for a task to be considered done:
+    /* There is a set of things that occurs spontaneously when a process
+       exits, due to the way Linux (possibly POSIX) handles processes, file
+       descriptors, etc. For example, the stdout/stderr channels of a
+       subprocess are always going to be closed when the relevant process
+       exits and all the data written by the program will be flushed from the
+       kernel buffers. Even though this may not occur in order, all of those
+       events will occur and will be caught by our epoll queue. This is the
+       basis of how we handle events throughout the Runner class.
+
+       For a task to be considered done:
        - stdout and stderr must have been closed, provided we redirected them
        - the closing child status must have been returned
        - stdInSink must either be null or its state considered "closed"
@@ -278,9 +370,7 @@ attemptTaskTermination()
        must be performed when they are all met. This is what
        "attemptTaskTermination" does.
     */
-    if ((!stdInSink_
-         || stdInSink_->state == OutputSink::CLOSED
-         || stdInSink_->state == OutputSink::CLOSING)
+    if ((!stdInSink_ || stdInSink_->state == OutputSink::CLOSED)
         && !stdOutSink_ && !stdErrSink_ && childPid_ < 0
         && (task_.statusState == ProcessState::STOPPED
             || task_.statusState == ProcessState::DONE)) {
@@ -290,6 +380,7 @@ attemptTaskTermination()
             stdInSink_.reset();
         }
 
+        // cerr << "terminated task\n";
         running_ = false;
         endDate_ = Date::now();
         ML::futex_wake(running_);
@@ -331,8 +422,8 @@ getStdInSink()
             ::close(task_.stdInFd);
             task_.stdInFd = -1;
         }
-        removeFd(stdInSink_->selectFd(), true);
-        attemptTaskTermination();
+        parent_->removeSource(stdInSink_.get());
+        wakeup_.signal();
     };
     stdInSink_.reset(new AsyncFdOutputSink(onClose, onClose));
 
@@ -351,48 +442,6 @@ run(const vector<string> & command,
             << ML::format("Runner %p is not connected to any MessageLoop\n", this);
     }
 
-    runImpl(command, onTerminate, stdOutSink, stdErrSink);
-}
-
-RunResult
-Runner::
-runSync(const vector<string> & command,
-        const shared_ptr<InputSink> & stdOutSink,
-        const shared_ptr<InputSink> & stdErrSink,
-        const string & stdInData)
-{
-    RunResult result;
-
-    bool terminated(false);
-    auto onTerminate = [&] (const RunResult & newResult) {
-        result = newResult;
-        terminated = true;
-    };
-
-    OutputSink * sink(nullptr);
-    if (stdInData.size() > 0) {
-        sink = &getStdInSink();
-    }
-    runImpl(command, onTerminate, stdOutSink, stdErrSink);
-    if (sink) {
-        sink->write(stdInData);
-        sink->requestClose();
-    }
-
-    while (!terminated) {
-        loop(-1, -1);
-    }
-
-    return result;
-}
-
-void
-Runner::
-runImpl(const vector<string> & command,
-        const OnTerminate & onTerminate,
-        const shared_ptr<InputSink> & stdOutSink,
-        const shared_ptr<InputSink> & stdErrSink)
-{
     if (running_)
         throw ML::Exception("already running");
 
@@ -441,30 +490,17 @@ runImpl(const vector<string> & command,
         if (stdInSink_) {
             ML::set_file_flag(task_.stdInFd, O_NONBLOCK);
             stdInSink_->init(task_.stdInFd);
-
-            shared_ptr<AsyncFdOutputSink> stdinCopy = stdInSink_;
-            auto stdinCb = [=] (const epoll_event & event) {
-                stdinCopy->processOne();
-            };
-            addFd(stdInSink_->selectFd(), true, false, stdinCb);
+            parent_->addSource("stdInSink", stdInSink_);
+            addFd(wakeup_.fd());
         }
-        auto statusCb = [&] (const epoll_event & event) {
-            handleChildStatus(event);
-        };
-        addFd(task_.statusFd, true, false, statusCb);
+        addFd(task_.statusFd, &task_.statusFd);
         if (stdOutSink) {
             ML::set_file_flag(task_.stdOutFd, O_NONBLOCK);
-            auto outputCb = [=] (const epoll_event & event) {
-                handleOutputStatus(event, task_.stdOutFd, stdOutSink_);
-            };
-            addFd(task_.stdOutFd, true, false, outputCb);
+            addFd(task_.stdOutFd, &task_.stdOutFd);
         }
         if (stdErrSink) {
             ML::set_file_flag(task_.stdErrFd, O_NONBLOCK);
-            auto outputCb = [=] (const epoll_event & event) {
-                handleOutputStatus(event, task_.stdErrFd, stdErrSink_);
-            };
-            addFd(task_.stdErrFd, true, false, outputCb);
+            addFd(task_.stdErrFd, &task_.stdErrFd);
         }
 
         childFds.close();
@@ -507,12 +543,14 @@ waitStart(double secondsToWait) const
     Date deadline = Date::now().plusSeconds(secondsToWait);
 
     while (childPid_ == -1) {
+        //cerr << "waitStart childPid_ = " << childPid_ << endl;
         double timeToWait = Date::now().secondsUntil(deadline);
         if (timeToWait < 0)
             break;
         if (isfinite(timeToWait))
             ML::futex_wait(childPid_, -1, timeToWait);
         else ML::futex_wait(childPid_, -1);
+        //cerr << "waitStart childPid_ now = " << childPid_ << endl;
     }
 
     return childPid_ > 0;
@@ -616,14 +654,19 @@ runWrapper(const vector<string> & command, ProcessFds & fds)
     throw ML::Exception("You are the King of Time!");
 }
 
+/* This method *must* be called from attemptTaskTermination, in order to
+ * respect the natural order of things. */
 void
 Runner::Task::
 postTerminate(Runner & runner)
 {
+    // cerr << "postTerminate\n";
+
     if (wrapperPid <= 0) {
         throw ML::Exception("wrapperPid <= 0, has postTerminate been executed before?");
     }
 
+    // cerr << "waiting for wrapper pid: " << wrapperPid << endl;
     int wrapperPidStatus;
     while (true) {
         int res = ::waitpid(wrapperPid, &wrapperPidStatus, 0);
@@ -641,8 +684,10 @@ postTerminate(Runner & runner)
     }
     wrapperPid = -1;
 
+    //cerr << "finished waiting for wrapper with status " << wrapperPidStatus
+    //     << endl;
+
     if (stdInFd != -1) {
-        runner.removeFd(stdInFd, true);
         ::close(stdInFd);
         stdInFd = -1;
     }
@@ -651,7 +696,7 @@ postTerminate(Runner & runner)
         if (fd > -1) {
             JML_TRACE_EXCEPTIONS(false);
             try {
-                runner.removeFd(fd, true);
+                runner.removeFd(fd);
             }
             catch (const ML::Exception & exc) {
             }
@@ -798,14 +843,31 @@ execute(MessageLoop & loop,
         const string & stdInData,
         bool closeStdin)
 {
-    static bool notified(false);
+    RunResult result;
+    auto onTerminate = [&](const RunResult & runResult) {
+        result = runResult;
+    };
 
-    if (!notified) {
-        cerr << "warning: the \"MessageLoop\"-based \"execute\" function is deprecated\n";
-        notified = true;
+    Runner runner;
+
+    loop.addSource("runner", runner);
+
+    if (stdInData.size() > 0) {
+        auto & sink = runner.getStdInSink();
+        runner.run(command, onTerminate, stdOutSink, stdErrSink);
+        sink.write(stdInData);
+        sink.requestClose();
+    }
+    else {
+        runner.closeStdin = closeStdin;
+        runner.run(command, onTerminate, stdOutSink, stdErrSink);
     }
 
-    return execute(command, stdOutSink, stdErrSink, stdInData, closeStdin);
+    runner.waitTermination();
+    loop.removeSource(&runner);
+    runner.waitConnectionState(AsyncEventSource::DISCONNECTED);
+
+    return result;
 }
 
 RunResult
@@ -815,11 +877,14 @@ execute(const vector<string> & command,
         const string & stdInData,
         bool closeStdin)
 {
-    Runner runner;
+    MessageLoop loop(1, 0, -1);
 
-    runner.closeStdin = closeStdin;
+    loop.start();
+    RunResult result = execute(loop, command, stdOutSink, stdErrSink,
+                               stdInData, closeStdin);
+    loop.shutdown();
 
-    return runner.runSync(command, stdOutSink, stdErrSink, stdInData);
+    return result;
 }
 
 } // namespace Datacratic
