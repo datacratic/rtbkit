@@ -62,7 +62,7 @@ RouterRunner() :
     analyticsConnections(1),
     augmentationWindowms(5),
     dableSlowMode(false),
-    enableJsonFiltersFile("rtbkit/examples/filter-config.json")
+    enableJsonFiltersFile("")
 {
 }
 
@@ -147,7 +147,9 @@ init()
 
     exchangeConfig = loadJsonFromFile(exchangeConfigurationFile);
     bidderConfig = loadJsonFromFile(bidderConfigurationFile);
-    filtersConfig = loadJsonFromFile(enableJsonFiltersFile);
+
+    if (!enableJsonFiltersFile.empty())
+        filtersConfig = loadJsonFromFile(enableJsonFiltersFile);
 
     const auto amountSlowModeMoneyLimit = Amount::parse(slowModeMoneyLimit);
     const auto maxBidPriceAmount = USD_CPM(maxBidPrice);
