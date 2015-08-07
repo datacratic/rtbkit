@@ -234,6 +234,7 @@ initWithFiltersFromJson(const Json::Value & json)
     Data* oldData = data.load();
     unique_ptr<Data> newData;
 
+    if (json.type() == Json::objectValue || json.type() == Json::nullValue){
     const auto& members = json.getMemberNames();
 
     do {
@@ -245,7 +246,7 @@ initWithFiltersFromJson(const Json::Value & json)
         }
 
     } while (!setData(oldData, newData));
-
+   }
 }
 
 unsigned

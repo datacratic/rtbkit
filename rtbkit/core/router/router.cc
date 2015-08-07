@@ -247,7 +247,7 @@ init()
     filters.init(this);
 
     if (filtersConfig != Json::Value::null)
-        filters.initWithFiltersFromJson(filtersConfig);
+       filters.initWithFiltersFromJson(filtersConfig);
     else
         filters.initWithDefaultFilters();
 
