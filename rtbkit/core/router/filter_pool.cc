@@ -238,7 +238,7 @@ initWithFiltersFromJson(const Json::Value & json)
         throw Exception("filter list must be an array");
 
     for (unsigned i = 0;  i < json.size();  ++i) {
-        const Json::Value val = json[i];
+        const Json::Value & val = json[i];
 
     do {
         newData.reset(new Data);
