@@ -246,8 +246,12 @@ init()
 
     filters.init(this);
 
-    if (filtersConfig != Json::Value::null)
+    if (filtersConfig != Json::Value::null){
+        if (!filtersConfig.isArray()){
+         throw Exception("couldn't parse formats other then array");
+        }
        filters.initWithFiltersFromJson(filtersConfig);
+    }
     else
         filters.initWithDefaultFilters();
 
