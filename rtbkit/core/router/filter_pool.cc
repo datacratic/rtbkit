@@ -234,8 +234,8 @@ initWithFiltersFromJson(const Json::Value & json)
     Data* oldData = data.load();
     unique_ptr<Data> newData;
 
-    if (!json.isArray())                                                     
-        throw Exception("filter list must be an array");        
+    if (!json.isArray())
+        throw Exception("filter list must be an array");
 
     for (unsigned i = 0;  i < json.size();  ++i) {
         const Json::Value val = json[i];
@@ -243,8 +243,8 @@ initWithFiltersFromJson(const Json::Value & json)
     do {
         newData.reset(new Data);
 
-            newData->addFilter(FilterRegistry::makeFilter(val.asString()));
-            if (events) events->recordHit("filters.addFilter.%s", val.asString());
+        newData->addFilter(FilterRegistry::makeFilter(val.asString()));
+        if (events) events->recordHit("filters.addFilter.%s", val.asString());
 
     } while (!setData(oldData, newData));
   }
