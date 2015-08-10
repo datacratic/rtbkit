@@ -237,18 +237,17 @@ initWithFiltersFromJson(const Json::Value & json)
     if (!json.isArray())
         throw Exception("filter list must be an array");
 
-    for (unsigned i = 0;  i < json.size();  ++i) {
-        const Json::Value & val = json[i];
-
     do {
         newData.reset(new Data);
 
-        newData->addFilter(FilterRegistry::makeFilter(val.asString()));
-        if (events) events->recordHit("filters.addFilter.%s", val.asString());
-
+        for (unsigned i = 0;  i < json.size();  ++i) {
+            const Json::Value & val = json[i];
+            newData->addFilter(FilterRegistry::makeFilter(val.asString()));
+            if (events) events->recordHit("filters.addFilter.%s", val.asString());
+        }
     } while (!setData(oldData, newData));
-  }
 }
+
 
 unsigned
 FilterPool::
