@@ -68,6 +68,18 @@ SpotXExchangeConnector::initCreativeConfiguration()
 
             return true;
     }).required();
+
+    creativeConfig.addField(
+        "adid",
+        [](const Json::Value& value, CreativeInfo& info) {
+            Datacratic::jsonDecode(value, info.adid);
+            if (info.adid.empty()) {
+                throw std::invalid_argument("adid is required");
+            }
+
+            return true;
+    }).required();
+
 }
 
 ExchangeConnector::ExchangeCompatibility
@@ -124,11 +136,13 @@ SpotXExchangeConnector::getCreativeCompatibility(
         const Creative& creative,
         bool includeReasons) const
 {
-    const auto& format = creative.format;
-    if (format.width > 300 || format.height > 250) {
-        ExchangeCompatibility result;
-        result.setIncompatible("SpotXchange only supports 300x250", includeReasons);
-        return result;
+    if (creative.isImage()) {
+        const auto& format = creative.format;
+        if (format.width != 300 || format.height != 250) {
+            ExchangeCompatibility result;
+            result.setIncompatible("SpotXchange only supports 300x250", includeReasons);
+            return result;
+        }
     }
 
     return creativeConfig.handleCreativeCompatibility(creative, includeReasons);
@@ -191,6 +205,7 @@ SpotXExchangeConnector::setSeatBid(
     bid.price.val = USD_CPM(resp.price.maxPrice);
 
     bid.adomain = creativeInfo->adomain;
+    bid.adid = Id(creativeInfo->adid);
     bid.adm = creativeConfig.expand(creativeInfo->adm, context);
 }
 

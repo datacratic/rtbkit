@@ -60,7 +60,9 @@ RouterRunner() :
     slowModeTolerance(MonitorClient::DefaultTolerance),
     slowModeMoneyLimit(""),
     analyticsOn(false),
-    analyticsConnections(1)
+    analyticsConnections(1),
+    augmentationWindowms(5),
+    dableSlowMode(false)
 {
 }
 
@@ -106,7 +108,11 @@ doOptions(int argc, char ** argv,
         ("local-banker-debug", bool_switch(&localBankerDebug),
          "enable local banker debug for more precise tracking by account")
         ("banker-choice", value<string>(&bankerChoice),
-         "split or local banker can be chosen.");
+         "split or local banker can be chosen.")
+         ("augmenter-timeout",value<int>(&augmentationWindowms),
+         "configure the augmenter  timeout (in milliseconds)")
+        ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
+         "disable the slow mode.");
 
     options_description all_opt = opts;
     all_opt
@@ -152,6 +158,8 @@ init()
             << "slow-mode-money-limit= " << amountSlowModeMoneyLimit <<endl;
     }
 
+    Seconds augmentationWindow = std::chrono::milliseconds(augmentationWindowms);
+
     auto connectPostAuctionLoop = !noPostAuctionLoop;
     auto enableBidProbability = !noBidProb;
     router = std::make_shared<Router>(proxies, serviceName, lossSeconds,
@@ -159,9 +167,12 @@ init()
                                       enableBidProbability,
                                       logAuctions, logBids,
                                       USD_CPM(maxBidPrice),
-                                      slowModeTimeout, amountSlowModeMoneyLimit);
+                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
+    if(dableSlowMode) {
+       router->unsafeDisableSlowMode();
+    }
     if (analyticsOn) {
         const auto & analyticsUri = proxies->params["analytics-uri"].asString();
         if (!analyticsUri.empty()) {
