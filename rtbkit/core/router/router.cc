@@ -1989,13 +1989,13 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
             cerr << "creative not compatible with spot: " << endl;
             cerr << "auction: " << auctionInfo.auction->requestStr
                 << endl;
-            cerr << "config: " << config.toJson() << endl;
+            cerr << "config: " << config.toJson().toStringNoNewLine() << endl;
             cerr << "bid: " << bidsString << endl;
-            cerr << "spot: " << imp[i].toJson() << endl;
+            cerr << "spot: " << imp[i].toJson().toStringNoNewLine() << endl;
             cerr << "spot num: " << spotIndex << endl;
             cerr << "bid num: " << i << endl;
             cerr << "creative num: " << bid.creativeIndex << endl;
-            cerr << "creative: " << creative.toJson() << endl;
+            cerr << "creative: " << creative.toJson().toStringNoNewLine() << endl;
 #endif
             returnInvalidBid(agent, bidsString, auctionInfo.auction,
                     "creativeNotCompatibleWithSpot",
