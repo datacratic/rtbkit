@@ -655,6 +655,8 @@ bool HttpBidderInterface::prepareStandardRequest(OpenRTB::BidRequest &request,
                                          const std::map<std::string, BidInfo> &bidders) const {
     tagRequest(request, bidders);
 
+     request.ext["exchange"] = originalRequest.exchange;
+
     // Take any augmentation data and fill in the ext field of the bid request with the data,
     // under the rtbkit "namespace"
     const auto& augmentations = auction->augmentations;
