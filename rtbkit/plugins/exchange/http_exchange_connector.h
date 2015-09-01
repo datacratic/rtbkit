@@ -110,7 +110,6 @@ struct HttpExchangeConnector
             auto dt = now.secondsSince(lastTime);
             lastTime = now;
 
-            std::cerr << "sample.size: " << sample.size() << std::endl;
             //first time?
             if(sample.size() != lastSample.size()) {
                 lastSample = std::move(sample);
