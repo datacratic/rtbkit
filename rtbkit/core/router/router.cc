@@ -5,7 +5,6 @@
    RTB router code.
 */
 
-#include <set>
 #include <atomic>
 #include "router.h"
 #include "soa/service/zmq_utils.h"
@@ -948,14 +947,8 @@ logUsageMetrics(double period)
         }
     }
 
-    set<AccountKey> agentAccounts;
     for (const auto & item : agents) {
         auto & info = item.second;
-        const AccountKey & account = info.config->account;
-        if (!agentAccounts.insert(account).second) {
-            continue;
-        }
-
         auto & last = lastAgentUsageMetrics[item.first];
 
         AgentUsageMetrics newMetrics(info.stats->intoFilters,
