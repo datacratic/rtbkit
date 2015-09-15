@@ -199,7 +199,15 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
     };
 
     BidRequest & originalRequest = *auction->request;
-    std::shared_ptr<OpenRTBBidRequestParser> parser = OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1");
+
+    std::string openRtbVersion;
+    if (!originalRequest.protocolVersion.empty())
+        openRtbVersion = originalRequest.protocolVersion;
+    else
+        openRtbVersion = "2.1";
+
+    std::shared_ptr<OpenRTBBidRequestParser> parser = OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion);
+
 
     OpenRTB::BidRequest openRtbRequest = parser->toBidRequest(originalRequest);
     bool ok = prepareRequest(openRtbRequest, originalRequest, auction, bidders);
@@ -371,7 +379,7 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
 
     HttpRequest::Content reqContent { requestStr, "application/json" };
 
-    RestParams headers { { "x-openrtb-version", "2.1" } };
+    RestParams headers { { "x-openrtb-version", openRtbVersion } };
    // std::cerr << "Sending HTTP POST to: " << routerHost << " " << routerPath << std::endl;
    // std::cerr << "Content " << reqContent.str << std::endl;
 
