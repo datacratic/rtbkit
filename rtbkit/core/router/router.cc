@@ -117,8 +117,7 @@ Router(ServiceBase & parent,
        Amount maxBidAmount,
        int secondsUntilSlowMode,
        Amount slowModeAuthorizedMoneyLimit,
-       Seconds augmentationWindow,
-       Json::Value filtersConfig)
+       Seconds augmentationWindow)
     : ServiceBase(serviceName, parent),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -156,8 +155,7 @@ Router(ServiceBase & parent,
       monitorProviderClient(getZmqContext()),
       maxBidAmount(maxBidAmount),
       slowModeTolerance(MonitorClient::DefaultTolerance),
-      augmentationWindow(augmentationWindow),
-      filtersConfig(filtersConfig)
+      augmentationWindow(augmentationWindow)
 {
     monitorProviderClient.addProvider(this);
 }
@@ -173,8 +171,7 @@ Router(std::shared_ptr<ServiceProxies> services,
        Amount maxBidAmount,
        int secondsUntilSlowMode,
        Amount slowModeAuthorizedMoneyLimit,
-       Seconds augmentationWindow,
-       Json::Value filtersConfig)
+       Seconds augmentationWindow)
     : ServiceBase(serviceName, services),
       shutdown_(false),
       postAuctionEndpoint(*this),
@@ -212,8 +209,7 @@ Router(std::shared_ptr<ServiceProxies> services,
       monitorProviderClient(getZmqContext()),
       maxBidAmount(maxBidAmount),
       slowModeTolerance(MonitorClient::DefaultTolerance),
-      augmentationWindow(augmentationWindow),
-      filtersConfig(filtersConfig)
+      augmentationWindow(augmentationWindow)
 
 {
     monitorProviderClient.addProvider(this);
@@ -237,6 +233,50 @@ initAnalytics(const string & baseUrl, const int numConnections)
 
 void
 Router::
+initExchanges(const Json::Value & config) {
+    for (auto & exchange: config) {
+        initExchange(exchange);
+    }
+}
+
+void
+Router::
+initExchange(const std::string & type,
+              const Json::Value & config)
+{
+    auto exchange = ExchangeConnector::create(type, *this, type);
+    exchange->configure(config);
+
+    std::shared_ptr<ExchangeConnector> item(exchange.release());
+    addExchangeNoConnect(item);
+
+    exchangeBuffer.push(item);
+}
+
+void
+Router::
+initExchange(const Json::Value & exchangeConfig)
+{
+    std::string exchangeType = exchangeConfig["exchangeType"].asString();
+    initExchange(exchangeType, exchangeConfig);
+}
+
+void
+Router::
+initFilters(const Json::Value & config) {
+
+    if (config != Json::Value::null) {
+        if (!config.isArray()) {
+         throw Exception("couldn't parse formats other then array");
+        }
+       filters.initWithFiltersFromJson(config);
+    } else {
+        filters.initWithDefaultFilters();
+    }
+}
+
+void
+Router::
 init()
 {
     ExcAssert(!initialized);
@@ -244,15 +284,6 @@ init()
     registerServiceProvider(serviceName(), { "rtbRequestRouter" });
 
     filters.init(this);
-
-    if (filtersConfig != Json::Value::null){
-        if (!filtersConfig.isArray()){
-         throw Exception("couldn't parse formats other then array");
-        }
-       filters.initWithFiltersFromJson(filtersConfig);
-    }
-    else
-        filters.initWithDefaultFilters();
 
     banker.reset(new NullBanker());
 
@@ -413,6 +444,11 @@ start(boost::function<void ()> onStop)
             this->run();
             if (onStop) onStop();
         };
+
+    for ( auto & exchange : exchanges) {
+        exchange->start();
+        connectExchange(*exchange);
+    }
 
     bidder->start();
     logger.start();
@@ -2964,30 +3000,6 @@ getProviderIndicators()
         + "Banker: " + (bankerOk ? "OK": "ERROR");
 
     return ind;
-}
-
-void
-Router::
-startExchange(const std::string & type,
-              const Json::Value & config)
-{
-    auto exchange = ExchangeConnector::create(type, *this, type);
-    exchange->configure(config);
-    exchange->start();
-
-    std::shared_ptr<ExchangeConnector> item(exchange.release());
-    addExchange(item);
-
-    exchangeBuffer.push(item);
-
-}
-
-void
-Router::
-startExchange(const Json::Value & exchangeConfig)
-{
-    std::string exchangeType = exchangeConfig["exchangeType"].asString();
-    startExchange(exchangeType, exchangeConfig);
 }
 
 
