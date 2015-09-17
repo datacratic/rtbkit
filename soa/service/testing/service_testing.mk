@@ -52,7 +52,7 @@ $(eval $(call program,async_writer_bench,services))
 $(eval $(call test,nsq_client_test,cloud,boost manual))
 
 $(eval $(call test,http_client_test_v1,services test_services,boost))
-$(eval $(call test,http_client_test_v2,services test_services,boost manual))
+$(eval $(call test,http_client_test_v2,services test_services,boost))
 $(eval $(call test,http_client_online_test,services test_services,boost manual))
 $(eval $(call test,http_client_bench,boost_program_options services test_services,boost manual))
 $(eval $(call test,http_parsers_test,services test_services,boost valgrind))
@@ -64,5 +64,3 @@ $(eval $(call test,zmq_message_loop_test,services,boost))
 
 $(eval $(call test,event_handler_test,cloud services,boost manual))
 $(eval $(call test,mongo_basic_test,services boost_filesystem mongo_tmp_server,boost manual))
-
-$(eval $(call include_sub_makes,py))

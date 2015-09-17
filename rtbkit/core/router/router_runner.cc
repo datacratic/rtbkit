@@ -20,6 +20,7 @@
 #include "rtbkit/core/banker/slave_banker.h"
 #include "rtbkit/core/banker/local_banker.h"
 #include "rtbkit/core/banker/split_banker.h"
+#include "rtbkit/core/banker/null_banker.h"
 #include "soa/service/process_stats.h"
 #include "jml/arch/timers.h"
 #include "jml/utils/file_functions.h"
@@ -188,7 +189,6 @@ init()
     }
     router->init();
 
-    slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
     if (localBankerUri != "") {
         localBanker = make_shared<LocalBanker>(proxies, ROUTER, router->serviceName());
         localBanker->init(localBankerUri);
@@ -205,10 +205,14 @@ init()
                 }
             }
         }
+        slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
         banker = make_shared<SplitBanker>(slaveBanker, localBanker, campaignSet);
     } else if (localBanker && bankerChoice == "local") {
         banker = localBanker;
+    } else if (bankerChoice == "null") {
+        banker = make_shared<NullBanker>(true, router->serviceName());
     } else {
+        slaveBanker = bankerArgs.makeBanker(proxies, router->serviceName() + ".slaveBanker");
         banker = slaveBanker;
     }
 
@@ -222,7 +226,7 @@ void
 RouterRunner::
 start()
 {
-    slaveBanker->start();
+    if (slaveBanker) slaveBanker->start();
     if (localBanker) localBanker->start();
     router->start();
 }
@@ -232,7 +236,7 @@ RouterRunner::
 shutdown()
 {
     router->shutdown();
-    slaveBanker->shutdown();
+    if (slaveBanker) slaveBanker->shutdown();
     if (localBanker) localBanker->shutdown();
 }
 

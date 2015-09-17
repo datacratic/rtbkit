@@ -5,7 +5,6 @@
    RTB router code.
 */
 
-#include <set>
 #include <atomic>
 #include "router.h"
 #include "soa/service/zmq_utils.h"
@@ -997,14 +996,8 @@ logUsageMetrics(double period)
         }
     }
 
-    set<AccountKey> agentAccounts;
     for (const auto & item : agents) {
         auto & info = item.second;
-        const AccountKey & account = info.config->account;
-        if (!agentAccounts.insert(account).second) {
-            continue;
-        }
-
         auto & last = lastAgentUsageMetrics[item.first];
 
         AgentUsageMetrics newMetrics(info.stats->intoFilters,
@@ -2600,11 +2593,15 @@ doConfig(const std::string & agent,
     RouterProfiler profiler(dutyCycleCurrent.nsConfig);
 
     if (!config) {
-        cerr << "agent " << agent << " lost configuration" << endl;
-        filters.removeConfig(agent);
         auto it = agents.find(agent);
-        ExcAssert(it != std::end(agents));
-        agents.erase(it);
+        // It might happen that we don't find the agent if for example we received
+        // an empty configuration because the agent crashed prior to sending its initial
+        // configuration to the ACS.
+        if (it != std::end(agents)) {
+            cerr << "agent " << agent << " lost configuration" << endl;
+            filters.removeConfig(agent);
+            agents.erase(it);
+        }
     } else {
         AgentInfo & info = agents[agent];
         logMessage("CONFIG", agent, boost::trim_copy(config->toJson().toString()));

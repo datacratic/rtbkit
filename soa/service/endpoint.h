@@ -23,7 +23,6 @@
 #include "soa/service/epoller.h"
 #include <map>
 #include <mutex>
-#include <atomic>
 
 
 namespace Datacratic {
@@ -38,12 +37,6 @@ struct PassiveEndpoint;
 /*****************************************************************************/
 
 struct EndpointBase : public Epoller {
-    enum PollingMode {
-        MIN_CONTEXT_SWITCH_POLLING, ///< Minimise context switches
-        MIN_CPU_POLLING,            ///< Minimise CPU usage when idle
-        MIN_LATENCY_POLLING         ///< Minimise latency, at the cost of busy
-                                    ///< looping the CPU
-    };
 
     EndpointBase(const std::string & name);
 
@@ -108,13 +101,6 @@ struct EndpointBase : public Epoller {
         Can be polled regularly to determine the duty cycle of the loop.
      */
     std::vector<double> totalSleepSeconds() const { return totalSleepTime; }
-    std::vector<rusage> getResourceUsage() const {
-        resourceEpoch++;
-        std::vector<rusage> result;
-        std::lock_guard<std::mutex> guard(usageLock);
-        result = resourceUsage;
-        return std::move(result);
-    }
 
     /** Thing to notify when a connection is closed.  Will be called
         before the normal cleanup.
@@ -127,16 +113,10 @@ struct EndpointBase : public Epoller {
     /** Set this endpoint up to handle events in realtime. */
     void makeRealTime(int priority = 1);
 
-    /** Set the polling mode to the given value. */
-    void setPollingMode(enum PollingMode mode);
-
-    /** Set the polling mode to "MIN_LATENCY_POLLING" */
-    void realTimePolling(bool value)
-    {
-        setPollingMode(value
-                       ? MIN_LATENCY_POLLING
-                       : MIN_CONTEXT_SWITCH_POLLING);
-    }
+    /** Helps reduce latency jitter caused by the polling loop at the cost of
+        busy looping the CPU (100% usage).
+    */
+    void realTimePolling(bool value) { realTimePolling_ = value; }
 
     /** Spin up the threads as part of the initialization.  NOTE: make sure that this is
         only called once; normally it will be done as part of init().  Calling directly is
@@ -284,26 +264,14 @@ private:
     Date pollStart_;
 
     // Turns the polling loop into a busy loop with no sleeps.
-    enum PollingMode pollingMode_;
+    bool realTimePolling_;
 
     std::map<std::string, int> numTransportsByHost;
 
     std::vector<double> totalSleepTime;
-    std::vector<rusage> resourceUsage;
-    mutable std::mutex usageLock;
-    mutable std::atomic<int> resourceEpoch;
 
     /** Run a thread to handle events. */
     void runEventThread(int threadNum, int numThreads);
-
-    /** Mode-specific polling loops. */
-    void doMinCpuPolling(int threadNum, int numThreads);
-    void doMinCtxSwitchPolling(int threadNum, int numThreads);
-    void doMinLatencyPolling(int threadNum, int numThreads);
-
-    /** Return the timeout value to use when polling, depending on the given
-        mode. */
-    int modePollTimeout(enum PollingMode mode) const;
 
     /** Handle a single ePoll event */
     Epoller::HandleEventResult handleEpollEvent(epoll_event & event);
