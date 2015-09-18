@@ -216,6 +216,7 @@ initWithDefaultFilters()
         newData.reset(new Data);
 
         for (const auto& name: FilterRegistry::listFilters()) {
+            cerr << "Filter: " << name << endl;
             newData->addFilter(FilterRegistry::makeFilter(name));
             if (events) events->recordHit("filters.addFilter.%s", name);
         }

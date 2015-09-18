@@ -267,9 +267,9 @@ initFilters(const Json::Value & config) {
 
     if (config != Json::Value::null) {
         if (!config.isArray()) {
-         throw Exception("couldn't parse formats other then array");
+            throw Exception("couldn't parse formats other then array");
         }
-       filters.initWithFiltersFromJson(config);
+        filters.initWithFiltersFromJson(config);
     } else {
         filters.initWithDefaultFilters();
     }

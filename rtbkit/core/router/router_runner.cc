@@ -63,7 +63,8 @@ RouterRunner() :
     analyticsConnections(1),
     augmentationWindowms(5),
     dableSlowMode(false),
-    enableJsonFiltersFile("")
+    enableJsonFiltersFile(""),
+    filtersConfig(Json::Value::null)
 {
 }
 
