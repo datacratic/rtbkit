@@ -173,7 +173,7 @@ init()
                                       enableBidProbability,
                                       logAuctions, logBids,
                                       USD_CPM(maxBidPrice),
-                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow, filtersConfig);
+                                      slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
     if (dableSlowMode) {
@@ -217,6 +217,8 @@ init()
     }
 
     router->setBanker(banker);
+    router->initExchanges(exchangeConfig);
+    router->initFilters(filtersConfig);
     router->bindTcp();
 }
 
@@ -227,10 +229,6 @@ start()
     if (slaveBanker) slaveBanker->start();
     if (localBanker) localBanker->start();
     router->start();
-
-    // Start all exchanges
-    for (auto & exchange: exchangeConfig)
-        router->startExchange(exchange);
 }
 
 void
