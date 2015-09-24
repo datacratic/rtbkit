@@ -2094,7 +2094,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
                     slowModePeriodicSpentReached = true;
                     bidder->sendBidDroppedMessage(agentConfig, agent, auctionInfo.auction);
                     recordHit("slowMode.droppedBid");
-                    recordHit("accounts.%s.DROPPED", config.account.toString('.'));
+                    recordHit("accounts.%s.IGNORED", config.account.toString('.'));
                 continue;
                 }
             }
