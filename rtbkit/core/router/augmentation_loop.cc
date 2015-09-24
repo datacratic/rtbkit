@@ -95,9 +95,9 @@ init()
             doDisconnection(addr);
         };
 
-    inbox.onEvent = [&] (const std::shared_ptr<Entry>& entry)
+    inbox.onEvent = [&] (std::shared_ptr<Entry>&& entry)
         {
-            doAugmentation(entry);
+            doAugmentation(std::move(entry));
         };
 
     addSource("AugmentationLoop::inbox", inbox);
@@ -370,7 +370,7 @@ pickInstance(AugmentorInfo& aug)
 
 void
 AugmentationLoop::
-doAugmentation(const std::shared_ptr<Entry> & entry)
+doAugmentation(std::shared_ptr<Entry>&& entry)
 {
     Date now = Date::now();
 
@@ -399,11 +399,7 @@ doAugmentation(const std::shared_ptr<Entry> & entry)
 
         set<string> agents = entry->augmentorAgents[*it];
 
-        // Since entry is const, we need to bypass the const-ness to modify
-        // the object. We do that because we need to keep track of the instance
-        // that was picked (see header file for additional comment).
-        Entry* e = const_cast<Entry *>(entry.get());
-        e->instances[*it] = instance;
+        entry->instances[*it] = instance;
         
         std::ostringstream availableAgentsStr;
         ML::DB::Store_Writer writer(availableAgentsStr);
@@ -423,7 +419,7 @@ doAugmentation(const std::shared_ptr<Entry> & entry)
     }
 
     if (sentToAugmentor)
-        augmenting.insert(entry->info->auction->id, entry, entry->timeout);
+        augmenting.insert(entry->info->auction->id, std::move(entry), entry->timeout);
     else entry->onFinished(entry->info);
 
     recordLevel(Date::now().secondsSince(now), "requestTimeMs");

@@ -168,7 +168,7 @@ private:
     void handleAugmentorMessage(const std::vector<std::string> & message);
 
     std::shared_ptr<AugmentorInstanceInfo> pickInstance(AugmentorInfo& aug);
-    void doAugmentation(const std::shared_ptr<Entry> & entry);
+    void doAugmentation(std::shared_ptr<Entry>&& entry);
 
     void recordStats();
 
