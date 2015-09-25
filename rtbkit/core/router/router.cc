@@ -1202,7 +1202,7 @@ checkExpiredAuctions()
                         AgentInfo & info = this->agents[agent];
                         ++info.stats->tooLate;
 
-                        this->recordHit("accounts.%s.droppedBids",
+                        this->recordHit("accounts.%s.EXPIRED",
                                         info.config->account.toString('.'));
 
                         bidder->sendBidDroppedMessage(info.config, agent, auctionInfo.auction);
@@ -2410,12 +2410,14 @@ doSubmitted(std::shared_ptr<Auction> auction)
                 ++info.stats->losses;
                 msg = "LOSS";
                 bidder->sendLossMessage(agentConfig, response.agent, auctionId.toString());
+                recordHit("accounts.%s.LOCAL_LOSS", agentConfig->account.toString('.'));
                 break;
             case Auction::WinLoss::TOOLATE:
                 bidStatus = BS_TOOLATE;
                 ++info.stats->tooLate;
                 msg = "TOOLATE";
                 bidder->sendTooLateMessage(agentConfig, response.agent, auction);
+                recordHit("accounts.%s.TOOLATE", agentConfig->account.toString('.'));
                 break;
             default:
                 throwException("doSubmitted.unknownStatus",
