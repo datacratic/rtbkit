@@ -215,10 +215,27 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
     if (!ok) {
         return;
     }
-    StructuredJsonPrintingContext context;
-    desc.printJson(&openRtbRequest, context);
-    auto requestStr = context.output.toString();
 
+    string requestStr;
+    if (routerFormat == FMT_DATACRATIC) {
+        Json::Value jReq(Json::objectValue);
+        jReq["id"] = openRtbRequest.id.toString();
+
+        DefaultDescription<OpenRTB::Impression> impDesc;
+        for (auto & imp : openRtbRequest.imp) {
+            StructuredJsonPrintingContext ctx;
+            impDesc.printJson(&imp, ctx);
+            jReq["imp"].append(ctx.output);
+        }
+
+        jReq["ext"]["datacratic"] = openRtbRequest.ext["datacratic"];
+        jReq["ext"]["rtbkit"] = openRtbRequest.ext["rtbkit"];
+        requestStr = jReq.toString();
+    } else {
+        StructuredJsonPrintingContext context;
+        desc.printJson(&openRtbRequest, context);
+        requestStr = context.output.toString();
+    }
 
     Date sentResponseTime = Date::now();
     /* We need to capture by copy inside the lambda otherwise we might get
@@ -391,12 +408,40 @@ void HttpBidderInterface::sendLossMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         std::string const & agent, std::string const & id) {
 
+    auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
+        [=](const HttpRequest &, HttpClientError errorCode,
+            int statusCode, const std::string &, std::string &&body)
+        {
+            if (errorCode != HttpClientError::None) {
+                 LOG(error) << "Error requesting "
+                            << adserverHost << ":" << adserverEventPort
+                            << " (" << httpErrorString(errorCode) << ")" << std::endl;
+                 recordError("network");
+              }
+        });
+
+    Json::Value content;
+
+    if (adserverEventFormat == FMT_DATACRATIC) {
+        content["id"] = id;
+
+        Json::Value entry;
+        {
+            entry["cid"] = agent;
+            entry["type"] = "loss";
+            entry["id"] = id;
+        }
+        content["events"].append(entry);
+
+    } else ExcAssert(false);
+
+    HttpRequest::Content reqContent { content, "application/json" };
+    httpClientAdserverEvents->post(adserverEventPath, callbacks, reqContent, {} /* queryParams */);
 }
 
 void HttpBidderInterface::sendWinLossMessage(
         const std::shared_ptr<const AgentConfig>& agentConfig,
         MatchedWinLoss const & event) {
-    if (event.type == MatchedWinLoss::Loss) return;
 
     auto callbacks = std::make_shared<HttpClientSimpleCallbacks>(
         [=](const HttpRequest &, HttpClientError errorCode,
@@ -433,7 +478,8 @@ void HttpBidderInterface::sendWinLossMessage(
         {
             entry["impid"] = event.impId.toString();
             entry["type"] = event.type == MatchedWinLoss::Loss ? "loss" : "win";
-            entry["price"] = (double) getAmountIn<CPM>(event.winPrice);
+            entry["bidPrice"] = (double) getAmountIn<CPM>(event.response.price.maxPrice);
+            entry["winPrice"] = event.type == MatchedWinLoss::Loss ? 0.0 : (double) getAmountIn<CPM>(event.winPrice);
             entry["cid"] = event.response.account[1];
             entry["ext"]["datacratic"]["meta"] = Json::parse(event.response.meta.rawString());
 
@@ -452,7 +498,6 @@ void HttpBidderInterface::sendWinLossMessage(
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverWins->post(adserverWinPath, callbacks, reqContent,
                          { } /* queryParams */);
-    
 }
 
 
@@ -528,7 +573,7 @@ void HttpBidderInterface::sendBidErrorMessage(
 
     Json::Value content;
     content["id"] = auction->id.toString();
-    content["crid"] = agentConfig->account[1];
+    content["cid"] = agent;
     content["type"] = type;
     if (!reason.empty()) content["reason"] = reason;
 
@@ -541,7 +586,7 @@ void HttpBidderInterface::sendBidDroppedMessage(
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "DROPPED");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "DROPPED");
 }
 
 void HttpBidderInterface::sendBidInvalidMessage(
@@ -550,7 +595,7 @@ void HttpBidderInterface::sendBidInvalidMessage(
         std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "INVALID");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "INVALID");
 }
 
 void HttpBidderInterface::sendNoBudgetMessage(
@@ -558,7 +603,7 @@ void HttpBidderInterface::sendNoBudgetMessage(
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "NOBUDGET");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "NOBUDGET");
 }
 
 void HttpBidderInterface::sendTooLateMessage(
@@ -566,7 +611,7 @@ void HttpBidderInterface::sendTooLateMessage(
         std::string const & agent, std::shared_ptr<Auction> const & auction)
 {
     if (adserverEventFormat == FMT_DATACRATIC)
-        sendBidErrorMessage(agentConfig, agent, auction, "TOOLATE");
+        sendBidErrorMessage(agentConfig, agent, auction, "ERROR", "TOOLATE");
 }
 
 void HttpBidderInterface::sendMessage(

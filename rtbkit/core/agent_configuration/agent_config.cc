@@ -167,6 +167,7 @@ Creative::
 compatible(const AdSpot & adspot) const
 {
     return ((format.width == 0 && format.height == 0)
+            || adspot.formats.empty() // if no format was specified in bid request
             || adspot.formats.compatible(format));
 }
 
