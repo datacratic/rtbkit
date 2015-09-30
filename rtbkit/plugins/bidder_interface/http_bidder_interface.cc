@@ -199,6 +199,11 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
     };
 
     BidRequest & originalRequest = *auction->request;
+    std::vector<Datacratic::Id> ids;
+    ids.reserve(originalRequest.imp.size());
+    for(auto & imp : originalRequest.imp) {
+        ids.push_back(imp.id);
+    } 
 
     std::string openRtbVersion;
     if (!originalRequest.protocolVersion.empty())
@@ -207,34 +212,77 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
         openRtbVersion = "2.1";
 
     std::shared_ptr<OpenRTBBidRequestParser> parser = OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion);
-
-
-    OpenRTB::BidRequest openRtbRequest = parser->toBidRequest(originalRequest);
-    bool ok = prepareRequest(openRtbRequest, originalRequest, auction, bidders);
-    /* If we took too much time processing the request, then we don't send it.  */
-    if (!ok) {
-        return;
-    }
-
     string requestStr;
-    if (routerFormat == FMT_DATACRATIC) {
-        Json::Value jReq(Json::objectValue);
-        jReq["id"] = openRtbRequest.id.toString();
 
-        DefaultDescription<OpenRTB::Impression> impDesc;
-        for (auto & imp : openRtbRequest.imp) {
-            StructuredJsonPrintingContext ctx;
-            impDesc.printJson(&imp, ctx);
-            jReq["imp"].append(ctx.output);
+    switch(routerFormat) {
+    case FMT_STANDARD:
+        {
+            OpenRTB::BidRequest openRtbRequest;
+            openRtbRequest = parser->toBidRequest(originalRequest);
+            if(!prepareStandardRequest(openRtbRequest, originalRequest, auction, bidders)) {
+                return;
+            }
+
+            StructuredJsonPrintingContext context;
+            desc.printJson(&openRtbRequest, context);
+            requestStr = context.output.toString();
+            break;
         }
+    case FMT_DATACRATIC:
+        {
+            Json::Value jReq(Json::objectValue);
+            jReq["id"] = originalRequest.auctionId.toString();
 
-        jReq["ext"]["datacratic"] = openRtbRequest.ext["datacratic"];
-        jReq["ext"]["rtbkit"] = openRtbRequest.ext["rtbkit"];
-        requestStr = jReq.toString();
-    } else {
-        StructuredJsonPrintingContext context;
-        desc.printJson(&openRtbRequest, context);
-        requestStr = context.output.toString();
+            // uses strategy slug as the bidder id.
+            auto bidderId = [] (const AccountKey& account) { return account[1]; };
+
+            std::vector<OpenRTB::Impression> imps;
+            imps.resize(originalRequest.imp.size());
+
+            for (const auto& bidder : bidders) {
+                const AgentConfig& config = *bidder.second.agentConfig;
+                std::string id = bidderId(config.account);
+                for (const auto& imp : bidder.second.imp) {
+                    auto& creatives = imps[imp.first].ext["datacratic"]["allowed"][id];
+                    for (size_t creativeIndex : imp.second) {
+                        int creativeId = config.creatives[creativeIndex].id;
+                        creatives.append(creativeId);
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < imps.size(); i++) {
+                imps[i].id = originalRequest.imp[i].id;
+
+                StructuredJsonPrintingContext ctx;
+                DefaultDescription<OpenRTB::Impression> impDesc;
+                impDesc.printJson(&imps[i], ctx);
+
+                jReq["imp"].append(std::move(ctx.output));
+            }
+
+            auto& dataExt = jReq["ext"]["rtbkit"]["data"];
+            for (const auto& augmentation : auction->augmentations) {
+                auto& augExt = dataExt[augmentation.first];
+
+                for (const auto& bidder : bidders) {
+                    const AccountKey& account = bidder.second.agentConfig->account;
+
+                    Augmentation aug = augmentation.second.filterForAccount(account);
+                    if (!!aug.data) {
+                        augExt[bidderId(account)] = aug.data;
+                    }
+                }
+            }
+
+            jReq["ext"]["datacratic"]["request"] = auction->requestStr;
+            jReq["ext"]["datacratic"]["requestFormat"] = auction->requestStrFormat;
+
+            requestStr = jReq.toString();
+            break;
+        }
+    default:
+        ExcAssert(false);
     }
 
     Date sentResponseTime = Date::now();
@@ -370,8 +418,14 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                              theBid.creativeIndex = creativeIndex;
                              theBid.price = USD_CPM(bid.price.val);
 
-                             int spotIndex = indexOf(openRtbRequest.imp,
-                                                    &OpenRTB::Impression::id, bid.impid);
+                             int spotIndex = -1;
+                             for(size_t i = 0; i < ids.size(); i++) {
+                                if(bid.impid == ids[i]) {
+                                    spotIndex = i;
+                                    break;
+                                }
+                             }
+
                              if (spotIndex == -1) {
                                  LOG(error) <<"Unknown impression id: " << bid.impid.toString() << std::endl;
                                  recordError("unknown");
@@ -458,6 +512,10 @@ void HttpBidderInterface::sendWinLossMessage(
     Json::Value content;
 
     if (adserverWinFormat == FMT_STANDARD) {
+        if(event.type == MatchedWinLoss::Loss) {
+            return;
+        }
+
         content["timestamp"] = event.timestamp.secondsSinceEpoch();
         content["bidRequestId"] = event.auctionId.toString();
         content["impid"] = event.impId.toString();
@@ -470,9 +528,11 @@ void HttpBidderInterface::sendWinLossMessage(
     else if (adserverWinFormat == FMT_DATACRATIC) {
         content["id"] = event.auctionId.toString();
 
-        auto& ext = content["ext"]["datacratic"];
-        ext["request"] = event.requestStr;
-        ext["requestFormat"] = event.requestStrFormat;
+        if(event.type != MatchedWinLoss::Loss) {
+            auto& ext = content["ext"]["datacratic"];
+            ext["request"] = event.requestStr;
+            ext["requestFormat"] = event.requestStrFormat;
+        }
 
         Json::Value entry;
         {
@@ -483,15 +543,17 @@ void HttpBidderInterface::sendWinLossMessage(
             entry["cid"] = event.response.account[1];
             entry["ext"]["datacratic"]["meta"] = Json::parse(event.response.meta.rawString());
 
-            Json::Value users;
-            for (const auto& item : event.uids) {
-                Json::Value user;
-                user["id"] = item.second.toString();
-                users.append(user);
+            if(event.type != MatchedWinLoss::Loss) {
+                Json::Value users;
+                for (const auto& item : event.uids) {
+                    Json::Value user;
+                    user["id"] = item.second.toString();
+                    users.append(std::move(user));
+                }
+                entry["users"] = std::move(users);
             }
-            entry["users"] = users;
         }
-        content["events"].append(entry);
+        content["events"].append(std::move(entry));
     }
     else ExcAssert(false);
     
@@ -645,20 +707,6 @@ void HttpBidderInterface::registerLoopMonitor(LoopMonitor *monitor) const {
     monitor->addMessageLoop(serviceName(), &loop);
 }
 
-bool HttpBidderInterface::prepareRequest(OpenRTB::BidRequest &request,
-                                         const RTBKIT::BidRequest &originalRequest,
-                                         const std::shared_ptr<Auction> &auction,
-                                         const std::map<std::string, BidInfo> &bidders) const
-{
-    if (routerFormat == FMT_STANDARD)
-        return prepareStandardRequest(request, originalRequest, auction, bidders);
-
-    if (routerFormat == FMT_DATACRATIC)
-        return prepareDatacraticRequest(request, originalRequest, auction, bidders);
-
-    ExcAssert(false);
-}
-
 void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
                                      const std::map<std::string, BidInfo> &bidders) const
 {
@@ -734,11 +782,21 @@ bool HttpBidderInterface::prepareStandardRequest(OpenRTB::BidRequest &request,
     return true;
 }
 
+/*
 bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
                                                    const RTBKIT::BidRequest &originalRequest,
                                                    const std::shared_ptr<Auction> &auction,
                                                    const std::map<std::string, BidInfo> &bidders) const
 {
+    request.id = originalRequest.id;
+
+    request.imp.reserve(originalRequest.imp.size());
+    for(auto & imp : originalRequest.imp) {
+        OpenRTB::Impression i;
+        i.id = imp.id;
+        request.imp.emplace_back(std::move(i));
+    }
+
     // uses strategy slug as the bidder id.
     auto bidderId = [] (const AccountKey& account) { return account[1]; };
 
@@ -784,7 +842,7 @@ bool HttpBidderInterface::prepareDatacraticRequest(OpenRTB::BidRequest &request,
     request.tmax.val = remainingTimeMs;
     return true;
 }
-
+*/
 
 void HttpBidderInterface::injectBids(const std::string &agent, Id auctionId,
                                      const Bids &bids, WinCostModel wcm)
