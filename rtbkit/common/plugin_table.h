@@ -10,13 +10,9 @@
 #include <boost/any.hpp>
 #include <typeinfo>
 #include <functional>
-#include <exception>
 #include <mutex>
-#include <string>
 #include <dlfcn.h>
-#include <iostream>
 
-#include "jml/arch/spinlock.h"
 #include "jml/arch/exception.h"
 
 namespace RTBKIT {
@@ -52,13 +48,13 @@ private:
   std::unordered_map<std::string, T> table;
 
   // lock
-  ML::Spinlock lock;
+  std::mutex mu;
 
   // default constructor can only be accessed by the class itself
   // used by the statc method instance
   PluginTable(){};  
   
-  // load library
+  // load library by calling dlopen
   void loadLib(const std::string& path);
 
 };
@@ -78,7 +74,7 @@ PluginTable<T>::registerPlugin(const std::string& name, T& functor)
   auto element = std::pair<std::string, T>(name, functor);
 
   // lock and write
-  std::lock_guard<ML::Spinlock> guard(lock);
+  std::lock_guard<std::mutex> guard(mu);
   table.insert(element);
 }
 
@@ -93,30 +89,29 @@ PluginTable<T>::getPlugin(const std::string& name, const std::string& libSufix)
     throw ML::Exception("'name' parameter cannot be empty");
   }
 
-  // get the plugin or/and load the lib
-  for (int i=0; i<2; i++)
+  // check if it already exists
   {
-    // check if it already exists
-    {
-      std::lock_guard<ML::Spinlock> guard(lock);
+      std::lock_guard<std::mutex> guard(mu);
       auto iter = table.find(name);
       if(iter != table.end())
-      {
-	return iter->second;
-      }
-    }
-    
-    if (i == 0) // try to load it
-    {
-      // since it was not found we have to try to load the library
-      std::string path = "lib" + name + "_" + libSufix + ".so";
-      loadLib(path);
-    } // we can add alternative forms of plugin load here
+	     return iter->second;
+  }
 
-    ///////////
-    // now hopefully the plugin is loaded
-    // and we can load it in the next loop
-  }  
+  // since it was not found we have to try to load the library
+  std::string path = "lib" + name + "_" + libSufix + ".so";
+  // loadlib calls opendl function which in its turn automatically
+  // instantiates all global variables inside .so libraries.
+  // Hence, in each plugin library, there should be  a global
+  // structure whose default constructor call registerPlugin function
+  loadLib(path);
+
+  // check if it is created
+  {
+      std::lock_guard<std::mutex> guard(mu);
+      auto iter = table.find(name);
+      if(iter != table.end())
+	     return iter->second;
+  }
 
   // else: getting the functor fails
   throw ML::Exception("couldn't get requested plugin");
@@ -150,9 +145,5 @@ PluginTable<T>::loadLib(const std::string& path)
     throw ML::Exception("couldn't load library from %s", path.c_str());
   }
 }
-
-
- 
  
 }; // namespace RTBKIT
-
