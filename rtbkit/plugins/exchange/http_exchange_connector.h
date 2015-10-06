@@ -298,6 +298,7 @@ protected:
     std::string auctionResource;
     std::string auctionVerb;
     double absoluteTimeMax;
+    bool disableAcceptProbability;
 
     /// The ping time to known hosts in milliseconds
     std::unordered_map<std::string, float> pingTimesByHostMs;

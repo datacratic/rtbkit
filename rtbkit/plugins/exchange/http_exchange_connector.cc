@@ -62,6 +62,7 @@ postConstructorInit()
     auctionVerb = "POST";
     auctionResource = "/";
     absoluteTimeMax = 50.0;
+    disableAcceptProbability = false;
 
     numServingRequest = 0;
 
@@ -106,6 +107,7 @@ configure(const Json::Value & parameters)
     getParam(parameters, pingTimesByHostMs, "pingTimesByHostMs");
     getParam(parameters, pingTimeUnknownHostsMs, "pingTimeUnknownHostsMs");
     getParam(parameters, absoluteTimeMax, "absoluteTimeMax");
+    getParam(parameters, disableAcceptProbability, "disableAcceptProbability");
 
     if (parameters.isMember("realTimePolling"))
         realTimePolling(parameters["realTimePolling"].asBool());
