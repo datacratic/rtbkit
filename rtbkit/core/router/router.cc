@@ -266,10 +266,32 @@ Router::
 initFilters(const Json::Value & config) {
 
     if (config != Json::Value::null) {
-        if (!config.isArray()) {
-         throw Exception("couldn't parse formats other then array");
+
+        Json::Value extraFilterFiles = config["extraFilterFiles"];
+        if (extraFilterFiles != Json::Value::null) {
+            if (!extraFilterFiles.isArray()) {
+                throw Exception("Filter files must be an array");
+            }
+            for(size_t i=0; i<extraFilterFiles.size(); i++){
+                std::string file="lib"+extraFilterFiles[i].asString()+".so";
+                void * handle = dlopen(file.c_str(),RTLD_NOW);
+                if (!handle) {
+                    std::cerr << dlerror() << std::endl;
+                    throw ML::Exception("couldn't load library from %s", file.c_str());
+                }
+            }
         }
-       filters.initWithFiltersFromJson(config);
+
+        Json::Value filterMask = config["filterMask"];
+        if(filterMask != Json::Value::null) {
+            if (!filterMask.isArray()) {
+                throw Exception("Filter mask must be an array");
+            }
+            filters.initWithFiltersFromJson(filterMask);
+        } else {
+            filters.initWithDefaultFilters();
+        }
+
     } else {
         filters.initWithDefaultFilters();
     }

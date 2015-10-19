@@ -637,7 +637,7 @@ using namespace RTBKIT;
 struct AtInit {
     AtInit() {
         ExchangeConnector::registerFactory<BidSwitchExchangeConnector>();
-        FilterRegistry::registerFilter<BidSwitchWSeatFilter>();
+        FilterBase::registerFactory<BidSwitchWSeatFilter>();
     }
 } atInit;
 }

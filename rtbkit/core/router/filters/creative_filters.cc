@@ -67,21 +67,20 @@ void CreativeSegmentsFilter::setCreative(unsigned configIndex,
 
 namespace {
 
-struct InitFilters
-{
-    InitFilters()
+struct AtInit {
+    AtInit()
     {
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeFormatFilter>();
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeLanguageFilter>();
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeLocationFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeFormatFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeLanguageFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeLocationFilter>();
 
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeExchangeNameFilter>();
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeExchangeFilter>();
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativeSegmentsFilter>();
-        RTBKIT::FilterRegistry::registerFilter<RTBKIT::CreativePMPFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeExchangeNameFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeExchangeFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativeSegmentsFilter>();
+        RTBKIT::FilterBase::registerFactory<RTBKIT::CreativePMPFilter>();
     }
 
-} initFilters;
+} AtInit;
 
 } // namespace anonymous
 

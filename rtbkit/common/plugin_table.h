@@ -12,12 +12,14 @@
 #include <functional>
 #include <mutex>
 #include <dlfcn.h>
+#include <iostream>
+#include <vector>
 
 #include "jml/arch/exception.h"
 
 namespace RTBKIT {
 
-template<class T>
+template<typename T>
 struct PluginTable
 {
 public:
@@ -25,13 +27,16 @@ public:
 
   // allow plugins to register themselves from their Init/AtInit
   // all legacy plugins use this.
-  //template <class T>
+  //template <typename T>
   void registerPlugin(const std::string& name, T& functor);
 
   // get a plugin factory this is a generic version, but requires that
   // the library suffix that contains this plugin to be provided
-  //template <class T>
+  //template <typename T>
   T& getPlugin(const std::string& name, const std::string& libSufix);
+
+  // returns a copy of the map of plugin table
+  std::vector<std::string> getNames() const;
 
   // destructor
   ~PluginTable(){};
@@ -48,7 +53,7 @@ private:
   std::unordered_map<std::string, T> table;
 
   // lock
-  std::mutex mu;
+  mutable std::mutex mu;
 
   // default constructor can only be accessed by the class itself
   // used by the statc method instance
@@ -61,7 +66,7 @@ private:
 
 
 // inject a new "factory" (functor) - called from the plugin dll
-template <class T>
+template <typename T>
 void
 PluginTable<T>::registerPlugin(const std::string& name, T& functor)
 {
@@ -80,7 +85,7 @@ PluginTable<T>::registerPlugin(const std::string& name, T& functor)
 
  
 // get the functor from the name
-template <class T>
+template <typename T>
 T&
 PluginTable<T>::getPlugin(const std::string& name, const std::string& libSufix)
 {
@@ -117,9 +122,23 @@ PluginTable<T>::getPlugin(const std::string& name, const std::string& libSufix)
   throw ML::Exception("couldn't get requested plugin");
 }
 
+// returns a vector representing all objects in the plugin
+template <typename T>
+std::vector<std::string> PluginTable<T>::getNames() const
+{
+    std::lock_guard<std::mutex> guard(mu);
+
+    std::vector<std::string> list;
+    list.reserve(table.size());
+    for(const auto& ele: table){
+        list.push_back(ele.first);
+    }
+
+    return list;
+}
 
 // get singleton instance
-template<class T>
+template<typename T>
 PluginTable<T>&
 PluginTable<T>::instance()
 {
@@ -128,7 +147,7 @@ PluginTable<T>::instance()
 }
 
 // loads a dll
-template<class T>
+template<typename T>
 void
 PluginTable<T>::loadLib(const std::string& path)
 {
