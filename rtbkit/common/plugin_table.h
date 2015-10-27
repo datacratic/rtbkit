@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "jml/arch/exception.h"
+#include "jml/utils/string_functions.h" // ML::split()
 
 namespace RTBKIT {
 
@@ -23,44 +24,43 @@ template<typename T>
 struct PluginTable
 {
 public:
-  static PluginTable& instance();
 
-  // allow plugins to register themselves from their Init/AtInit
-  // all legacy plugins use this.
-  //template <typename T>
-  void registerPlugin(const std::string& name, T& functor);
+    static PluginTable& instance();
 
-  // get a plugin factory this is a generic version, but requires that
-  // the library suffix that contains this plugin to be provided
-  //template <typename T>
-  T& getPlugin(const std::string& name, const std::string& libSufix);
+    // allow plugins to register themselves from their Init/AtInit
+    // all legacy plugins use this.
+    //template <typename T>
+    void registerPlugin(const std::string& name, T& functor);
 
-  // returns a copy of the map of plugin table
-  std::vector<std::string> getNames() const;
+    // get a plugin factory this is a generic version, but requires that
+    // the library suffix that contains this plugin to be provided
+    //template <typename T>
+    T& getPlugin(const std::string& name, const std::string& libSufix);
 
-  // destructor
-  ~PluginTable(){};
-  // delete copy constructors
-  PluginTable(PluginTable&) = delete;
-  // delete assignement operator
-  PluginTable& operator=(const PluginTable&) = delete;
-  
+    // returns a list of plugin names
+    std::vector<std::string> getNames() const;
+
+    // delete copy constructors
+    PluginTable(PluginTable&) = delete;
+
+    // delete assignement operator
+    PluginTable& operator=(const PluginTable&) = delete;
 
 private:
  
-  // data
-  // -----
-  std::unordered_map<std::string, T> table;
+    // data
+    // -----
+    std::unordered_map<std::string, T> table;
 
-  // lock
-  mutable std::mutex mu;
+    // lock
+    mutable std::mutex mu;
 
-  // default constructor can only be accessed by the class itself
-  // used by the statc method instance
-  PluginTable(){};  
-  
-  // load library by calling dlopen
-  void loadLib(const std::string& path);
+    // default constructor can only be accessed by the class itself
+    // used by the static method instance
+    PluginTable(){};
+
+    // load library by calling dlopen
+    void loadLib(const std::string& path);
 
 };
 
@@ -70,56 +70,73 @@ template <typename T>
 void
 PluginTable<T>::registerPlugin(const std::string& name, T& functor)
 {
-  // some safeguards...
-  if (name.empty()) {
-    throw ML::Exception("'name' parameter cannot be empty");
-  }
+    // some safeguards...
+    if (name.empty()) {
+        throw ML::Exception("'name' parameter cannot be empty");
+    }
 
-  // assemble the element
-  auto element = std::pair<std::string, T>(name, functor);
+    // assemble the element
+    auto element = std::pair<std::string, T>(name, functor);
 
-  // lock and write
-  std::lock_guard<std::mutex> guard(mu);
-  table.insert(element);
+    // lock and write
+    std::lock_guard<std::mutex> guard(mu);
+    table.insert(element);
 }
 
  
 // get the functor from the name
 template <typename T>
 T&
-PluginTable<T>::getPlugin(const std::string& name, const std::string& libSufix)
+PluginTable<T>::getPlugin(const std::string& name, const std::string& libSuffix)
 {
-  // some safeguards...
-  if (name.empty()) {
-    throw ML::Exception("'name' parameter cannot be empty");
-  }
+    using std::vector;
+    using std::string;
 
-  // check if it already exists
-  {
-      std::lock_guard<std::mutex> guard(mu);
-      auto iter = table.find(name);
-      if(iter != table.end())
-	     return iter->second;
-  }
+    // some safeguards...
+    if (name.empty()) {
+        throw ML::Exception("'name' parameter cannot be empty");
+    }
 
-  // since it was not found we have to try to load the library
-  std::string path = "lib" + name + "_" + libSufix + ".so";
-  // loadlib calls opendl function which in its turn automatically
-  // instantiates all global variables inside .so libraries.
-  // Hence, in each plugin library, there should be  a global
-  // structure whose default constructor call registerPlugin function
-  loadLib(path);
+    string libPath, plugName;
+    vector<string> libAndPlug = ML::split(name,'.');
 
-  // check if it is created
-  {
-      std::lock_guard<std::mutex> guard(mu);
-      auto iter = table.find(name);
-      if(iter != table.end())
-	     return iter->second;
-  }
+    if (libAndPlug.size() > 2)
+        throw ML::Exception("Error in %s: Library and plugin name can only "
+           "contain two dot separated parameters and no more",name.c_str());
 
-  // else: getting the functor fails
-  throw ML::Exception("couldn't get requested plugin");
+    if (libAndPlug.size() == 2) {
+        plugName = libAndPlug[1];
+        libPath = "lib" + libAndPlug[0] + ".so";
+    } else {
+        plugName = name;
+        libPath = "lib" + name + "_" + libSuffix + ".so";
+    }
+
+    // check if it already exists
+    {
+        std::lock_guard<std::mutex> guard(mu);
+        auto iter = table.find(plugName);
+        if(iter != table.end())
+            return iter->second;
+    }
+
+    // since it was not found we have to try to load the library
+    // loadlib calls opendl function which in its turn automatically
+    // instantiates all global variables inside .so libraries.
+    // Hence, in each plugin library, there should be  a global
+    // structure whose default constructor call registerPlugin function
+    loadLib(libPath);
+
+    // check if it is created
+    {
+        std::lock_guard<std::mutex> guard(mu);
+        auto iter = table.find(plugName);
+        if(iter != table.end())
+            return iter->second;
+    }
+
+    // else: getting the functor fails
+    throw ML::Exception("couldn't get requested plugin");
 }
 
 // returns a vector representing all objects in the plugin
@@ -142,8 +159,8 @@ template<typename T>
 PluginTable<T>&
 PluginTable<T>::instance()
 {
-  static PluginTable<T> singleton;
-  return singleton;
+    static PluginTable<T> singleton;
+    return singleton;
 }
 
 // loads a dll
@@ -151,18 +168,18 @@ template<typename T>
 void
 PluginTable<T>::loadLib(const std::string& path)
 {
-  // some safeguards...
-  if (path.empty()) {
-    throw ML::Exception("'path' parameter cannot be empty");
-  }
+    // some safeguards...
+    if (path.empty()) {
+        throw ML::Exception("'path' parameter cannot be empty");
+    }
 
-  // load lib
-  void * handle = dlopen(path.c_str(), RTLD_NOW);
-  
-  if (!handle) {
+    // load lib
+    void * handle = dlopen(path.c_str(), RTLD_NOW);
+
+    if (!handle) {
     std::cerr << dlerror() << std::endl;
-    throw ML::Exception("couldn't load library from %s", path.c_str());
-  }
+        throw ML::Exception("couldn't load library from %s", path.c_str());
+    }
 }
- 
+
 }; // namespace RTBKIT
