@@ -108,6 +108,7 @@ configure(const Json::Value & parameters)
     getParam(parameters, pingTimeUnknownHostsMs, "pingTimeUnknownHostsMs");
     getParam(parameters, absoluteTimeMax, "absoluteTimeMax");
     getParam(parameters, disableAcceptProbability, "disableAcceptProbability");
+    getParam(parameters, disableExceptionPrinting, "disableExceptionPrinting");
 
     if (parameters.isMember("realTimePolling"))
         realTimePolling(parameters["realTimePolling"].asBool());

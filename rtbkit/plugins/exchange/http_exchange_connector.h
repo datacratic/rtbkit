@@ -289,7 +289,7 @@ protected:
     int numServingRequest;  ///< How many connections are serving a request
 
     /// Configuration parameters
-    int numThreads;         
+    int numThreads;
     int realTimePriority;
     PortRange listenPort;
     std::string bindHost;
@@ -299,6 +299,7 @@ protected:
     std::string auctionVerb;
     double absoluteTimeMax;
     bool disableAcceptProbability;
+    bool disableExceptionPrinting;
 
     /// The ping time to known hosts in milliseconds
     std::unordered_map<std::string, float> pingTimesByHostMs;
