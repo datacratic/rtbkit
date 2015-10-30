@@ -163,19 +163,34 @@ inline bool match_unsigned_long_long(unsigned long long & val,
 
     val = 0;
     int digits = 0;
+
+    bool dot = false;
+    int coeffs = 0;
     
     while (c) {
         if (isdigit(*c)) {
             int digit = *c - '0';
             val = val * 10 + digit;
             ++digits;
+            if (dot) ++coeffs;
         }
-        else break;
+        else if (*c == '.') { dot = true; }
+        else {
+            break;
+        }
         
         ++c;
     }
     
     if (!digits) return false;
+    if (dot) {
+        if (!c.match_literal('e')) return false;
+        if (!c.match_literal('+')) return false;
+
+        long int exp;
+        if (!match_int(exp, c)) return false;
+        if (exp != coeffs) return false;
+    }
     
     tok.ignore();  // we are returning true; ignore the token
     
