@@ -152,7 +152,7 @@ parseBidRequest(HttpAuctionHandler & connection,
     // Parse the bid request
     std::shared_ptr<BidRequest> result;
     try {
-        JML_TRACE_EXCEPTIONS(disableExceptionPrinting);
+        JML_TRACE_EXCEPTIONS(!disableExceptionPrinting);
         ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
         result.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion)->parseBidRequest(context,
                                                                                               exchangeName(),

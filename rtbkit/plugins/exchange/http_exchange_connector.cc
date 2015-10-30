@@ -63,6 +63,7 @@ postConstructorInit()
     auctionResource = "/";
     absoluteTimeMax = 50.0;
     disableAcceptProbability = false;
+    disableExceptionPrinting = false;
 
     numServingRequest = 0;
 
