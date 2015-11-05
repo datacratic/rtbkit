@@ -189,7 +189,10 @@ inline bool match_unsigned_long_long(unsigned long long & val,
 
         long int exp;
         if (!match_int(exp, c)) return false;
-        if (exp != coeffs) return false;
+        if (exp != coeffs) {
+            if (exp < coeffs) return false;
+            else val *= static_cast<unsigned>(std::pow(10, exp - coeffs));
+        }
     }
     
     tok.ignore();  // we are returning true; ignore the token
