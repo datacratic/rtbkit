@@ -119,6 +119,8 @@ struct HttpAdServerConnector : public AdServerConnector {
 
     void start();
 
+    std::vector<int> ports() const;
+
 private:
     std::vector<HttpAdServerHttpEndpoint> endpoints_;
 };

@@ -201,3 +201,14 @@ start()
     AdServerConnector::start();
 }
 
+std::vector<int>
+HttpAdServerConnector::
+ports() const
+{
+    vector<int> ports;
+
+    for (const auto & ep: endpoints_)
+        ports.push_back(ep.port());
+
+    return ports;
+}
