@@ -2314,6 +2314,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
         debugAuction(auctionId, "FINISH", originalMessage);
         if (!auctionInfo.auction->finish()) {
             debugAuction(auctionId, "FINISH TOO LATE", originalMessage);
+            recordHit("accounts.%s.FINISH_TOOLATE", agentConfig->account.toString('.'));
         }
         inFlight.erase(auctionId);
         //cerr << "couldn't finish auction " << auctionInfo.auction->id
