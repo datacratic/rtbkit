@@ -139,8 +139,9 @@ setConfig(unsigned cfgIndex, const AgentConfig& config, bool value)
         return;
     }
 
-    auto& entry = data[getKey(part)];
-    entry.uid = config.externalId;
+    auto uid = config.externalId;
+    auto& entry = data[getKey(part, uid)];
+    entry.uid = uid;
     if (entry.hashOn == UserPartition::NONE) {
         entry.modulus = part.modulus;
         entry.hashOn = part.hashOn;
