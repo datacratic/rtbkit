@@ -18,7 +18,7 @@ struct HttpBidderInterface : public BidderInterface
     HttpBidderInterface(std::string serviceName = "bidderService",
                         std::shared_ptr<ServiceProxies> proxies = std::make_shared<ServiceProxies>(),
                         Json::Value const & json = Json::Value());
-    ~HttpBidderInterface();
+    virtual ~HttpBidderInterface();
 
     void start();
     void shutdown();
@@ -133,11 +133,6 @@ private:
                                 const RTBKIT::BidRequest &originalRequest,
                                 const std::shared_ptr<Auction> &auction,
                                 const std::map<std::string, BidInfo> &bidders) const;
-    bool prepareDatacraticRequest(OpenRTB::BidRequest &request,
-                                  const RTBKIT::BidRequest &originalRequest,
-                                  const std::shared_ptr<Auction> &auction,
-                                  const std::map<std::string, BidInfo> &bidders) const;
-
     void sendBidErrorMessage(
             const std::shared_ptr<const AgentConfig>& agentConfig,
             std::string const & agent,
