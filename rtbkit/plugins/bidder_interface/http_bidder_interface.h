@@ -26,16 +26,26 @@ struct HttpBidderInterface : public BidderInterface
                             double timeLeftMs,
                             std::map<std::string, BidInfo> const & bidders);
 
-    void sendWinLossMessage(const std::shared_ptr<const AgentConfig>& agentConfig,
+    virtual void sendWinLossMessage(const std::shared_ptr<const AgentConfig>& agentConfig,
                             MatchedWinLoss const & event);
 
     void sendLossMessage(const std::shared_ptr<const AgentConfig>& agentConfig,
                          std::string const & agent,
                          std::string const & id);
 
-    void sendCampaignEventMessage(const std::shared_ptr<const AgentConfig>& agentConfig,
+    virtual void sendCampaignEventMessage(const std::shared_ptr<const AgentConfig>& agentConfig,
                                   std::string const & agent,
                                   MatchedCampaignEvent const & event);
+
+    virtual void  parseFormat(BidRequest & originalRequest,
+            std::shared_ptr<Auction> const & auction,
+            std::map<std::string, BidInfo> const & bidders, std::string & requestStr,
+            StructuredJsonPrintingContext & context,  std::string & openRtbversion);
+
+    virtual void routerFormat(OpenRTB::Bid const & bid, Bid & theBid, std::string & agent,
+                             shared_ptr<const AgentConfig> & config, std::string & body,
+                             std::map<std::string, BidInfo> const & bidders);
+
 
     void sendBidLostMessage(const std::shared_ptr<const AgentConfig>& agentConfig,
                             std::string const & agent,
@@ -81,7 +91,7 @@ struct HttpBidderInterface : public BidderInterface
     static Logging::Category trace;
 
 
-private:
+protected:
 
     struct AgentBidsInfo {
         std::shared_ptr<const AgentConfig> agentConfig;
@@ -99,15 +109,8 @@ private:
     std::shared_ptr<HttpClient> httpClientAdserverEvents;
     std::shared_ptr<HttpClient> httpClientAdserverErrors;
 
-    enum Format {
-        FMT_STANDARD,
-        FMT_DATACRATIC,
-    };
-    static Format readFormat(const std::string& fmt);
-
     std::string routerHost;
     std::string routerPath;
-    Format routerFormat;
 
     std::string adserverHost;
 
