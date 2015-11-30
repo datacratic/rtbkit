@@ -402,6 +402,7 @@ handleHttpPayload(const HttpHeader & header,
                                   "datacratic",
                                   firstData, expiry));
 
+        auction->requestOriginal = payload;
         endpoint->adjustAuction(auction);
 
 
