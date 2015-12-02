@@ -530,7 +530,7 @@ doMatchedWinLoss(std::shared_ptr<MatchedWinLoss> event)
         stats.matchedWins++;
     } else {
         stats.matchedLosses++;
-        return
+        return;
     }
 
     event->publish(logger);
