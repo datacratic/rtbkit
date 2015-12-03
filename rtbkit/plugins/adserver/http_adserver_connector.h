@@ -45,6 +45,8 @@ struct HttpAdServerConnectionHandler
     HttpAdServerConnectionHandler(HttpAdServerHttpEndpoint & endpoint,
                                   const HttpAdServerRequestCb & requestCb);
 
+    virtual void handleUnknownHeader(const HttpHeader& header);
+
     virtual void handleJson(const HttpHeader & header,
                             const Json::Value & json,
                             const std::string & jsonStr);
