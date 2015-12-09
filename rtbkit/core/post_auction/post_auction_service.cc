@@ -556,13 +556,11 @@ doMatchedCampaignEvent(std::shared_ptr<MatchedCampaignEvent> event)
 
     // For the moment, send the message to all of the agents that are
     // bidding on this account
-    //
     deliverEvent("delivery." + event->label, "doCampaignEvent", event->account,
         [&](const AgentConfigEntry& entry)
         {
             bidder->sendCampaignEventMessage(entry.config, entry.name, *event);
         });
-
 }
 
 void
@@ -601,6 +599,11 @@ doUnmatched(std::shared_ptr<UnmatchedEvent> event)
     stats.unmatchedEvents++;
     event->publish(logger);
     event->publish(analytics);
+
+    deliverEvent("delivery.UNMATCHEDWIN", "doUnmatchedWin", event->event.account,
+            [&] (const AgentConfigEntry & entry) {
+                bidder->sendUnmatchedEventMessage(entry.config, entry.name, *event);
+            });
 }
 
 void
