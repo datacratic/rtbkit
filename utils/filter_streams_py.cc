@@ -50,6 +50,27 @@ std::string filter_istream__read1(ML::filter_istream & stream, size_t nBytes)
     return result;
 }
 
+std::string filter_istream__readline1(ML::filter_istream & stream,
+                                      ssize_t nBytes)
+{
+    string line;
+
+    if (stream) {
+        getline(stream, line);
+        line += "\n";
+        if (nBytes > -1) {
+            line.resize(nBytes);
+        }
+    }
+
+    return line;
+}
+
+std::string filter_istream__readline0(ML::filter_istream & stream)
+{
+    return filter_istream__readline1(stream, -1);
+}
+
 } // file scope
 
 
@@ -69,5 +90,7 @@ BOOST_PYTHON_MODULE(filter_streams) {
         ("filter_istream", python::init<const std::string &>())
          .def("read", &filter_istream__read0)
          .def("read", &filter_istream__read1)
+         .def("readline", &filter_istream__readline0)
+         .def("readline", &filter_istream__readline1)
          .def("close", &ML::filter_istream::close);
 }
