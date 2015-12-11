@@ -6,7 +6,6 @@
 #include "soa/jsoncpp/reader.h"
 #include "jml/utils/exc_assert.h"
 #include "soa/logger/logger_metrics_interface.h"
-#include "soa/logger/logger_metrics_mongo.h"
 #include "soa/logger/logger_metrics_void.h"
 #include "soa/logger/logger_metrics_term.h"
 
@@ -92,6 +91,12 @@ ILoggerMetrics::
 setupLogger(const Json::Value & config,
             const string & coll, const string & appName)
 {
+    /* WARNING: This file has been broken during an hazardous merge commit.
+
+        Ultimately, the whole logger stuff should be removed or re-worked
+    */
+    throw ML::Exception("Fix me");
+/*
     ExcAssert(!config.isNull());
 
     ILoggerMetrics::parentObjectId = getEnv("METRICS_PARENT_ID");
@@ -104,10 +109,7 @@ setupLogger(const Json::Value & config,
     string loggerType = config["type"].asString();
     failSafe = config["failSafe"].asBool();
     auto fct = [&] {
-        if (loggerType == "mongo") {
-            logger.reset(new LoggerMetricsMongo(config, coll, appName));
-        }
-        else if (loggerType == "term" || loggerType == "terminal") {
+        if (loggerType == "term" || loggerType == "terminal") {
             logger.reset(new LoggerMetricsTerm(config, coll, appName));
         }
         else if (loggerType == "void") {
@@ -124,8 +126,44 @@ setupLogger(const Json::Value & config,
         }
         catch (const exception & exc) {
             cerr << "Logger fail safe caught: " << exc.what() << endl;
+            Json::Value fooConfig;
             logger = shared_ptr<ILoggerMetrics>(
-                new LoggerMetricsTerm(config, coll, appName));
+                new LoggerMetricsVoid(fooConfig, coll, appName));
+        }else{
+            Json::Value config = Json::parseFromFile(getEnv("CONFIG"));
+            config = config[configKey];
+            if(config.isNull()){
+                throw ML::Exception("Your configKey [" + configKey + "] is invalid or your "
+                                    "config file is empty");
+            }
+            if(config["type"].isNull()){
+                throw ML::Exception("Your LoggerMetrics config needs to "
+                                    "specify a [type] key.");
+            }
+            string loggerType = config["type"].asString();
+            failSafe = config["failSafe"].asBool();
+            function<void()> fct = [&]{
+                if(loggerType == "term" || loggerType == "terminal"){
+                    logger = shared_ptr<ILoggerMetrics>(
+                        new LoggerMetricsTerm(config, coll, appName));
+                }else if(loggerType == "void"){
+                    logger = shared_ptr<ILoggerMetrics>(
+                        new LoggerMetricsVoid(config, coll, appName));
+                }else{
+                    throw ML::Exception("Unknown logger type [%s]", loggerType.c_str());
+                }
+            };
+            if(failSafe){
+                try{
+                    fct();
+                }catch(const exception& exc){
+                    cerr << "Logger fail safe caught: " << exc.what() << endl;
+                    logger = shared_ptr<ILoggerMetrics>(
+                        new LoggerMetricsTerm(config, coll, appName));
+                }
+            }else{
+                fct();
+            }
         }
     }
     else {
@@ -167,6 +205,7 @@ setupLogger(const Json::Value & config,
 
     logger->logProcess(v);
     setenv("METRICS_PARENT_ID", logger->getProcessId().c_str(), 1);
+*/
 }
 
 shared_ptr<ILoggerMetrics>
