@@ -2254,7 +2254,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
                 status = BS_TOOLATE;
                 bidder->sendTooLateMessage(agentConfig, agent, auctionInfo.auction);
                 recordHit("accounts.%s.TOOLATE", config.account.toString('.'));
-                break;
+                continue;
             case Auction::WinLoss::INVALID:
                 status = BS_INVALID;
                 bidder->sendBidInvalidMessage(agentConfig, agent, msg, auctionInfo.auction);
