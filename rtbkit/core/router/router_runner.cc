@@ -49,6 +49,7 @@ RouterRunner::
 RouterRunner() :
     exchangeConfigurationFile("rtbkit/examples/router-config.json"),
     bidderConfigurationFile("rtbkit/examples/bidder-config.json"),
+    filterConfigurationFile(""),
     lossSeconds(15.0),
     noPostAuctionLoop(false),
     noBidProb(false),
@@ -62,8 +63,7 @@ RouterRunner() :
     analyticsOn(false),
     analyticsConnections(1),
     augmentationWindowms(5),
-    dableSlowMode(false),
-    enableJsonFiltersFile("")
+    dableSlowMode(false)
 {
 }
 
@@ -92,6 +92,8 @@ doOptions(int argc, char ** argv,
          "configuration file with exchange data")
         ("bidder,b", value<string>(&bidderConfigurationFile),
          "configuration file with bidder interface data")
+        ("filters-configuration", value<string>(&filterConfigurationFile),
+          "configuration file with enabled filters data")
         ("log-auctions", value<bool>(&logAuctions)->zero_tokens(),
          "log auction requests")
         ("log-bids", value<bool>(&logBids)->zero_tokens(),
@@ -113,9 +115,7 @@ doOptions(int argc, char ** argv,
          ("augmenter-timeout",value<int>(&augmentationWindowms),
          "configure the augmenter  timeout (in milliseconds)")
         ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
-         "disable the slow mode.")
-        ("filters-configuration", value<string>(&enableJsonFiltersFile),
-          "configuration file with enabled filters data");
+         "disable the slow mode.");
 
     options_description all_opt = opts;
     all_opt
@@ -149,8 +149,8 @@ init()
     exchangeConfig = loadJsonFromFile(exchangeConfigurationFile);
     bidderConfig = loadJsonFromFile(bidderConfigurationFile);
 
-    if (!enableJsonFiltersFile.empty())
-        filtersConfig = loadJsonFromFile(enableJsonFiltersFile);
+    if (!filterConfigurationFile.empty())
+        filtersConfig = loadJsonFromFile(filterConfigurationFile);
 
     const auto amountSlowModeMoneyLimit = Amount::parse(slowModeMoneyLimit);
     const auto maxBidPriceAmount = USD_CPM(maxBidPrice);

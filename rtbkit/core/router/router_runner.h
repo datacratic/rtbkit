@@ -32,7 +32,8 @@ struct RouterRunner {
 
     std::string exchangeConfigurationFile;
     std::string bidderConfigurationFile;
-
+    std::string filterConfigurationFile;
+    
     float lossSeconds;
     bool noPostAuctionLoop;
     bool noBidProb;
@@ -54,7 +55,6 @@ struct RouterRunner {
     int analyticsConnections;
     int augmentationWindowms;
     bool dableSlowMode;
-    std::string enableJsonFiltersFile;
 
     void doOptions(int argc, char ** argv,
                    const boost::program_options::options_description & opts
