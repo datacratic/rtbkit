@@ -128,10 +128,10 @@ BOOST_AUTO_TEST_CASE( test_bidswitch )
 
         bid.bid(bid.availableCreatives[0], USD_CPM(1.234));
 
-        agent.doBid(id, bids, Json::Value(), wcm);
         ML::atomic_inc(agent.numBidRequests);
-
         std::cerr << "bid count=" << agent.numBidRequests << std::endl;
+        
+        agent.doBid(id, bids, Json::Value(), wcm);
     };
 
     agent.init();
@@ -162,18 +162,17 @@ BOOST_AUTO_TEST_CASE( test_bidswitch )
 
     // and send it
     source.write(httpRequest);
-    std::string resp = source.read();
     
+    std::string resp = source.read();
     std::cerr << resp << std::endl;
-
+    proxies->events->dump(std::cerr);
+    
     BOOST_CHECK_EQUAL(agent.numBidRequests, 1);
 
     // Validate bidrequest.id was re-written
     BOOST_CHECK_EQUAL(resp.find("%{bidrequest.id}"), std::string::npos);
     BOOST_CHECK_EQUAL(resp.find("%{bidrequest.timestamp}"), std::string::npos);
     BOOST_CHECK_EQUAL(resp.find("%{response.account}"), std::string::npos);
-
-    proxies->events->dump(std::cerr);
 
     router.shutdown();
     agentConfig.shutdown();
