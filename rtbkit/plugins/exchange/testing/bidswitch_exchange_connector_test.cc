@@ -22,6 +22,9 @@
 #include "jml/arch/info.h"
 
 #include <type_traits>
+#include <thread>
+#include <mutex>
+#include <chrono>
 
 
 using namespace RTBKIT;
@@ -114,6 +117,11 @@ BOOST_AUTO_TEST_CASE( test_bidswitch )
         c.providerConfig["bidswitch"]["adid"] = c.name;
     }
 
+
+    std::condition_variable cv;
+    std::mutex mtx;
+    std::unique_lock<std::mutex> lock(mtx);
+
     agent.onBidRequest = [&] (
                              double timestamp,
                              const Id & id,
@@ -124,14 +132,18 @@ BOOST_AUTO_TEST_CASE( test_bidswitch )
     const WinCostModel & wcm) {
 
         std::cerr << "************************ ON BID REQ\n";
+ 
+        std::unique_lock<std::mutex> lock(mtx);
+
         Bid& bid = bids[0];
 
         bid.bid(bid.availableCreatives[0], USD_CPM(1.234));
 
         ML::atomic_inc(agent.numBidRequests);
         std::cerr << "bid count=" << agent.numBidRequests << std::endl;
-        
         agent.doBid(id, bids, Json::Value(), wcm);
+
+        cv.notify_one();
     };
 
     agent.init();
@@ -162,17 +174,22 @@ BOOST_AUTO_TEST_CASE( test_bidswitch )
 
     // and send it
     source.write(httpRequest);
+    if (cv.wait_for(lock, std::chrono::seconds(10)) != std::cv_status::no_timeout) {
+        std::cerr << "=====> TIMEOUT" << std::endl;
+        source.write(httpRequest);
+        BOOST_REQUIRE(cv.wait_for(lock, std::chrono::seconds(10)) == std::cv_status::no_timeout);
+    }
     
     std::string resp = source.read();
-    std::cerr << resp << std::endl;
-    proxies->events->dump(std::cerr);
-    
-    BOOST_CHECK_EQUAL(agent.numBidRequests, 1);
+    std::cerr << "RESPONSE:\n" << resp << std::endl;
+    BOOST_REQUIRE_EQUAL(agent.numBidRequests, 1);
 
     // Validate bidrequest.id was re-written
     BOOST_CHECK_EQUAL(resp.find("%{bidrequest.id}"), std::string::npos);
     BOOST_CHECK_EQUAL(resp.find("%{bidrequest.timestamp}"), std::string::npos);
     BOOST_CHECK_EQUAL(resp.find("%{response.account}"), std::string::npos);
+
+    proxies->events->dump(std::cerr);
 
     router.shutdown();
     agentConfig.shutdown();
