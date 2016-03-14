@@ -154,7 +154,12 @@ handleWinRq(const HttpHeader & header,
      *  If null, we return an error response.
      */
     if (json.isMember("timestamp")) {
-        timestamp = Date::fromSecondsSinceEpoch(json["timestamp"].asDouble());
+        if(json["timestamp"].isString()) {
+           double tm = stod(json["timestamp"].asString());
+           timestamp = Date::fromSecondsSinceEpoch(tm);
+        } else {
+            timestamp = Date::fromSecondsSinceEpoch(json["timestamp"].asDouble());
+        }
 
         // Check if timestamp is finite when treated as seconds
         if(!timestamp.isADate()) {
@@ -274,7 +279,12 @@ handleDeliveryRq(const HttpHeader & header,
      *  If null, we return an error response.
      */
     if (json.isMember("timestamp")) {
-        timestamp = Date::fromSecondsSinceEpoch(json["timestamp"].asDouble());
+        if(json["timestamp"].isString()) {
+           double tm = stod(json["timestamp"].asString());
+           timestamp = Date::fromSecondsSinceEpoch(tm);
+        } else {
+            timestamp = Date::fromSecondsSinceEpoch(json["timestamp"].asDouble());
+        }
         
         // Check if timestamp is finite when treated as seconds
         if(!timestamp.isADate()) {
