@@ -13,6 +13,8 @@
 #include "rtbkit/common/messages.h"
 #include "soa/service/rest_request_params.h"
 #include "soa/service/rest_request_binding.h"
+#include "rtbkit/common/analytics.h"
+#include "rtbkit/plugins/analytics/zmq_analytics.h"
 
 using namespace std;
 using namespace Datacratic;
@@ -47,7 +49,6 @@ PostAuctionService(
       auctions(65536),
       events(65536),
 
-      logger(getZmqContext()),
       endpoint(getZmqContext()),
       bridge(getZmqContext()),
       router(!!getZmqContext()),
@@ -73,7 +74,6 @@ PostAuctionService(ServiceBase & parent, const std::string & serviceName)
       auctions(65536),
       events(65536),
 
-      logger(getZmqContext()),
       endpoint(getZmqContext()),
       bridge(getZmqContext()),
       router(!!getZmqContext()),
@@ -85,12 +85,16 @@ PostAuctionService(ServiceBase & parent, const std::string & serviceName)
     monitorProviderClient.addProvider(this);
 }
 
+PostAuctionService::~PostAuctionService()
+{
+    shutdown();
+}
 
 void
 PostAuctionService::
 bindTcp()
 {
-    logger.bindTcp(getServices()->ports->getRange("logs"));
+    if (analytics) analytics->bindTcp();
     endpoint.bindTcp(getServices()->ports->getRange("postAuctionLoop"));
     bridge.agents.bindTcp(getServices()->ports->getRange("postAuctionLoopAgents"));
 
@@ -194,9 +198,13 @@ initConnections(size_t shard)
 
     registerShardedServiceProvider(serviceName(), { "rtbPostAuctionService" }, shard);
 
-    LOG(print) << "post auction logger on " << serviceName() + "/logger" << endl;
-    logger.init(getServices()->config, serviceName() + "/logger");
-
+    if (analytics) {
+        LOG(print) << "post auction logger on " << analytics->serviceName() << endl;
+        analytics->init();
+    } else {
+        LOG(print) << "No logger is set for post auction" << endl;
+    }
+    
     auctions.onEvent = std::bind(&PostAuctionService::doAuction, this, _1);
     loop.addSource("PostAuctionService::auctions", auctions);
 
@@ -239,10 +247,25 @@ initConnections(size_t shard)
 
 void
 PostAuctionService::
-initAnalytics(const string & baseUrl, const int numConnections)
+initAnalyticsPublisher(const string & baseUrl, const int numConnections)
 {
-    LOG(print) << "analyticsURI: " << baseUrl << endl;
-    analytics.init(baseUrl, numConnections);
+    LOG(print) << "analyticsPublisherURI: " << baseUrl << endl;
+    analyticsPublisher.init(baseUrl, numConnections);
+}
+
+void
+PostAuctionService::
+initAnalytics(const Json::Value & config)
+{
+
+    if (config == Json::Value::null) {
+        analytics.reset(new ZmqAnalytics(serviceName(), getServices()));
+    } else {
+        Json::Value pluginName = config["pluginName"];
+        Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName.asString());
+        analytics.reset(factory(serviceName(), getServices()));
+    }
+
 }
 
 void
@@ -306,12 +329,12 @@ PostAuctionService::
 start(std::function<void ()> onStop)
 {
     loop.start(onStop);
-    logger.start();
+    if (analytics) analytics->start();
     monitorProviderClient.start();
     loopMonitor.start();
     matcher->start();
     bidder->start();
-    analytics.start();
+    analyticsPublisher.start();
 }
 
 void
@@ -321,12 +344,12 @@ shutdown()
     matcher->shutdown();
     loopMonitor.shutdown();
     loop.shutdown();
-    logger.shutdown();
+    if (analytics) analytics->shutdown();
     bridge.shutdown();
     endpoint.shutdown();
     configListener.shutdown();
     monitorProviderClient.shutdown();
-    analytics.shutdown();
+    analyticsPublisher.shutdown();
     forwarder.reset();
 }
 
@@ -533,8 +556,8 @@ doMatchedWinLoss(std::shared_ptr<MatchedWinLoss> event)
         return;
     }
 
-    event->publish(logger);
-    event->publish(analytics);
+    if (analytics) event->publish(*analytics);
+    event->publish(analyticsPublisher);
 
     deliverEvent("bidResult." + event->typeString(), "doWinLossEvent", event->response.account,
         [&](const AgentConfigEntry& entry)
@@ -551,8 +574,8 @@ doMatchedCampaignEvent(std::shared_ptr<MatchedCampaignEvent> event)
 
     lastCampaignEvent = Date::now();
 
-    event->publish(logger);
-    event->publish(analytics);
+    if (analytics) event->publish(*analytics);
+    event->publish(analyticsPublisher);
 
     // For the moment, send the message to all of the agents that are
     // bidding on this account
@@ -584,8 +607,10 @@ deliverEvent(const std::string& label, const std::string& eventType,
     if (!sent) {
         orphanEvents++;
         recordHit("%s.orphaned", label);
-        logPAError(ML::format("%s.noListeners%s", eventType, label),
-                   "nothing listening for account " + account.toString());
+        const std::string & function = ML::format("%s.noListeners%s", eventType, label);
+        if (analytics) analytics->logPAErrorMessage(function,
+                                    "nothing listening for account " + account.toString());
+        recordHit("error.%s",function);
     }
     else {
         recordHit("%s.delivered", label);
@@ -597,8 +622,8 @@ PostAuctionService::
 doUnmatched(std::shared_ptr<UnmatchedEvent> event)
 {
     stats.unmatchedEvents++;
-    event->publish(logger);
-    event->publish(analytics);
+    if (analytics) event->publish(*analytics);
+    event->publish(analyticsPublisher);
 
     deliverEvent("delivery.UNMATCHEDWIN", "doUnmatchedWin", event->event.account,
             [&] (const AgentConfigEntry & entry) {
@@ -611,8 +636,8 @@ PostAuctionService::
 doError(std::shared_ptr<PostAuctionErrorEvent> error)
 {
     stats.errors++;
-    error->publish(logger);
-    error->publish(analytics);
+    if (analytics) error->publish(*analytics);
+    error->publish(analyticsPublisher);
 }
 
 
