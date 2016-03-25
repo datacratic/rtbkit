@@ -10,6 +10,6 @@ $(eval $(call test,pending_list_test,types,boost))
 #$(eval $(call test,router_banker_test,rtb_router dataflow bidding_agent,boost))
 #$(eval $(call test,augmentation_test,rtb_router bid_request augmentor_base,boost))
 
-$(eval $(call test,router_analytics_test,analytics boost_program_options rtb_router,boost))
+$(eval $(call test,router_analytics_test,boost_program_options rtb_router,boost))
 
 .PHONY: $(LIB)/libzmq_analytics.so

@@ -14,7 +14,6 @@
 #include "soa/service/rest_request_params.h"
 #include "soa/service/rest_request_binding.h"
 #include "rtbkit/common/analytics.h"
-#include "rtbkit/plugins/analytics/zmq_analytics.h"
 
 using namespace std;
 using namespace Datacratic;
@@ -257,15 +256,10 @@ void
 PostAuctionService::
 initAnalytics(const Json::Value & config)
 {
+    std::string pluginName = (config == Json::Value::null) ? "zmq" : config["pluginName"].asString();
 
-    if (config == Json::Value::null) {
-        analytics.reset(new ZmqAnalytics(serviceName(), getServices()));
-    } else {
-        Json::Value pluginName = config["pluginName"];
-        Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName.asString());
-        analytics.reset(factory(serviceName(), getServices()));
-    }
-
+    Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName);
+    analytics.reset(factory(serviceName(), getServices()));
 }
 
 void

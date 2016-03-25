@@ -34,7 +34,6 @@
 #include "rtbkit/common/win_cost_model.h"
 #include "rtbkit/common/bidder_interface.h"
 #include "rtbkit/common/analytics.h"
-#include "rtbkit/plugins/analytics/zmq_analytics.h"
 
 using namespace std;
 using namespace ML;
@@ -299,15 +298,12 @@ initFilters(const Json::Value & config) {
 
 void
 Router::
-initAnalytics(const Json::Value & config) {
+initAnalytics(const Json::Value & config)
+{
+    std::string pluginName = (config == Json::Value::null) ? "zmq" : config["pluginName"].asString();
 
-    if (config == Json::Value::null) {
-        analytics.reset(new ZmqAnalytics(serviceName(), getServices()));
-    } else {
-        Json::Value pluginName = config["pluginName"];
-        Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName.asString());
-        analytics.reset(factory(serviceName(), getServices()));
-    }
+    Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName);
+    analytics.reset(factory(serviceName(), getServices()));
 }
 
 void
