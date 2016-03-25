@@ -12,7 +12,6 @@
 #include "adserver_connector.h"
 #include "rtbkit/common/auction_events.h"
 #include "rtbkit/common/analytics.h"
-#include "rtbkit/plugins/analytics/zmq_analytics.h"
 
 using namespace std;
 
@@ -40,18 +39,15 @@ void
 AdServerConnector::
 initAnalytics(const Json::Value & config)
 {
-    if (config == Json::Value::null) {
-        analytics.reset(new ZmqAnalytics(serviceName(), getServices()));
-    } else {
-        Json::Value pluginName = config["pluginName"];
-        Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName.asString());
-        analytics.reset(factory(serviceName(), getServices()));
-    }
+    std::string pluginName = (config == Json::Value::null) ? "zmq" : config["pluginName"].asString();
 
+    Analytics::Factory factory = PluginInterface<Analytics>::getPlugin(pluginName);
+    analytics.reset(factory(serviceName(), getServices()));
+    
     // And initialize the generic publisher on a predefined range of ports to try avoiding that
     // collision between different kind of service occurs.
-    if (analytics) analytics->init();
-    if (analytics) analytics->bindTcp("adServer.logger");
+    analytics->init();
+    analytics->bindTcp("adServer.logger");
 }
 
 void
