@@ -2156,7 +2156,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
 
             bidder->sendNoBudgetMessage(agentConfig, agent, auctionInfo.auction);
 
-            if (analytics) analytics->logNoBudgetMessage(message);
+            if (analytics) analytics->logNoBudgetMessage(agent, auctionId, bidsString, message.meta);
             this->logMessageToAnalytics("NOBUDGET", agent, auctionId);
             recordHit("accounts.%s.NOBUDGET", config.account.toString('.'));
             continue;
@@ -2251,7 +2251,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
                 throw ML::Exception("logic error");
             }
 
-            if (analytics) analytics->logMessage(msg, message);
+            if (analytics) analytics->logMessage(msg, agent, auctionId, bidsString, message.meta);
             this->logMessageToAnalytics(msg, agent, auctionId, bidsString);
             continue;
         }
@@ -2268,7 +2268,7 @@ doBidImpl(const BidMessage &message, const std::vector<std::string> &originalMes
 
     if (numValidBids > 0) {
         if (logBids) {
-            if (analytics) analytics->logBidMessage(message);
+            if (analytics) analytics->logBidMessage(agent, auctionId, bidsString, message.meta);
         }
         logMessageToAnalytics("BID", agent, auctionId, bidsString);
         ML::atomic_add(numNonEmptyBids, 1);
@@ -2502,7 +2502,7 @@ onNewAuction(std::shared_ptr<Auction> auction)
     //cerr << "AUCTION GOT THROUGH" << endl;
 
     if (logAuctions) {
-        if (analytics) analytics->logAuctionMessage(auction);
+        if (analytics) analytics->logAuctionMessage(auction->id, auction->requestStr);
     }
     logMessageToAnalytics("AUCTION", auction->id);
 

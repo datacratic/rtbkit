@@ -249,7 +249,10 @@ handleWinRq(const HttpHeader & header,
     if(response.valid) {
         publishWin(bidRequestId, impId, winPrice, timestamp, Json::Value(), userIds,
                    AccountKey(passback), Date());
-        if (analytics) analytics->logStandardWinMessage(json);
+        if (analytics) analytics->logStandardWinMessage(timestamp.print(3),
+                                                        bidRequestIdStr,
+                                                        impIdStr,
+                                                        winPrice.toString());
         analyticsPublisher_.publish("WIN", timestamp.print(3), bidRequestIdStr,
                            impIdStr, winPrice.toString());
     }
@@ -377,7 +380,11 @@ handleDeliveryRq(const HttpHeader & header,
     if(response.valid) {
         publishCampaignEvent(eventType[event], bidRequestId, impId, timestamp,
                                  Json::Value(), userIds);
-        if (analytics) analytics->logStandardEventMessage(json,userIds);
+        if (analytics) analytics->logStandardEventMessage(eventType[event],
+                                                          timestamp.print(3),
+                                                          bidRequestIdStr,
+                                                          impIdStr,
+                                                          userIds.toString());
         analyticsPublisher_.publish(eventType[event], timestamp.print(3), bidRequestIdStr,
                                 impIdStr, userIds.toString());
     }

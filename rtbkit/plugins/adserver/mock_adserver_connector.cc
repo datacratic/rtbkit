@@ -79,7 +79,8 @@ HttpAdServerResponse MockAdServerConnector::handleEvent(PostAuctionEvent const &
                    event.account,
                    Date::now());
 
-        if (analytics) analytics->logMockWinMessage(event);
+        if (analytics) analytics->logMockWinMessage(event.auctionId.toString(),
+                                                    event.winPrice.toString());
     }
 
     if (event.type == PAE_CAMPAIGN_EVENT) {

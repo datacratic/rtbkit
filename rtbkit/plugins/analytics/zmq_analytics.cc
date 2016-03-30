@@ -6,15 +6,14 @@
 */
 
 #include "zmq_analytics.h"
+
+
 #include "soa/types/date.h"
-#include "rtbkit/core/router/router.h"
 #include "jml/arch/format.h"
-#include "soa/jsoncpp/json.h"
-#include "rtbkit/common/auction.h"
+#include "rtbkit/core/router/router.h"
+#include "soa/types/id.h"
 #include "rtbkit/core/post_auction/events.h"
-#include "rtbkit/common/auction_events.h"
 #include "rtbkit/common/currency.h"
-#include "rtbkit/common/bid_request.h"
 #include "boost/algorithm/string/trim.hpp"
 
 using namespace Datacratic;
@@ -53,7 +52,8 @@ void ZmqAnalytics::shutdown()
 * USED IN ROUTER
 **********************************************************************************************/
 
-void ZmqAnalytics::logMarkMessage(const Router & router, const double & last_check) 
+void ZmqAnalytics::logMarkMessage(const Router & router,
+                                  const double & last_check)
 {
     zmq_publisher_.publish("MARK",
                            Date::now().print(5),
@@ -66,27 +66,32 @@ void ZmqAnalytics::logMarkMessage(const Router & router, const double & last_che
                            );
 }
 
-void ZmqAnalytics::logBidMessage(const BidMessage & message) 
+void ZmqAnalytics::logBidMessage(const std::string & agent,
+                                 const Id & auctionId,
+                                 const std::string & bids,
+                                 const std::string & meta) 
 {
     zmq_publisher_.publish("BID",
                            Date::now().print(5),
-                           message.agents[0],
-                           message.auctionId.toString(),
-                           message.bids.toJson().toStringNoNewLine(),
-                           message.meta
+                           agent,
+                           auctionId.toString(),
+                           bids,
+                           meta
                            );
 }
 
-void ZmqAnalytics::logAuctionMessage(const std::shared_ptr<Auction> & auction)
+void ZmqAnalytics::logAuctionMessage(const Id & auctionId,
+                                     const std::string & auctionRequest)
 {
     zmq_publisher_.publish("AUCTION", 
                            Date::now().print(5),
-                           auction->id.toString(), 
-                           auction->requestStr
+                           auctionId.toString(),
+                           auctionRequest
                            );
 }
 
-void ZmqAnalytics::logConfigMessage(const std::string & agent, const std::string & config)
+void ZmqAnalytics::logConfigMessage(const std::string & agent,
+                                    const std::string & config)
 {
     zmq_publisher_.publish("CONFIG",
                            Date::now().print(5),
@@ -95,30 +100,38 @@ void ZmqAnalytics::logConfigMessage(const std::string & agent, const std::string
                           );
 }
 
-void ZmqAnalytics::logNoBudgetMessage(const BidMessage & message) 
+void ZmqAnalytics::logNoBudgetMessage(const std::string agent,
+                                      const Id & auctionId,
+                                      const std::string & bids,
+                                      const std::string & meta)
 {
     zmq_publisher_.publish("NOBUDGET",
                            Date::now().print(5),
-                           message.agents[0],
-                           message.auctionId.toString(),
-                           message.bids.toJson().toStringNoNewLine(),
-                           message.meta
+                           agent,
+                           auctionId.toString(),
+                           bids,
+                           meta
                           );
 }
 
-void ZmqAnalytics::logMessage(const std::string & msg, const BidMessage & message)
+void ZmqAnalytics::logMessage(const std::string & msg,
+                              const std::string agent,
+                              const Id & auctionId,
+                              const std::string & bids,
+                              const std::string & meta)
 {
     zmq_publisher_.publish(msg,
-                         Date::now().print(5),
-                         message.agents[0],
-                         message.auctionId.toString(),
-                         message.bids.toJson().toStringNoNewLine(),
-                         message.meta
-                        );
+                           Date::now().print(5),
+                           agent,
+                           auctionId.toString(),
+                           bids,
+                           meta
+                          );
 
 }
 
-void ZmqAnalytics::logUsageMessage(Router & router, const double & period)
+void ZmqAnalytics::logUsageMessage(Router & router,
+                                   const double & period)
 {
     std::string p = std::to_string(period);
 
@@ -191,7 +204,8 @@ void ZmqAnalytics::logUsageMessage(Router & router, const double & period)
     }
 }
 
-void ZmqAnalytics::logErrorMessage(const std::string & error, const std::vector<std::string> & message)
+void ZmqAnalytics::logErrorMessage(const std::string & error,
+                                   const std::vector<std::string> & message)
 {
     zmq_publisher_.publish("ERROR",
                            Date::now().print(5),
@@ -323,12 +337,13 @@ void ZmqAnalytics::logPAErrorMessage(const std::string & function,
 * USED IN MOCK ADSERVER CONNECTOR
 **********************************************************************************************/
 
-void ZmqAnalytics::logMockWinMessage(const PostAuctionEvent & event)
+void ZmqAnalytics::logMockWinMessage(const std::string & eventAuctionId,
+                                     const std::string & eventWinPrice)
 {
     zmq_publisher_.publish("WIN",
                            Date::now().print(3),
-                           event.auctionId.toString(),
-                           event.winPrice.toString(),
+                           eventAuctionId,
+                           eventWinPrice,
                            "0");
 }
 
@@ -336,86 +351,100 @@ void ZmqAnalytics::logMockWinMessage(const PostAuctionEvent & event)
 * USED IN STANDARD ADSERVER CONNECTOR
 **********************************************************************************************/
 
-void ZmqAnalytics::logStandardWinMessage(const Json::Value & json) 
+void ZmqAnalytics::logStandardWinMessage(const std::string & timestamp,
+                                         const std::string & bidRequestId,
+                                         const std::string & impId,
+                                         const std::string & winPrice) 
 {
     zmq_publisher_.publish("WIN",
-                           Date::now().print(3),
-                           json["bidRequestId"].asString(),
-                           json["impid"].asString(),
-                           USD_CPM(json["price"].asDouble()).toString());
+                           timestamp,
+                           bidRequestId,
+                           impId,
+                           winPrice);
 }
 
-void ZmqAnalytics::logStandardEventMessage(const Json::Value & json, const UserIds & userIds)
+void ZmqAnalytics::logStandardEventMessage(const std::string & eventType,
+                                           const std::string & timestamp,
+                                           const std::string & bidRequestId,
+                                           const std::string & impId,
+                                           const std::string & userIds)
 {
-    zmq_publisher_.publish(json["type"].asString(),
-                           Date::now().print(3),
-                           json["bidRequestId"].asString(),
-                           json["impid"].asString(),
-                           userIds.toString());
+    zmq_publisher_.publish(eventType,
+                           timestamp,
+                           bidRequestId,
+                           impId,
+                           userIds);
 }
 
 /**********************************************************************************************
 * USED IN OTHER ADSERVER CONNECTORS
 **********************************************************************************************/
 
-void ZmqAnalytics::logAdserverEvent(const Json::Value & json)
+void ZmqAnalytics::logAdserverEvent(const std::string & type,
+                                    const std::string & bidRequestId,
+                                    const std::string & impId)
 {
-    zmq_publisher_.publish(json["type"].asString(),
-                           Date::now().print(3),
-                           json["id"].asString(),
-                           json["impid"].asString());
+    zmq_publisher_.publish(type,
+                           type,
+                           bidRequestId,
+                           impId);
 }
 
-void ZmqAnalytics::logAdserverWin(const Json::Value & json, const std::string & accountKeyStr)
+void ZmqAnalytics::logAdserverWin(const std::string & timestamp,
+                                  const std::string & auctionId,
+                                  const std::string & adSpotId,
+                                  const std::string & accountKey,
+                                  const std::string & winPrice,
+                                  const std::string & dataCost)
 {
     zmq_publisher_.publish("WIN",
-                           Date::now().print(3),
-                           json["auctionId"].asString(),
-                           json["adSpotId"].asString(),
-                           accountKeyStr,
-                           json["winPrice"].asString(),
-                           json["dataCost"].asString());
+                           timestamp,
+                           auctionId,
+                           adSpotId,
+                           accountKey,
+                           winPrice,
+                           dataCost);
 }
 
-void ZmqAnalytics::logAuctionEventMessage(const Json::Value & json, const std::string & userIdStr)
+void ZmqAnalytics::logAuctionEventMessage(const std::string & event,
+                                          const std::string & timestamp,
+                                          const std::string & auctionId,
+                                          const std::string & adSpotId,
+                                          const std::string & userId)
 {
-    std::string event = json["event"].asString();
-    if (event == "click")
-       event = "CLICK";
-    else if (event == "conversion")
-       event = "CONVERSION";
-
     zmq_publisher_.publish(event,
-                           Date::fromSecondsSinceEpoch(json["timestamp"].asDouble()),
-                           json["auctionId"].asString(),
-                           json["adSpotId"].asString(),
-                           userIdStr);
+                           timestamp,
+                           auctionId,
+                           adSpotId,
+                           userId);
 }
 
-void ZmqAnalytics::logEventJson(const std::string & event, const Json::Value & json)
+void ZmqAnalytics::logEventJson(const std::string & event,
+                                const std::string & timestamp,
+                                const std::string & json)
 {
-    std::string jsonStr = json.toString();
-    boost::trim(jsonStr);
     zmq_publisher_.publish(event,
-                           Date::fromSecondsSinceEpoch(json["timestamp"].asDouble()),
-                           jsonStr);
+                           timestamp,
+                           json);
 }
 
-void ZmqAnalytics::logDetailedWin(const Json::Value & json,
-                                  const std::string & userIdStr,
+void ZmqAnalytics::logDetailedWin(const std::string timestamp,
+                                  const std::string & json,
+                                  const std::string & auctionId,
+                                  const std::string & spotId,
+                                  const std::string & price,
+                                  const std::string & userIds,
                                   const std::string & campaign,
                                   const std::string & strategy,
                                   const std::string & bidTimeStamp)
 {
-    std::string jsonStr = json.toString();
-    boost::trim(jsonStr);
     zmq_publisher_.publish("WIN",
-                           Date::now().print(3),
-                           jsonStr,
-                           json["bid_request_id"].asString(),
-                           json["spot_id"].asString(),
-                           json["buyer_price"].asString(),
-                           userIdStr,
+                           timestamp,
+                           json,
+                           auctionId,
+                           spotId,
+                           price,
+                           userIds,
                            campaign,
                            strategy,
                            bidTimeStamp);

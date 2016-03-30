@@ -16,20 +16,14 @@
 
 namespace RTBKIT {
     class Router; 
-    class BidMessage; 
-    class Auction; 
     struct MatchedWinLoss; 
     struct MatchedCampaignEvent;
     struct UnmatchedEvent;
     struct PostAuctionErrorEvent;
-    struct PostAuctionEvent;
-    struct UserIds;
 }
 namespace Datacratic {
+    struct Id;
     class ServiceProxies;
-}
-namespace Json {
-    class Value;
 }
 
 namespace RTBKIT {
@@ -46,18 +40,32 @@ public:
     virtual void shutdown();
 
     // USED IN ROUTER 
-    virtual void logMarkMessage(const Router & router, const double & last_check);
-    virtual void logBidMessage(const BidMessage & message);
-    virtual void logAuctionMessage(const std::shared_ptr<Auction> & auction);
-    virtual void logConfigMessage(const std::string & agent, const std::string & config);
-    virtual void logNoBudgetMessage(const BidMessage & message);
-    virtual void logMessage(const std::string & msg, const BidMessage & message);
-    virtual void logUsageMessage(Router & router, const double & period);
+    virtual void logMarkMessage(const Router & router,
+                                const double & last_check);
+    virtual void logBidMessage(const std::string & agent,
+                               const Id & auctionId,
+                               const std::string & bids,
+                               const std::string & meta);
+    virtual void logAuctionMessage(const Id & auctionId,
+                                   const std::string & auctionRequest);
+    virtual void logConfigMessage(const std::string & agent,
+                                  const std::string & config);
+    virtual void logNoBudgetMessage(const std::string agent,
+                                    const Id & auctionId,
+                                    const std::string & bids,
+                                    const std::string & meta);
+    virtual void logMessage(const std::string & msg,
+                            const std::string agent,
+                            const Id & auctionId,
+                            const std::string & bids,
+                            const std::string & meta);
+    virtual void logUsageMessage(Router & router,
+                                 const double & period);
     virtual void logErrorMessage(const std::string & error,
-                                 const std::vector<std::string> & message = std::vector<std::string>());
+                                 const std::vector<std::string> & message);
     virtual void logRouterErrorMessage(const std::string & function,
                                        const std::string & exception, 
-                                       const std::vector<std::string> & message = std::vector<std::string>());
+                                       const std::vector<std::string> & message);
 
     // USED IN PA
     virtual void logMatchedWinLoss(const MatchedWinLoss & matchedWinLoss);
@@ -66,22 +74,47 @@ public:
     virtual void logPostAuctionErrorEvent(const PostAuctionErrorEvent & postAuctionErrorEvent); 
     virtual void logPAErrorMessage(const std::string & function,
                                    const std::string & exception, 
-                                   const std::vector<std::string> & message = std::vector<std::string>());
+                                   const std::vector<std::string> & message);
 
     // USED IN MOCK ADSERVER CONNECTOR
-    virtual void logMockWinMessage(const PostAuctionEvent & event);
+    virtual void logMockWinMessage(const std::string & eventAuctionId,
+                                   const std::string & eventWinPrice);
 
     // USED IN STANDARD ADSERVER CONNECTOR 
-    virtual void logStandardWinMessage(const Json::Value & json);
-    virtual void logStandardEventMessage(const Json::Value & json, const UserIds & userIds);
+    virtual void logStandardWinMessage(const std::string & timestamp,
+                                       const std::string & bidRequestId,
+                                       const std::string & impId,
+                                       const std::string & winPrice);
+    virtual void logStandardEventMessage(const std::string & eventType,
+                                         const std::string & timestamp,
+                                         const std::string & bidRequestId,
+                                         const std::string & impId,
+                                         const std::string & userIds);
 
     // USED IN OTHER ADSERVER CONNECTORS
-    virtual void logAdserverEvent(const Json::Value & json);
-    virtual void logAdserverWin(const Json::Value & json, const std::string & accountKeyStr);
-    virtual void logAuctionEventMessage(const Json::Value & json, const std::string & userIdStr);
-    virtual void logEventJson(const std::string & event, const Json::Value & json);
-    virtual void logDetailedWin(const Json::Value & json,
-                                const std::string & userIdStr,
+    virtual void logAdserverEvent(const std::string & type,
+                                  const std::string & bidRequestId,
+                                  const std::string & impId);
+    virtual void logAdserverWin(const std::string & timestamp,
+                                const std::string & auctionId,
+                                const std::string & adSpotId,
+                                const std::string & accountKey,
+                                const std::string & winPrice,
+                                const std::string & dataCost);
+    virtual void logAuctionEventMessage(const std::string & event,
+                                        const std::string & timestamp,
+                                        const std::string & auctionId,
+                                        const std::string & adSpotId,
+                                        const std::string & userId);
+    virtual void logEventJson(const std::string & event,
+                              const std::string & timestamp,
+                              const std::string & json);
+    virtual void logDetailedWin(const std::string timestamp,
+                                const std::string & json,
+                                const std::string & auctionId,
+                                const std::string & spotId,
+                                const std::string & price,
+                                const std::string & userIds,
                                 const std::string & campaign,
                                 const std::string & strategy,
                                 const std::string & bidTimeStamp);
