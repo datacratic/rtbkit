@@ -603,7 +603,8 @@ deliverEvent(const std::string& label, const std::string& eventType,
         recordHit("%s.orphaned", label);
         const std::string & function = ML::format("%s.noListeners%s", eventType, label);
         if (analytics) analytics->logPAErrorMessage(function,
-                                    "nothing listening for account " + account.toString());
+                                    "nothing listening for account " + account.toString(),
+                                    {});
         recordHit("error.%s",function);
     }
     else {
