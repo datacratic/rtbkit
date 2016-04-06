@@ -137,7 +137,7 @@ init(size_t externalShard, size_t internalShards)
         ratio = accumulate(orphanRatios.begin(), orphanRatios.end(), 0);
         ratio /= orphanRatios.size();
 
-        ExcCheckLess(ratio, 0.1, "Excessive orphaned events detected");
+        ExcCheckLess(ratio, 0.5, "Excessive orphaned events detected");
     };
     loop.addPeriodic("PostAuctionService::checkOrphans", 60.0, checkOrphans);
 }
