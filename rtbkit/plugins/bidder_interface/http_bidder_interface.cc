@@ -238,9 +238,17 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
                                  return;
                              }
 
-                             int crid = bid.crid.toInt();
+                             Id crid = bid.crid;
+                             int creativeId = 0;
+
+                             if (crid.type == Id::STR) {
+                                 creativeId = std::stoi(crid.toString());
+                             } else {
+                                 creativeId = crid.toInt();
+                             }
+
                              int creativeIndex = indexOf(config->creatives,
-                                 &Creative::id, crid);
+                                 &Creative::id, creativeId);
 
                              if (creativeIndex == -1) {
                                  LOG(error) << "Unknown creative id: " << crid << std::endl;
