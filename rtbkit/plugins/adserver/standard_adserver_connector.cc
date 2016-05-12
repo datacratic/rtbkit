@@ -266,8 +266,8 @@ handleDeliveryRq(const HttpHeader & header,
                  const Json::Value & json, const std::string & jsonStr)
 {    
     HttpAdServerResponse response;
-    string bidRequestIdStr, impIdStr, userIdStr, event;
-    Id bidRequestId, impId, userId;
+    string bidRequestIdStr, impIdStr, userIdStr, event, eventIdStr;
+    Id bidRequestId, impId, userId, eventId;
     UserIds userIds;
     Date timestamp;
     
@@ -370,23 +370,33 @@ handleDeliveryRq(const HttpHeader & header,
     impIdStr = json["impid"].asString();
     bidRequestId = Id(bidRequestIdStr);
     impId = Id(impIdStr);
+
+    if (json.isMember("subid")) {
+        eventIdStr = json["subid"].asString();
+        eventId = Id(eventIdStr);
+    } else {
+        eventId = bidRequestId;
+    }
+
     
     LOG(adserverTrace) << "{\"timestamp\":\"" << timestamp.print(3) << "\"," <<
         "\"bidRequestId\":\"" << bidRequestIdStr << "\"," <<
         "\"impId\":\"" << impIdStr << "\"," <<
-        "\"event\":\"" << event << 
+        "\"event\":\"" << event << "\"," << 
+        "\"eventId\":\"" << eventIdStr << "\"," << 
         "\"userIds\":" << userIds.toString() << "\"}";
 
     if(response.valid) {
         publishCampaignEvent(eventType[event], bidRequestId, impId, timestamp,
-                                 Json::Value(), userIds);
+                                 Json::Value(), userIds, eventId);
         if (analytics) analytics->logStandardEventMessage(eventType[event],
                                                           timestamp.print(3),
                                                           bidRequestIdStr,
                                                           impIdStr,
-                                                          userIds.toString());
+                                                          userIds.toString(), 
+                                                          eventIdStr);
         analyticsPublisher_.publish(eventType[event], timestamp.print(3), bidRequestIdStr,
-                                impIdStr, userIds.toString());
+                                impIdStr, userIds.toString(), eventIdStr);
     }
     return response;
 }

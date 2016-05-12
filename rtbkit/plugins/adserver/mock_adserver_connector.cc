@@ -89,7 +89,8 @@ HttpAdServerResponse MockAdServerConnector::handleEvent(PostAuctionEvent const &
                              event.adSpotId,
                              event.timestamp,
                              Json::Value(),
-                             event.uids);
+                             event.uids,
+                             event.eventId);
     }
     
     return response;

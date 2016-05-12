@@ -367,13 +367,15 @@ void ZmqAnalytics::logStandardEventMessage(const std::string & eventType,
                                            const std::string & timestamp,
                                            const std::string & bidRequestId,
                                            const std::string & impId,
-                                           const std::string & userIds)
+                                           const std::string & userIds, 
+                                           const std::string & eventId)
 {
     zmq_publisher_.publish(eventType,
                            timestamp,
                            bidRequestId,
                            impId,
-                           userIds);
+                           userIds, 
+                           eventId);
 }
 
 /**********************************************************************************************
@@ -410,13 +412,15 @@ void ZmqAnalytics::logAuctionEventMessage(const std::string & event,
                                           const std::string & timestamp,
                                           const std::string & auctionId,
                                           const std::string & adSpotId,
-                                          const std::string & userId)
+                                          const std::string & userId, 
+                                          const std::string & eventId)
 {
     zmq_publisher_.publish(event,
                            timestamp,
                            auctionId,
                            adSpotId,
-                           userId);
+                           userId, 
+                           eventId);
 }
 
 void ZmqAnalytics::logEventJson(const std::string & event,
