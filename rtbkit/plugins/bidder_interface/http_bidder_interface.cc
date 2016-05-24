@@ -101,7 +101,8 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                    << "\t}" << std::endl << "}";
     }
 
-    httpClientRouter.reset(new HttpClient(routerHost, routerHttpActiveConnections));
+    // Force http_client_v2 to avoid latency added by curl in v1
+    httpClientRouter.reset(new HttpClient(routerHost, routerHttpActiveConnections, 0, 2));
     /* We do not want curl to add an extra "Expect: 100-continue" HTTP header
      * and then pay the cost of an extra HTTP roundtrip. Thus we remove this
      * header
