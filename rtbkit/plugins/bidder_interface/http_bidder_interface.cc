@@ -332,7 +332,7 @@ void HttpBidderInterface::routerFormat(OpenRTB::Bid const & bid, Bid & theBid,
         find_if(begin(bidders), end(bidders),
                 [&](const pair<string, BidInfo> &bidder)
         {
-            std::string agents = bidder.first;
+            std::string agent = bidder.first;
             /* Since it is possible to delete a configuration from the REST interface of
              * the agent configuration service, the user might delete the configuration
              * while some requests for this configuration are already in flight. When
@@ -348,13 +348,9 @@ void HttpBidderInterface::routerFormat(OpenRTB::Bid const & bid, Bid & theBid,
              * for a configuration that has been deleted will trigger a logging message.
              * We will return a 204 for these requests
              */
-            auto agentIt = router->agents.find(agents);
-            if (agentIt == std::end(router->agents)) {
-                return false;
-            }
-            const auto &info = agentIt->second;
-            ExcAssert(info.config);
-            return info.config->externalId == externalId;
+            auto entry = router->getAgentEntry(agent);
+            if (!entry.valid()) return false;
+            return entry.config->externalId == externalId;
         });
 
         if (it == end(bidders)) {
