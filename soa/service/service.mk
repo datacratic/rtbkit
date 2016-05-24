@@ -41,6 +41,7 @@ LIBSERVICES_SOURCES := \
 	passive_endpoint.cc \
 	chunked_http_endpoint.cc \
 	epoller.cc \
+	epoll_loop.cc \
 	http_header.cc \
 	port_range_service.cc \
 	service_base.cc \
@@ -101,6 +102,7 @@ LIBCLOUD_LINK := crypto++ curlpp utils arch types tinyxml2 services ssh2 boost_f
 
 
 $(eval $(call library,cloud,$(LIBCLOUD_SOURCES),$(LIBCLOUD_LINK)))
+$(eval $(call python_addon,py_cloud,cloud_py.cc,cloud))
 
 
 LIBREDIS_SOURCES := \
