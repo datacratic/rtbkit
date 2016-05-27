@@ -14,8 +14,7 @@ LIBLOGGER_LINK := \
 
 $(eval $(call library,logger,$(LIBLOGGER_SOURCES),$(LIBLOGGER_LINK)))
 
-$(eval $(call nodejs_addon,logger,logger_js.cc filter_js.cc,logger js sigslot))
-
+$(eval $(call nodejs_addon,logger,logger_js.cc filter_js.cc,logger sigslot js))
 
 LIBLOG_METRICS_SOURCES := \
     kvp_logger_interface.cc easy_kvp_logger.cc logger_metrics_interface.cc \
