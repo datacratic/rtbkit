@@ -163,6 +163,11 @@ bucket_dist_reduced(vector<float> & result,
                            i, result[i], reinterpret_as_int(result[i]),
                            bucket_sizes[i]) << endl;
     }
+
+    // Pushing the highest score just a little bit further so we make sure to
+    // include the highest scores in the last bucket below
+    float highest_score = (freqs.end()-1)->first*1.0000001;
+    result.push_back(highest_score);
 }
 
 #if 0
