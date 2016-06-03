@@ -62,6 +62,10 @@ struct AdXExchangeConnector: public HttpExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        return exchangeNameString();
+    }
+
     void init();
 
     virtual std::shared_ptr<BidRequest>

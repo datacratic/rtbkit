@@ -119,6 +119,13 @@ struct ExchangeConnector: public ServiceBase {
     */
     virtual std::string exchangeName() const = 0;
 
+    /** Return the name of the parser that should be used.
+    */
+    virtual std::string parserName() const {
+        return exchangeName();
+    };
+
+
     /** Return the win cost model for the bid of an agent
     */
     virtual WinCostModel getWinCostModel(Auction const & auction,

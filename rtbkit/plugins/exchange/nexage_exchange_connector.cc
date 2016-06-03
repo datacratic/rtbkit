@@ -185,7 +185,7 @@ parseBidRequest(HttpAuctionHandler & connection,
                 const HttpHeader & header,
                 const std::string & payload) {
     std::shared_ptr<BidRequest> res;
-//
+
     // Check for JSON content-type
     if (header.contentType != "application/json") {
         connection.sendErrorResponse("non-JSON request");
@@ -193,10 +193,7 @@ parseBidRequest(HttpAuctionHandler & connection,
     }
 
     // Parse the bid request
-    // Nexage used not to send x-openrtb-version but they're now at 2.2
-    // source : http://www.nexage.com/resource-center/openrtb-2-2-technical-reference/
-    ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-    res.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(context, exchangeName(), exchangeName()));
+    res.reset(BidRequest::parse(parserName(), payload));
 
     return res;
 }
@@ -325,7 +322,11 @@ using namespace RTBKIT;
 struct AtInit {
     AtInit() {
         ExchangeConnector::registerFactory<NexageExchangeConnector>();
+
+        PluginInterface<BidRequest>::registerPlugin("nexage_2.2", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(request,
+                NexageExchangeConnector::exchangeNameString(), NexageExchangeConnector::exchangeNameString());
+        });
     }
 } atInit;
 }
-

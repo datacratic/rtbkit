@@ -99,10 +99,7 @@ parseBidRequest(HttpAuctionHandler & connection,
     }
 
     // Parse the bid request
-    ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-    res.reset(FbxBidRequestParser::parseBidRequest(context,
-                                                   exchangeName(),
-                                                   exchangeName()));
+    res.reset(BidRequest::parse(parserName(), payload));
     return res;
 }
 

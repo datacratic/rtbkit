@@ -119,20 +119,14 @@ parseBidRequest(HttpAuctionHandler & connection,
     // Check it's version
     string openRtbVersion = it->second;
     float version = atof(openRtbVersion.c_str());
-    cerr << "version" << version << endl;
     if (openRtbVersion != "2.0" && version < 2.0 ) {
         connection.sendErrorResponse("expected OpenRTB version 2.0 or higher; got " + openRtbVersion);
         return res;
     }
 
-    cerr << "got request" << endl << header << endl << payload << endl;
-
     // Parse the bid request
-    ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-    res.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion)->parseBidRequest(context, exchangeName(), exchangeName()));
+    res.reset(BidRequest::parse(parserName() + "_" + openRtbVersion, payload));
         
-    cerr << res->toJson() << endl;
-
     return res;
 }
 
@@ -146,7 +140,6 @@ getTimeAvailableMs(HttpAuctionHandler & connection,
     static const string toFind = "\"tmax\":";
     string::size_type pos = payload.find(toFind);
     if (pos == string::npos) {
-        cerr << "tmax not found in request, using default value" << endl;
         return 100.0;
 		}
         
@@ -286,7 +279,21 @@ namespace {
     struct AtInit {
         AtInit() {
             ExchangeConnector::registerFactory<GumgumExchangeConnector>();
+
+            PluginInterface<BidRequest>::registerPlugin("gumgum_2.0", [](const std::string& request) {
+                return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request,
+                    GumgumExchangeConnector::exchangeNameString(), GumgumExchangeConnector::exchangeNameString());
+            });
+
+            PluginInterface<BidRequest>::registerPlugin("gumgum_2.1", [](const std::string& request) {
+                return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request,
+                    GumgumExchangeConnector::exchangeNameString(), GumgumExchangeConnector::exchangeNameString());
+            });
+
+            PluginInterface<BidRequest>::registerPlugin("gumgum_2.2", [](const std::string& request) {
+                return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(request,
+                    GumgumExchangeConnector::exchangeNameString(), GumgumExchangeConnector::exchangeNameString());
+            });
         }
     } atInit;
 }
-

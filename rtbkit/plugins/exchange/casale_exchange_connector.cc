@@ -7,6 +7,7 @@
 
 #include "casale_exchange_connector.h"
 #include "soa/utils/generic_utils.h"
+#include "rtbkit/plugins/bid_request/openrtb_bid_request_parser.h"
 
 using namespace Datacratic;
 
@@ -226,6 +227,18 @@ namespace {
 struct Init {
     Init() {
         RTBKIT::ExchangeConnector::registerFactory<CasaleExchangeConnector>();
+
+        RTBKIT::PluginInterface<RTBKIT::BidRequest>::registerPlugin("casale_2.1", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request,
+                RTBKIT::CasaleExchangeConnector::exchangeNameString(),
+                RTBKIT::CasaleExchangeConnector::exchangeNameString());
+        });
+
+        RTBKIT::PluginInterface<RTBKIT::BidRequest>::registerPlugin("casale_2.2", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(request,
+                CasaleExchangeConnector::exchangeNameString(),
+                CasaleExchangeConnector::exchangeNameString());
+        });
     }
 };
 

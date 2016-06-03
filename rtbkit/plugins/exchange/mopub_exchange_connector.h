@@ -32,6 +32,12 @@ struct MoPubExchangeConnector: public OpenRTBExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        // TODO Check with MoPub if they send the x-openrtb-version header
+        // and if they support 2.2 now.
+        return "mopub_2.1";
+    }
+
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler & connection,
                     const HttpHeader & header,

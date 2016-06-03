@@ -46,9 +46,7 @@ parseBidRequest(HttpAuctionHandler & connection,
         std::cerr << "*** THEIRS :\n" << Json::parse(payload).toString() << std::endl;
     }
 #endif
-    ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-    auto rc = AppNexusBidRequestParser::parseBidRequest(context,
-              exchangeNameString(), exchangeNameString()) ;
+    std::shared_ptr<BidRequest>rc(BidRequest::parse(parserName(), payload));
 
     if (!rc)
         connection.sendErrorResponse("appnexus connector: bad JSON fed");

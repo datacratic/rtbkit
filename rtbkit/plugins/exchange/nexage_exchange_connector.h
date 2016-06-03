@@ -32,6 +32,12 @@ struct NexageExchangeConnector: public OpenRTBExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        // Nexage used not to send x-openrtb-version but they're now at 2.2
+        // source : http://www.nexage.com/resource-center/openrtb-2-2-technical-reference/
+        return "nexage_2.2";
+    }
+
     void init();
 
     virtual std::shared_ptr<BidRequest>

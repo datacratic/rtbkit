@@ -7,11 +7,13 @@
 
 
 #include <chrono>
+#include <functional>
 
 #include "appnexus_parsing.h"
 #include "appnexus_bid_request.h"
 #include "soa/jsoncpp/value.h"
 #include "jml/utils/exc_assert.h"
+#include "rtbkit/common/plugin_interface.h"
 
 
 using namespace std;
@@ -48,12 +50,12 @@ namespace RTBKIT {
 /*****************************************************************************/
 /* APPNEXUS BID REQUEST PARSER                                                */
 /*****************************************************************************/
-shared_ptr<BidRequest>
+unique_ptr<BidRequest>
 fromAppNexus(const AppNexus::BidRequest & req_b,
              const std::string & provider,
              const std::string & exchange)
 {
-    shared_ptr<BidRequest> rv (new BidRequest);
+    unique_ptr<BidRequest> rv (new BidRequest);
     auto const& req = req_b.bidRequest;
 
     rv->timestamp = std::move(Datacratic::Date::parse(req.timestamp.c_str(),
@@ -197,7 +199,7 @@ fromAppNexus(const AppNexus::BidRequest & req_b,
     return rv;
 }
 
-shared_ptr<BidRequest>
+unique_ptr<BidRequest>
 AppNexusBidRequestParser::
 parseBidRequest(const std::string & jsonValue,
                 const std::string & provider,
@@ -215,12 +217,12 @@ parseBidRequest(const std::string & jsonValue,
         cerr << "\n\n\n/*** WARNING!!! coudln't parse the following element: "
              << str
              << " INPUT IGNORED!!! ***/\n\n\n";
-        return shared_ptr<BidRequest>();
+        return unique_ptr<BidRequest>();
     }
     return fromAppNexus(req, provider, exchange);
 }
 
-shared_ptr<BidRequest>
+unique_ptr<BidRequest> 
 AppNexusBidRequestParser::
 parseBidRequest(ML::Parse_Context & context,
                 const std::string & provider,
@@ -238,10 +240,25 @@ parseBidRequest(ML::Parse_Context & context,
         cerr << "\n\n\n/*** WARNING!!! coudln't parse the following element: "
              << str
              << " INPUT IGNORED!!! ***/\n\n\n";
-        return shared_ptr<BidRequest>();
+        return unique_ptr<BidRequest>();
     }
     return fromAppNexus(req, provider, exchange);
 }
 
 } // namespace RTBKIT
 
+
+namespace {
+
+struct AtInit {
+    AtInit()
+    {
+        RTBKIT::PluginInterface<RTBKIT::BidRequest>::registerPlugin("appnexus",
+                [](const std::string& request) {
+                    return RTBKIT::AppNexusBidRequestParser::parseBidRequest(
+                        request, "appnexus", "appnexus").release();
+        });
+    }
+} atInit;
+
+}

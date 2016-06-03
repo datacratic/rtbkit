@@ -34,6 +34,10 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        return "bidswitch_2.2";
+    }
+
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler & connection,
                     const HttpHeader & header,

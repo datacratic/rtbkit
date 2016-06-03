@@ -97,25 +97,12 @@ PluginTable<T>::getPlugin(const std::string& name, const std::string& libSuffix)
         throw ML::Exception("'name' parameter cannot be empty");
     }
 
-    string libPath, plugName;
-    vector<string> libAndPlug = ML::split(name,'.');
-
-    if (libAndPlug.size() > 2)
-        throw ML::Exception("Error in %s: Library and plugin name can only "
-           "contain two dot separated parameters and no more",name.c_str());
-
-    if (libAndPlug.size() == 2) {
-        plugName = libAndPlug[1];
-        libPath = "lib" + libAndPlug[0] + ".so";
-    } else {
-        plugName = name;
-        libPath = "lib" + name + "_" + libSuffix + ".so";
-    }
+    auto libPath = "lib" + name + "_" + libSuffix + ".so";
 
     // check if it already exists
     {
         std::lock_guard<std::mutex> guard(mu);
-        auto iter = table.find(plugName);
+        auto iter = table.find(name);
         if(iter != table.end())
             return iter->second;
     }
@@ -130,7 +117,7 @@ PluginTable<T>::getPlugin(const std::string& name, const std::string& libSuffix)
     // check if it is created
     {
         std::lock_guard<std::mutex> guard(mu);
-        auto iter = table.find(plugName);
+        auto iter = table.find(name);
         if(iter != table.end())
             return iter->second;
     }

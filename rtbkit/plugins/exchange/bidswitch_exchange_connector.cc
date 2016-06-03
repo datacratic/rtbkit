@@ -359,8 +359,7 @@ parseBidRequest(HttpAuctionHandler & connection,
     }
 
     // Parse the bid request
-    ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-    res.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(context, exchangeName(), exchangeName()));
+    res.reset(BidRequest::parse(parserName(), payload));
 
     //Parsing "ssp" filed
     if (res!=nullptr){
@@ -638,7 +637,11 @@ struct AtInit {
     AtInit() {
         ExchangeConnector::registerFactory<BidSwitchExchangeConnector>();
         FilterBase::registerFactory<BidSwitchWSeatFilter>();
+
+        PluginInterface<BidRequest>::registerPlugin("bidswitch_2.2", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(request,
+                BidSwitchExchangeConnector::exchangeNameString(), BidSwitchExchangeConnector::exchangeNameString());
+        });
     }
 } atInit;
 }
-

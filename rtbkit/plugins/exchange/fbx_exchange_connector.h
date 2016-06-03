@@ -32,6 +32,10 @@ struct FBXExchangeConnector : public HttpExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        return "fbx";
+    }
+
     std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler & connection,
                     const HttpHeader & header,

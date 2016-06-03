@@ -28,6 +28,10 @@ struct CasaleExchangeConnector : public OpenRTBExchangeConnector {
         return exchangeNameString();
     }
 
+    std::string parserName() const {
+        return "casale";
+    }
+
     struct CampaignInfo {
         static constexpr uint64_t MaxSeatValue = 16777215;
         ///< ID of the Casale exchange seat if DSP is used by multiple agencies

@@ -34,6 +34,10 @@ struct AppNexusExchangeConnector : public HttpExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        return exchangeNameString();
+    }
+
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler & connection,
                     const HttpHeader & header,

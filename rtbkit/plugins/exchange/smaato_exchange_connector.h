@@ -30,6 +30,10 @@ struct SmaatoExchangeConnector: public OpenRTBExchangeConnector {
       return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        return "smaato";
+    }
+
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler & connection,
                     const HttpHeader & header,
@@ -46,7 +50,7 @@ struct SmaatoExchangeConnector: public OpenRTBExchangeConnector {
 			      const HttpHeader & header) {
       return 35.0;
     }
-    
+
     struct CampaignInfo {
       Id seat;                ///< ID of the exchange seat
     };

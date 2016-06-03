@@ -8,6 +8,7 @@
 #include "fbx.h"
 #include "fbx_parsing.h"
 #include "jml/utils/json_parsing.h"
+#include "rtbkit/common/plugin_interface.h"
 
 using namespace std;
 
@@ -84,3 +85,17 @@ parseBidRequest(ML::Parse_Context & context,
 }
 
 } // namespace RTBKIT
+
+namespace {
+
+struct AtInit {
+    AtInit()
+    {
+        RTBKIT::PluginInterface<RTBKIT::BidRequest>::registerPlugin("fbx",
+                std::bind< RTBKIT::BidRequest* (*) (const std::string&, const std::string&, const std::string&) > (
+                        RTBKIT::FbxBidRequestParser::parseBidRequest,
+                        std::placeholders::_1, "fbx", "fbx"));
+    }
+} atInit;
+
+}

@@ -219,10 +219,7 @@ parseBidRequest(HttpAuctionHandler & connection,
     }
 
     // Parse the bid request
-    // TODO Check with MoPub if they send the x-openrtb-version header
-    // and if they support 2.2 now.
-    ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-    res.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(context, exchangeName(), exchangeName()));
+    res.reset(BidRequest::parse(parserName(), payload));
 
     // get restrictions enforced by MoPub.
     //1) blocked category
@@ -438,6 +435,12 @@ using namespace RTBKIT;
 struct AtInit {
     AtInit() {
         ExchangeConnector::registerFactory<MoPubExchangeConnector>();
+
+        PluginInterface<BidRequest>::registerPlugin("mopub_2.1", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request,
+                MoPubExchangeConnector::exchangeNameString(), MoPubExchangeConnector::exchangeNameString());
+        });
+
     }
 } atInit;
 }

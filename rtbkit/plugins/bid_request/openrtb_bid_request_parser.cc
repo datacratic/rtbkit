@@ -14,20 +14,18 @@ using namespace std;
 
 namespace RTBKIT {
 
-    Logging::Category OpenRTBBidRequestLogs::trace("OpenRTB Bid Request Parser");
-    Logging::Category OpenRTBBidRequestLogs::error("[ERROR] OpenRTB Bid Request Parser error", OpenRTBBidRequestLogs::trace);
-    Logging::Category OpenRTBBidRequestLogs::trace22("OpenRTB Bid Request 2.2 Parser ");
-    Logging::Category OpenRTBBidRequestLogs::error22("[ERROR] OpenRTB Bid Request Parser 2.2 error", OpenRTBBidRequestLogs::trace22);
+Logging::Category OpenRTBBidRequestLogs::trace("OpenRTB Bid Request Parser");
+Logging::Category OpenRTBBidRequestLogs::error("[ERROR] OpenRTB Bid Request Parser error", OpenRTBBidRequestLogs::trace);
+Logging::Category OpenRTBBidRequestLogs::trace22("OpenRTB Bid Request 2.2 Parser ");
+Logging::Category OpenRTBBidRequestLogs::error22("[ERROR] OpenRTB Bid Request Parser 2.2 error", OpenRTBBidRequestLogs::trace22);
 
-    static DefaultDescription<OpenRTB::BidRequest> desc;
+static DefaultDescription<OpenRTB::BidRequest> desc;
 
-namespace { const char* DefaultVersion = "2.2"; }
 
 std::unique_ptr<OpenRTBBidRequestParser>
 OpenRTBBidRequestParser::
 openRTBBidRequestParserFactory(const std::string & version) 
 {
-
     if(version == "2.0" || version == "2.1") {
         return std::unique_ptr<OpenRTBBidRequestParser2point1>(new OpenRTBBidRequestParser2point1());
     } else if(version == "2.2") {
@@ -748,11 +746,21 @@ namespace {
 struct AtInit {
     AtInit()
     {
-        auto parser = [](const std::string& request) {
-            auto parser = OpenRTBBidRequestParser::openRTBBidRequestParserFactory(DefaultVersion);
-            return parser->parseBidRequest(request, "", "");
-        };
-        PluginInterface<BidRequest>::registerPlugin("openrtb", parser);
+        PluginInterface<BidRequest>::registerPlugin("openrtb", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(request, "", "");
+        });
+
+        PluginInterface<BidRequest>::registerPlugin("openrtb_2.0", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request, "", "");
+        });
+
+        PluginInterface<BidRequest>::registerPlugin("openrtb_2.1", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request, "", "");
+        });
+
+        PluginInterface<BidRequest>::registerPlugin("openrtb_2.2", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.2")->parseBidRequest(request, "", "");
+        });
     }
 } atInit;
 

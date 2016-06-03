@@ -35,17 +35,14 @@ parseBidRequest(HttpAuctionHandler &connection,
                 const HttpHeader &header,
                 const std::string &payload)
 {
-    auto request = 
-        OpenRTBExchangeConnector::parseBidRequest(connection, header, payload);
-
+    auto request = OpenRTBExchangeConnector::parseBidRequest(connection, header, payload);
 
     if (request != nullptr) {
 
         std::string exchange;
         if (request->ext.isMember("exchange")) {
             exchange = request->ext["exchange"].asString();
-        }
-        else {
+        } else {
             exchange = exchangeName();
         }
         request->exchange = std::move(exchange);

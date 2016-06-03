@@ -59,32 +59,6 @@ parseBidRequest(HttpAuctionHandler & connection,
     if (found != string::npos) {
       connection.dropAuction("nobid");
       return none;
-    }   
-
-    // Check for JSON content-type
-    if (!header.contentType.empty()) {
-        static const std::string delimiter = ";";
-
-        std::string::size_type posDelim = header.contentType.find(delimiter);
-        std::string content;
-
-        if(posDelim == std::string::npos)
-            content = header.contentType;
-        else {
-            content = header.contentType.substr(0, posDelim);
-            #if 0
-            std::string charset = header.contentType.substr(posDelim, header.contentType.length());
-            #endif
-        }
-
-        if(content != "application/json") {
-            connection.sendErrorResponse("UNSUPPORTED_CONTENT_TYPE", "The request is required to use the 'Content-Type: application/json' header");
-            return none;
-        }
-    }
-    else {
-        connection.sendErrorResponse("MISSING_CONTENT_TYPE_HEADER", "The request is missing the 'Content-Type' header");
-        return none;
     }
 
     // Check for the x-openrtb-version header
@@ -101,42 +75,7 @@ parseBidRequest(HttpAuctionHandler & connection,
         return none;
     }
 
-    if(payload.empty()) {
-        this->recordHit("error.emptyBidRequest");
-        connection.sendErrorResponse("EMPTY_BID_REQUEST", "The request is empty");
-        return none;
-    }
-
-    // Parse the bid request
-    std::shared_ptr<BidRequest> result;
-    try {
-        ML::Parse_Context context("Bid Request", payload.c_str(), payload.size());
-        result.reset(OpenRTBBidRequestParser::openRTBBidRequestParserFactory(openRtbVersion)->parseBidRequest(context,
-                                                                                              exchangeName(),
-                                                                                              exchangeName()));
-    }
-    catch(ML::Exception const & e) {
-        this->recordHit("error.parsingBidRequest");
-        throw;
-    }
-    catch(...) {
-        throw;
-    }
-
-    // Check if we want some reporting
-    auto verbose = header.headers.find("x-openrtb-verbose");
-    if(header.headers.end() != verbose) {
-        if(verbose->second == "1") {
-            if(!result->auctionId.notNull()) {
-                connection.sendErrorResponse("MISSING_ID", "The bid request requires the 'id' field");
-                return none;
-            }
-        }
-    }
-    
-
-
-    return result;
+    return OpenRTBExchangeConnector::parseBidRequest(connection, header, payload);
 }
 
 
@@ -310,7 +249,13 @@ namespace {
  
   struct Init {
     Init() {
-      ExchangeConnector::registerFactory<SmaatoExchangeConnector>();
+        ExchangeConnector::registerFactory<SmaatoExchangeConnector>();
+
+        // Smaato only supports 2.0 for now.
+        PluginInterface<BidRequest>::registerPlugin("smaato_2.0", [](const std::string& request) {
+            return OpenRTBBidRequestParser::openRTBBidRequestParserFactory("2.1")->parseBidRequest(request,
+                SmaatoExchangeConnector::exchangeNameString(), SmaatoExchangeConnector::exchangeNameString());
+        });
     }
   } init;
 }

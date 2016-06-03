@@ -171,6 +171,10 @@ struct RTBKitExchangeConnector : public OpenRTBExchangeConnector {
         return exchangeNameString();
     }
 
+    virtual std::string parserName() const {
+        return "openrtb";
+    }
+
     virtual std::shared_ptr<BidRequest>
     parseBidRequest(HttpAuctionHandler &connection,
                     const HttpHeader &header,

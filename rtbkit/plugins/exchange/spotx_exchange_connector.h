@@ -27,8 +27,12 @@ struct SpotXExchangeConnector : public OpenRTBExchangeConnector {
         return "spotx";
     }
 
-    std::string exchangeName() const {
+    virtual std::string exchangeName() const {
         return exchangeNameString();
+    }
+
+    virtual std::string parserName() const {
+        return "spotx";
     }
 
     struct CampaignInfo {
