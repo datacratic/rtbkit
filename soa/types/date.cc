@@ -8,7 +8,9 @@
 #include <cmath>
 #include <limits>
 #include "jml/arch/format.h"
+#if NODEJS_ENABLED
 #include "soa/js/js_value.h"
+#endif // NODEJS_ENABLED
 #include "soa/jsoncpp/json.h"
 #include <cmath>
 #include "ace/Time_Value.h"
@@ -107,11 +109,13 @@ Date(int year, int month, int day,
 {
 }
 
+#if NODEJS_ENABLED
 Date::
 Date(JS::JSValue & value)
 {
     throw Exception("Date::Date(JSValue): not done");
 }
+#endif // NODEJS_ENABLED
 
 Date::
 Date(const Json::Value & value)
@@ -1187,7 +1191,7 @@ toTm() const
     errno = 0;
     time_t t = toTimeT();
     if (gmtime_r(&t, &result) == 0)
-        throw ML::Exception("error converting time: t = %lld",
+        throw ML::Exception("error converting time: t = %lld (%s)",
                             (long long)t,
                             strerror(errno));
     return result;
