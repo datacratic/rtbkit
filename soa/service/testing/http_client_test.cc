@@ -445,26 +445,6 @@ BOOST_AUTO_TEST_CASE( test_http_client_stress_test )
             BOOST_CHECK_EQUAL(errorCode, HttpClientError::None);
             BOOST_CHECK_EQUAL(status, 200);
 
-            int bodyNbr;
-            try {
-                bodyNbr = stoi(body);
-            }
-            catch (...) {
-                ::fprintf(stderr, "exception when parsing body: %s\n",
-                          body.c_str());
-                throw;
-            }
-
-            int lowerLimit = std::max(0, (numResponses - numParallel));
-            int upperLimit = std::min(maxReqs, (numResponses + numParallel));
-            if (bodyNbr < lowerLimit || bodyNbr > upperLimit) {
-                throw ML::Exception("number of returned server requests "
-                                    " is anomalous: %d is out of range"
-                                    " [%d,*%d,%d]",
-                                    bodyNbr, lowerLimit,
-                                    numResponses, upperLimit);
-            }
-
             if (numResponses == numReqs) {
                 ML::futex_wake(numResponses);
             }
@@ -672,7 +652,6 @@ BOOST_AUTO_TEST_CASE( test_http_client_connection_closed )
     auto proxies = make_shared<ServiceProxies>();
 
     HttpGetService service(proxies);
-    service.portToUse = 8080;
     service.addResponse("GET", "/", 200, "coucou");
     service.start();
     service.waitListening();
@@ -707,14 +686,21 @@ BOOST_AUTO_TEST_CASE( test_http_client_connection_closed )
         loop.removeSourceSync(client.get());
     }
 
-    /* response sent, no "Connection: close" header */
+    /* Response sent, no "Connection: close" header. Performed multiple times
+     * to ensure that extranenous close events are ignored appropriately when
+     * the response was received and the actual connection released.
+     * Unstable test due to the very specific condition during which the error
+     * occurs: no request must be queued when the request is done processing
+     * but one must be present when the closing of the connection is being
+     * handled. */
+    cerr << "* no connection-close\n";
+    for (int i = 0; i < 10; i++)
     {
-        cerr << "* no connection-close\n";
         auto client = make_shared<HttpClient>(baseUrl, 1);
         loop.addSource("client", client);
         client->waitConnectionState(AsyncEventSource::CONNECTED);
 
-        int done(0);
+        atomic<int> done(0);
         auto onDone = [&] (const HttpRequest & rq,
                            HttpClientError errorCode, int status,
                            string && headers, string && body) {
@@ -722,13 +708,14 @@ BOOST_AUTO_TEST_CASE( test_http_client_connection_closed )
             ML::futex_wake(done);
         };
         auto cbs = make_shared<HttpClientSimpleCallbacks>(onDone);
-        client->get("/quiet-connection-close", cbs);
-        client->get("/", cbs);
-
-        while (done < 2) {
-            ML::futex_wait(done, done);
+        for (size_t i = 0; i < 3; i++) {
+            client->post("/quiet-connection-close", cbs, string("no data"));
+            while (done < i) {
+                ML::futex_wait(done, done);
+            }
         }
 
+        ML::sleep(0.5);
         loop.removeSourceSync(client.get());
     }
 

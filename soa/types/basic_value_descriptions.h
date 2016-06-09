@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <limits>
 
 #include "value_description.h"
@@ -36,7 +37,7 @@ struct DefaultDescription<Datacratic::Id>
             val->val2 == 0 && val->val1 <= std::numeric_limits<int32_t>::max()) {
             context.writeInt(val->val1);
         } else {
-            context.writeString(val->toString());
+            context.writeStringUtf8(Utf8String(val->toString()));
         }
     }
 
@@ -51,7 +52,7 @@ struct StringIdDescription: public DefaultDescription<Datacratic::Id> {
     virtual void printJsonTyped(const Datacratic::Id * val,
                                 JsonPrintingContext & context) const
     {
-        context.writeString(val->toString());
+        context.writeStringUtf8(Utf8String(val->toString()));
     }
 };
 
@@ -1096,7 +1097,7 @@ struct DefaultDescription<TaggedFloat>
 
     virtual bool isDefaultTyped(const TaggedFloat * val) const
     {
-        return isnan(val->val);
+        return std::isnan(val->val);
     }
 };
 

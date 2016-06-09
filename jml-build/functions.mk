@@ -42,12 +42,13 @@ endif
 # Command to hash the name of a command.
 NOTHING :=
 SPACE := $(NOTHING) $(NOTHING)
+DOLLAR := $$
 
 hash_command2 = $(wordlist 1,1,$(shell echo $(strip $(1)) | md5sum))
 
 hash_command1 = $(eval HASH:=$(call hash_command2,$(1)))$(shell echo $(1)_hash:=$(HASH) >> .make_hash_cache)$(eval $(1)_hash:=$(HASH))
 
-command_key = $(subst =,_,$(subst $(SPACE),_,$(strip $(1))))
+command_key = $(subst =,_,$(subst $(SPACE),_,$(subst $(DOLLAR),_,$(subst \,,$(strip $(1))))))
 
 hash_command = $(eval KEY=$(call command_key,$(1)))$(if $($(KEY)_hash),,$(call hash_command1,$(KEY)))$(if $($(KEY)_hash),,$(error hash_command1 didnt set variable $(KEY)_hash))$($(KEY)_hash)
 
@@ -281,6 +282,7 @@ LIB_$(1)_BUILD_NAME := $(if $(6),$(6),"            $(COLOR_YELLOW)[SO]$(COLOR_RE
 OBJFILES_$(1):=$$(foreach file,$(addsuffix .lo,$(basename $(2:%=$(CWD)/%))),$$(BUILD_$$(file)_OBJ))
 
 LINK_$(1)_COMMAND:=$$(CXX) $$(CXXFLAGS) $$(CXXLIBRARYFLAGS) $$(CXXNODEBUGFLAGS) -o $(LIB)/$$(tmpLIBNAME)$$(so) $$(OBJFILES_$(1)) $$(foreach lib,$(3), -l$$(lib))
+$(if $(trace),$$(warning LINK_$(1)_COMMAND := "$$(LINK_$(1)_COMMAND)"))
 
 LINK_$(1)_HASH := $$(call hash_command,$$(LINK_$(1)_COMMAND))
 LIB_$(1)_SO   := $(TMPBIN)/$$(tmpLIBNAME).$$(LINK_$(1)_HASH)$$(so)
@@ -306,12 +308,25 @@ $$(LIB_$(1)_SO):	$$(dir $$(LIB_$(1)_SO))/.dir_exists $$(OBJFILES_$(1)) $$(foreac
 	$$(if $(verbose_build),@echo $$(LINK_$(1)_COMMAND2),@echo $$(LIB_$(1)_BUILD_NAME) $$(LIB_$(1)_FILENAME))
 	@$$(LINK_$(1)_COMMAND2)
 
+$$(tmpLIBNAME): $(LIB)/$$(tmpLIBNAME)$$(so)
+.PHONY:	$$(tmpLIBNAME)
+
 LIB_$(1)_DEPS := $(LIB)/$$(tmpLIBNAME)$$(so)
 
 libraries: $(LIB)/$$(tmpLIBNAME)$$(so)
 endif
 endef
 
+# add a forward dependency to a library, ie it depends upon a library defined further forwards
+# in the makefile.
+# $(1): name of the library
+# $(2): name of all libraries it has a forward dependency on
+define library_forward_dependency
+ifneq ($(PREMAKE),1)
+$$(if $$(LIB_$(1)_SO),,$$(error unknown library $(1) for forward dep))
+$$(LIB_$(1)_SO): $$(foreach lib,$(2), $(LIB)/lib$$(lib)$$(so))
+endif
+endef
 
 # add a program
 # $(1): name of the program
@@ -334,7 +349,7 @@ $(1)_OBJFILES:=$$(foreach file,$$(addsuffix .lo,$$(basename $$($(1)_PROGFILES:%=
 #$$(warning $(1)_OBJFILES = $$($(1)_OBJFILES))
 #$$(warning $(1)_PROGFILES = "$$($(1)_PROGFILES)")
 
-LINK_$(1)_COMMAND:=$$(CXX) $$(CXXFLAGS) $$(CXXEXEFLAGS) $$(CXXNODEBUGFLAGS) -o $(BIN)/$(1) -lexception_hook $(MALLOC_LIBRARY) -L$(LIB) -ldl $$($(1)_OBJFILES) $$(foreach lib,$(2), -l$$(lib)) $$(CXXEXEPOSTFLAGS)
+LINK_$(1)_COMMAND:=$$(CXX) $$(CXXFLAGS) $$(CXXEXEFLAGS) $$(CXXNODEBUGFLAGS) -o $(BIN)/$(1) -lexception_hook -L$(LIB) -ldl $$($(1)_OBJFILES) $$(foreach lib,$(2), -l$$(lib)) $$(CXXEXEPOSTFLAGS)
 
 
 $(BIN)/$(1):	$(BIN)/.dir_exists $$($(1)_OBJFILES) $$(foreach lib,$(2),$$(LIB_$$(lib)_DEPS)) $$(if $$(HAS_EXCEPTION_HOOK),$$(LIB)/libexception_hook.so)
@@ -381,7 +396,7 @@ $$(eval $$(call add_sources,$(1).cc))
 
 $(1)_OBJFILES:=$$(BUILD_$(CWD)/$(1).lo_OBJ)
 
-LINK_$(1)_COMMAND:=$$(CXX) $$(CXXFLAGS) $$(CXXEXEFLAGS) $$(CXXNODEBUGFLAGS) -o $(TESTS)/$(1) -lexception_hook $(MALLOC_LIBRARY) -ldl  $$($(1)_OBJFILES) $$(foreach lib,$(2), -l$$(lib)) $(if $(findstring boost,$(3)), -lboost_unit_test_framework) $$(CXXEXEPOSTFLAGS)
+LINK_$(1)_COMMAND:=$$(CXX) $$(CXXFLAGS) $$(CXXEXEFLAGS) $$(CXXNODEBUGFLAGS) -o $(TESTS)/$(1) -lexception_hook -ldl  $$($(1)_OBJFILES) $$(foreach lib,$(2), -l$$(lib)) $(if $(findstring boost,$(3)), -lboost_unit_test_framework) $$(CXXEXEPOSTFLAGS)
 
 $(TESTS)/$(1):	$(TESTS)/.dir_exists $(TEST_TMP)/.dir_exists  $$($(1)_OBJFILES) $$(foreach lib,$(2),$$(LIB_$$(lib)_DEPS)) $$(if $$(HAS_EXCEPTION_HOOK),$$(LIB)/libexception_hook.so)
 	$$(if $(verbose_build),@echo $$(LINK_$(1)_COMMAND),@echo "           $(COLOR_BLUE)[BIN]$(COLOR_RESET) $(1)")
