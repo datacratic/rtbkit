@@ -166,8 +166,10 @@ PYTHON_$(1)_DEPS := $(PYTHON_BIN_PATH)/$(1) $$(foreach pymod,$(3),$$(PYTHON_$$(p
 
 .PHONY: run_$(1)
 
+# Do not source the venv here. - JR
+# literate_doc calls this target and it will leak childs for not-yet-known reasons
 run_$(1):	$(PYTHON_BIN_PATH)/$(1)
-	$(VIRTUALENV_SOURCE_CMD) && $(PYTHON) $(PYTHON_ARGS) $(PYTHON_BIN_PATH)/$(1)  $($(1)_ARGS)
+	$(PYTHON) $(PYTHON_ARGS) $(PYTHON_BIN_PATH)/$(1)  $($(1)_ARGS)
 
 $(PYTHON_BIN_PATH)/$(1): $(CWD)/$(2) $(PYTHON_BIN_PATH)/.dir_exists $$(foreach pymod,$(3),$(TMPBIN)/$$(pymod)_pymod) $$(foreach pymod,$(3),$$(PYTHON_$$(pymod)_DEPS))
 	@echo "$(COLOR_BLUE)[PYTHON_PROGRAM]$(COLOR_RESET) $(1)"
