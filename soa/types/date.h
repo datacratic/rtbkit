@@ -30,11 +30,9 @@ using boost::posix_time::ptime;
 struct Opaque;
 
 #if NODEJS_ENABLED
-
 namespace JS {
 struct JSValue;
 } // namespace JS
-
 #endif // NODEJS_ENABLED
 
 
@@ -433,7 +431,6 @@ from_js_ref(const JSValue & val, Date *)
 }
 
 } // namespace JS
-
 #endif // NODEJS_ENABLED
 
 
