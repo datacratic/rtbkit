@@ -178,6 +178,7 @@ struct RTBKitExchangeConnector : public OpenRTBExchangeConnector {
 
     virtual void
     adjustAuction(std::shared_ptr<Auction>& auction) const;
+
 protected:
 
     virtual void

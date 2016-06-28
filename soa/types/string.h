@@ -140,7 +140,6 @@ std::ostream & operator << (std::ostream & stream, const Utf8String & str);
 
 IMPL_SERIALIZE_RECONSTITUTE(Utf8String);
 
-
 class Utf32String {
 public:
     typedef std::u32string::iterator iterator;

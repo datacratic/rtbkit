@@ -162,7 +162,13 @@ BOOST_AUTO_TEST_CASE( test_runner_callbacks )
     loop.start();
 
     auto & stdInSink = runner.getStdInSink();
-    runner.run({"build/x86_64/bin/runner_test_helper"},
+    char const * bin = getenv("BIN");
+    if(!bin) {
+        bin = "build/x86_64/bin";
+    }
+
+    std::string path = std::string(bin) + "/runner_test_helper";
+    runner.run({path},
                onTerminate, stdOutSink, stdErrSink);
     for (const string & command: commands) {
         while (!stdInSink.write(string(command))) {
@@ -208,7 +214,13 @@ BOOST_AUTO_TEST_CASE( test_runner_normal_exit )
         loop.start();
 
         auto & stdInSink = runner.getStdInSink();
-        runner.run({"build/x86_64/bin/runner_test_helper"},
+        char const * bin = getenv("BIN");
+        if(!bin) {
+            bin = "build/x86_64/bin";
+        }
+
+        std::string path = std::string(bin) + "/runner_test_helper";
+        runner.run({path},
                    onTerminate, nullSink, nullSink);
         for (const string & command: commands) {
             stdInSink.write(string(command));
@@ -239,7 +251,13 @@ BOOST_AUTO_TEST_CASE( test_runner_normal_exit )
         loop.start();
 
         auto & stdInSink = runner.getStdInSink();
-        runner.run({"build/x86_64/bin/runner_test_helper"},
+        char const * bin = getenv("BIN");
+        if(!bin) {
+            bin = "build/x86_64/bin";
+        }
+
+        std::string path = std::string(bin) + "/runner_test_helper";
+        runner.run({path},
                    onTerminate, nullSink, nullSink);
         for (const string & command: commands) {
             stdInSink.write(string(command));
@@ -387,7 +405,13 @@ BOOST_AUTO_TEST_CASE( test_runner_cleanup )
         auto stdOutSink = make_shared<CallbackInputSink>(onStdOut);
 
         auto & stdInSink = runner.getStdInSink();
-        runner.run({"build/x86_64/bin/runner_test_helper"},
+        char const * bin = getenv("BIN");
+        if(!bin) {
+            bin = "build/x86_64/bin";
+        }
+
+        std::string path = std::string(bin) + "/runner_test_helper";
+        runner.run({path},
                    onTerminate, stdOutSink, nullSink);
         for (const string & command: commands) {
             stdInSink.write(string(command));
@@ -468,8 +492,14 @@ test_runner_no_output_delay_helper(bool stdout)
     };
 
     auto & stdInSink = runner.getStdInSink();
+    char const * bin = getenv("BIN");
+    if(!bin) {
+        bin = "build/x86_64/bin";
+    }
+
+    std::string path = std::string(bin) + "/runner_test_helper";
     runner.run({"/usr/bin/stdbuf", "-o0",
-                "build/x86_64/bin/runner_test_helper"},
+                path},
                onTerminate, stdOutSink, stdErrSink);
     for (const string & command: commands) {
         while (!stdInSink.write(string(command))) {
