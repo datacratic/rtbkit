@@ -1,0 +1,87 @@
+2015-04-15  Remi Attab  <remi@datacratic.com>
+
+	* rtbkit/common: auction meta can now contain UTF-8 characters.
+	* rtbkit/router: bid probability drops can now be disabled.
+	* rtbkit/router: properly forwards per-bid meta down the pipeline.
+	* rtbkit/router: HTTPBidderInterface now supports a Datacratic format.
+	* rtbkit/router: more flexible configuration options for the HTTPBidderInterface.
+	* rtbkit/router: several fixes to the HTTPBidderInterface.
+	* rtbkit/router: exchange connector now calculates the 99th percentile on auction response.
+	* rtbkit/agents: the obscure filtered.total key was renamed to noBid.
+	* rtbkit/pal: various fixes for the PostAuctionProxy and event forwarder.
+	* rtbkit/pal: cleanup of the analytics events (breaks backwards compatibility).
+	* rtbkit/banker: refactoring of the banker client to allow for banker experimentations.
+	* rtbkit/adserver: added analytics support in the standard ad server connector.
+	* rtbkit/analytics: added support for several event types.
+	* rtbkit/mock: delayed events are now processed in the right order.
+	* rtbkit/adx: metadata is properly parsed when building the response.
+	* rtbkit/openrtb: ids are now always serialized as strings.
+	* rtbkit/openrtb: added missing fields to banner serialization.
+	* rtbkit/openrtb: video's MIME, Linearity and Protocol objects are now properly parsed.
+	* rtbkit/openrtb: parser now defaults to version 2.2
+	* rtbkit/openrtb: banner h and w arrays are now saved to the banner's ext field.
+	* rtbkit/openrtb: added validations surounding devide types.
+	* rtbkit/openrtb: parser is now registered with the rtbkit core.
+	* rtbkit/casale: bid price is now correctly interpreted as cents CPM.
+	* rtbkit/rtbkit: now accepts the per-impression creative-ids ext field.
+	* rtbkit/rtbkit: can now filter-out individual creatives using the creative-ids ext field.
+	* soa/js: std::array can now be converted to a v8 array.
+	* soa/jsoncpp: better error message when parseFromFile can't find the file.
+	* soa/carbon: no longer arbitrarily truncates floats to 5 decimal point.
+	* soa/carbon: now supports percentiles in outcomes.
+	* soa/httpClient: refactoring to allow for experimentation.
+	* soa/httpClient: experimental v2 client not based on curlpp.
+	* soa/redis: no longer spins on disconnect from redis.
+	* soa/redis: no longer throws when command queue becomes large.
+	* soa/rest: added support for static routes.
+	* jml/filter_stream: thrown exceptions now properly clean up exception state.
+
+2015-01-12  Remi Attab  <remi@datacratic.com>
+
+	* rtbkit/pal: memory optimization by only keeping string bid request after win.
+	* rtbkit/agents: node.js and python agent example over http.
+	* rtbkit/common: creative templating now supports impression IDs via the  "imp.id" macro.
+	* rtbkit/common: unified the plugin system under a single library.
+	* rtbkit/banker: now supports sync-rate option to  control frequency of banker requests.
+	* rtbkit/monitor: client should no longer get stuck on "last request still active".
+	* rtbkit/pal: support for event forwarding to another PAL.
+	* rtbkit/router: exchange connectors no longer return a body to a 204 response.
+	* rtbkit/casale: added new exchange connector.
+
+2015-09-29  Mathieu Stefani  <mathieu@datacratic.com>
+
+	* soa/id: Id parsing from json now supports utf-8 encoded string.
+	* rtbkit/augmentation: timeout for the AugmentationLoop can now be
+						   configured in the router.
+	* rtbkit/augmentation: fixed a bug in the AugmentationLoop where expired
+	                       inflight requests were not decremented
+	* soa/endpoint: start latency is now calculated after epoll_wait returned
+	* rtbkit/httpBidderInterface: multiple impressions is now correctly
+								  supported
+	* rtbkit/httpBidderInterface: now sending the right x-openrtb-version
+							      header
+	* rtbkit/spotx: the 300x250 creative restriction now only applies to
+					banner creatives
+	* rtbkit/spotx: bid response now includes the bidid and the cur objects
+	* rtbkit/bidswitch: now parsing the "ssp" extension field as the original exchange
+	* rtbkit/router: bidfloor is now taken in consideration in the router
+	* rtbkit/router: new metrics have ben added (NOBUDGET, TOOLATE,
+					 LOCAL_LOSS)
+	* rtbkit/filters: static filters in the FilterPool can now be configured
+	* rtbkit/fees: creatives can now include some fees that are applied to the
+				   final bid price
+	* rtbkit/openrtb: improved OpenRTB parsing by reducing memory allocations
+
+2016-05-30 Michael Burkat <michael@datacratic.com>
+
+	* jml-buikd: Node, Docker, tcmalloc, python related changes.
+	* jml: fix in least squares function.
+	* rtbkit/common/analytics: new plugin to abstract use of zmq or http for logging.
+	* rtbkit/core/router: use new analytics plugin.
+	* rtbkti/core/post_auction: use new analytics plugin.
+	* rtbkit/plugins/adserver: use new analytics plugin.
+	* soa/service: replace rtbkit-deps libcurl by the system provided curl.
+	* soa/service: fix bugs preventing compiling with gcc 4.8.
+	* soa: fix NODEJS_ENABLED flag to do the right thing.
+	* rtbkit: support for ubuntu 14.04
+	* rtbkit: Should update rtbkit-deps to latest with this update.
