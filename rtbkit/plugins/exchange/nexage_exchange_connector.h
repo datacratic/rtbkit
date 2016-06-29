@@ -6,7 +6,7 @@
 #pragma once
 
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
-#include "rtbkit/common/creative_configuration.h"
+#include "rtbkit/plugins/exchange/creative_configuration.h"
 
 namespace RTBKIT {
 
@@ -83,7 +83,7 @@ struct NexageExchangeConnector: public OpenRTBExchangeConnector {
         OpenRTB::List<OpenRTB::CreativeAttribute>  attr;///< Creative attributes Appendix 6.3
     };
 
-    typedef CreativeConfiguration<CreativeInfo> NexageCreativeConfiguration;
+    typedef TypedCreativeConfiguration<CreativeInfo> NexageCreativeConfiguration;
 
     virtual ExchangeCompatibility
     getCreativeCompatibility(const Creative & creative,

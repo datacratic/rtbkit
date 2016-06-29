@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
 #include "rtbkit/core/router/filters/generic_filters.h"
-#include "rtbkit/common/creative_configuration.h"
+#include "rtbkit/plugins/exchange/creative_configuration.h"
 
 namespace RTBKIT {
 
@@ -101,8 +101,6 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
             int duration; ///< Video ad duration if seconds
         } ext;
     };
-
-    typedef CreativeConfiguration<CreativeInfo> BidSwitchCreativeConfiguration;
     
     virtual ExchangeCompatibility
     getCreativeCompatibility(const Creative & creative,
@@ -113,15 +111,17 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
                              const AgentConfig & config,
                              const void * info) const;
 
-
     // BidSwitch win price decoding function.
     static float decodeWinPrice(const std::string & sharedSecret,
                                 const std::string & winPriceStr);
 
   private:
 
-    BidSwitchCreativeConfiguration configuration_;
+    void init();
 
+    typedef TypedCreativeConfiguration<CreativeInfo> BidSwitchCreativeConfiguration;
+    BidSwitchCreativeConfiguration configuration_;
+    
     virtual void setSeatBid(Auction const & auction,
                             int spotNum,
                             OpenRTB::BidResponse & response) const;
@@ -135,8 +135,6 @@ struct BidSwitchExchangeConnector: public OpenRTBExchangeConnector {
 
     Json::Value
     toExt(const CreativeInfo::YieldOne& yobj) const;
-
-    void init();
 };
 
 struct BidSwitchWSeatFilter : public FilterBaseT<BidSwitchWSeatFilter>

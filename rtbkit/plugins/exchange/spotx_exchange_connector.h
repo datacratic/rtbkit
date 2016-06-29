@@ -8,7 +8,7 @@
 #pragma once
 
 #include "rtbkit/plugins/exchange/openrtb_exchange_connector.h"
-#include "rtbkit/common/creative_configuration.h"
+#include "rtbkit/plugins/exchange/creative_configuration.h"
 #include "soa/service/logs.h"
 #include "soa/types/id.h"
 
@@ -65,18 +65,17 @@ struct SpotXExchangeConnector : public OpenRTBExchangeConnector {
     static Logging::Category print;
     static Logging::Category warning;
 
-    typedef CreativeConfiguration<CreativeInfo> SpotXCreativeConfiguration;
-
 private:
-    void initCreativeConfiguration();
+    void init();
+
+    typedef TypedCreativeConfiguration<CreativeInfo> SpotXCreativeConfiguration;
+    SpotXCreativeConfiguration configuration_;
 
     void setSeatBid(const Auction& auction,
                     int spotNum,
                     OpenRTB::BidResponse& response) const;
 
     Json::Value getSeatBidExtension(const CampaignInfo* info) const;
-
-    SpotXCreativeConfiguration creativeConfig;
 
 };
 
