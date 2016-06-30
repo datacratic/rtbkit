@@ -67,8 +67,6 @@ struct AdXExchangeConnector: public HttpExchangeConnector {
         return exchangeNameString();
     }
 
-    void init();
-
     void doEvent(const char * eventName,
                  StatEventType type = Datacratic::ET_COUNT,
                  float value = 1.0,
