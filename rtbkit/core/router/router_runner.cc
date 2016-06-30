@@ -53,6 +53,7 @@ RouterRunner() :
     analyticsConfigurationFile(""),
     lossSeconds(15.0),
     noPostAuctionLoop(false),
+    noLogger(false),
     noBidProb(false),
     logAuctions(false),
     logBids(false),
@@ -64,7 +65,7 @@ RouterRunner() :
     analyticsPublisherOn(false),
     analyticsPublisherConnections(1),
     augmentationWindowms(5),
-    dableSlowMode(false)
+    noSlowMode(false)
 {
 }
 
@@ -85,6 +86,8 @@ doOptions(int argc, char ** argv,
          "number of seconds allowed to bid normally since last successful monitor check") 
         ("no-post-auction-loop", bool_switch(&noPostAuctionLoop),
          "don't connect to the post auction loop")
+        ("no-logger", bool_switch(&noLogger),
+         "disable logger")
         ("no-bidprob", bool_switch(&noBidProb),
          "don't use bid probability to sample the traffic")
         ("log-uri", value<vector<string> >(&logUris),
@@ -115,9 +118,9 @@ doOptions(int argc, char ** argv,
          "enable local banker debug for more precise tracking by account")
         ("banker-choice", value<string>(&bankerChoice),
          "split or local banker can be chosen.")
-         ("augmenter-timeout",value<int>(&augmentationWindowms),
+        ("augmenter-timeout",value<int>(&augmentationWindowms),
          "configure the augmenter  timeout (in milliseconds)")
-        ("no slow mode", value<bool>(&dableSlowMode)->zero_tokens(),
+        ("no-slow-mode", bool_switch(&noSlowMode),
          "disable the slow mode.");
 
     options_description all_opt = opts;
@@ -184,7 +187,7 @@ init()
                                       slowModeTimeout, amountSlowModeMoneyLimit, augmentationWindow);
     router->slowModeTolerance = slowModeTolerance;
     router->initBidderInterface(bidderConfig);
-    if (dableSlowMode) {
+    if (noSlowMode) {
        router->unsafeDisableSlowMode();
     }
     if (analyticsPublisherOn) {
@@ -196,7 +199,7 @@ init()
             LOG(print) << "analyticsPublisher-uri is not in the config" << endl;
     }
 
-    router->initAnalytics(analyticsConfig);
+    if (!noLogger) router->initAnalytics(analyticsConfig);
     router->init();
 
     if (localBankerUri != "") {

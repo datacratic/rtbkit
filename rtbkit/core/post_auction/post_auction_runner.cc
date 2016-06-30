@@ -49,7 +49,8 @@ PostAuctionRunner() :
     campaignEventPipeTimeout(PostAuctionService::DefaultCampaignEventPipeTimeout),
     analyticsPublisherOn(false),
     analyticsPublisherConnections(1),
-    localBankerDebug(false)
+    localBankerDebug(false),
+    noLogger(false)
 {
 }
 
@@ -87,7 +88,9 @@ doOptions(int argc, char ** argv,
         ("local-banker-debug", bool_switch(&localBankerDebug),
          "enable local banker debug for more precise tracking by account")
         ("banker-choice", value<string>(&bankerChoice),
-         "split or local banker can be chosen.");
+         "split or local banker can be chosen.")
+        ("no-logger", bool_switch(&noLogger),
+         "disable logger.");
 
     options_description all_opt = opts;
     all_opt
@@ -126,7 +129,7 @@ init()
 
     postAuctionLoop = std::make_shared<PostAuctionService>(proxies, serviceName);
     postAuctionLoop->initBidderInterface(bidderConfig);
-    postAuctionLoop->initAnalytics(analyticsConfig);
+    if (!noLogger) postAuctionLoop->initAnalytics(analyticsConfig);
     postAuctionLoop->init(shard);
 
     postAuctionLoop->setWinTimeout(winTimeout);

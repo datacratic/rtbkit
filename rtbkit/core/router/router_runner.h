@@ -37,6 +37,7 @@ struct RouterRunner {
 
     float lossSeconds;
     bool noPostAuctionLoop;
+    bool noLogger;
     bool noBidProb;
 
     bool logAuctions;
@@ -55,7 +56,7 @@ struct RouterRunner {
     bool analyticsPublisherOn;
     int analyticsPublisherConnections;
     int augmentationWindowms;
-    bool dableSlowMode;
+    bool noSlowMode;
 
     void doOptions(int argc, char ** argv,
                    const boost::program_options::options_description & opts
