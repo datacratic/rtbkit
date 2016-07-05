@@ -45,6 +45,58 @@ Logging::Category HttpBidderInterface::trace("HttpBidderInterface Trace", HttpBi
 
 }
 
+void
+HttpBidderInterface::Loops::init(
+        size_t threads,
+        std::string routerHost,
+        int routerHttpActiveConnections)
+{
+    for (size_t i = 0; i < threads; ++i) {
+        entries.emplace_back(routerHost, routerHttpActiveConnections / threads);
+    }
+
+    index = 0;
+}
+
+void
+HttpBidderInterface::Loops::start() {
+    for (auto& entry: entries) {
+        entry.loop->start();
+    }
+}
+
+void
+HttpBidderInterface::Loops::shutdown() {
+    for (auto& entry: entries) {
+        entry.loop->shutdown();
+    }
+}
+
+std::shared_ptr<HttpClient>
+HttpBidderInterface::Loops::client() const {
+    index = (index + 1) % entries.size();
+    return entries[index].client;
+}
+
+void
+HttpBidderInterface::Loops::registerLoopMonitor(
+        LoopMonitor* monitor, const std::string& prefix) const {
+    for (size_t i = 0; i < entries.size(); ++i) {
+        auto& entry = entries[i];
+        monitor->addMessageLoop(prefix + std::to_string(i), entry.loop.get());
+    }
+
+}
+
+size_t
+HttpBidderInterface::Loops::queuedRequests() const {
+    size_t result { 0 };
+    for (const auto& entry: entries) {
+        result += entry.client->queuedRequests();
+    }
+
+    return result;
+}
 
 HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                                          std::shared_ptr<ServiceProxies> proxies,
@@ -54,6 +106,8 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
     int routerHttpActiveConnections = 0;
     int adserverHttpActiveConnections = 0;
 
+    int threads = 0;
+
     try {
         const auto& router = json["router"];
         const auto& adserver = json["adserver"];
@@ -61,6 +115,8 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
         routerHost = router["host"].asString();
         routerPath = router["path"].asString();
         routerHttpActiveConnections = router.get("httpActiveConnections", 1024).asInt();
+
+        threads = router.get("threads", 1).asInt();
 
         adserverHost = adserver["host"].asString();
 
@@ -101,14 +157,10 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
                    << "\t}" << std::endl << "}";
     }
 
-    // Force http_client_v2 to avoid latency added by curl in v1
-    httpClientRouter.reset(new HttpClient(routerHost, routerHttpActiveConnections, 0, 2));
-    /* We do not want curl to add an extra "Expect: 100-continue" HTTP header
-     * and then pay the cost of an extra HTTP roundtrip. Thus we remove this
-     * header
-     */
-    httpClientRouter->sendExpect100Continue(false);
-    loop.addSource("HttpBidderInterface::httpClientRouter", httpClientRouter);
+    loops.init(
+            threads,
+            routerHost,
+            routerHttpActiveConnections);
 
     std::string winHost = adserverHost + ':' + std::to_string(adserverWinPort);
     httpClientAdserverWins.reset(new HttpClient(winHost, adserverHttpActiveConnections));
@@ -126,9 +178,8 @@ HttpBidderInterface::HttpBidderInterface(std::string serviceName,
     loop.addSource("HttpBidderInterface::httpClientAdserverErrors", httpClientAdserverErrors);
 
     loop.addPeriodic("HttpBidderInterface::reportQueues", 1.0, [=](uint64_t) {
-        recordLevel(httpClientRouter->queuedRequests(), "queuedRequests");
+        recordLevel(loops.queuedRequests(), "queuedRequests");
     });
-
 }
 
 HttpBidderInterface::~HttpBidderInterface()
@@ -138,10 +189,12 @@ HttpBidderInterface::~HttpBidderInterface()
 
 void HttpBidderInterface::start() {
     loop.start();
+    loops.start();
 }
 
 void HttpBidderInterface::shutdown() {
     loop.shutdown();
+    loops.shutdown();
 }
 
 
@@ -295,8 +348,10 @@ void HttpBidderInterface::sendAuctionMessage(std::shared_ptr<Auction> const & au
     RestParams headers { { "x-openrtb-version", openRtbVersion } };
    // std::cerr << "Sending HTTP POST to: " << routerHost << " " << routerPath << std::endl;
    // std::cerr << "Content " << reqContent.str << std::endl;
+   //
+    auto client = loops.client();
 
-    httpClientRouter->post(routerPath, callbacks, reqContent,
+    client->post(routerPath, callbacks, reqContent,
                      { } /* queryParams */, headers);
 }
 
@@ -425,18 +480,16 @@ void HttpBidderInterface::sendWinLossMessage(
 
     Json::Value content;
 
-        if(event.type == MatchedWinLoss::Loss) {
-            return;
-        }
+    if(event.type == MatchedWinLoss::Loss) {
+        return;
+    }
 
-        content["timestamp"] = event.timestamp.secondsSinceEpoch();
-        content["bidRequestId"] = event.auctionId.toString();
-        content["impid"] = event.impId.toString();
-        content["userIds"] = event.uids.toJsonArray();
-        // ratio cannot be casted to json::value ...
-        content["price"] = (double) getAmountIn<CPM>(event.winPrice);
-
-        //requestStr["passback"];
+    content["timestamp"] = event.timestamp.secondsSinceEpoch();
+    content["bidRequestId"] = event.auctionId.toString();
+    content["impid"] = event.impId.toString();
+    content["userIds"] = event.uids.toJsonArray();
+    // ratio cannot be casted to json::value ...
+    content["price"] = (double) getAmountIn<CPM>(event.winPrice);
 
     HttpRequest::Content reqContent { content, "application/json" };
     httpClientAdserverWins->post(adserverWinPath, callbacks, reqContent,
@@ -558,7 +611,17 @@ void HttpBidderInterface::sendPingMessage(
 }
 
 void HttpBidderInterface::registerLoopMonitor(LoopMonitor *monitor) const {
-    monitor->addMessageLoop(serviceName(), &loop);
+
+    std::string prefix = "bidder.";
+
+    auto name = interfaceName();
+    if (!name.empty()) {
+        prefix += name;
+        prefix += '.';
+    }
+
+    monitor->addMessageLoop(prefix + "mainLoop", &loop);
+    loops.registerLoopMonitor(monitor, prefix + "thread");
 }
 
 void HttpBidderInterface::tagRequest(OpenRTB::BidRequest &request,
