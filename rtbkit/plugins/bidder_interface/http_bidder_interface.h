@@ -103,8 +103,44 @@ protected:
 
     typedef std::map<std::string, AgentBidsInfo> AgentBids;
 
+    struct Loops {
+    public:
+        void init(size_t threads, std::string routerHost, int routerHttpActiveConnections);
+        std::shared_ptr<HttpClient> client() const;
+
+        void registerLoopMonitor(LoopMonitor* monitor, const std::string& prefix) const;
+
+        void start();
+        void shutdown();
+
+        size_t queuedRequests() const;
+
+    private:
+        struct Entry {
+            Entry(const std::string& routerHost, int routerHttpActiveConnections)
+                  // Force http_client_v2 to avoid latency added by curl in v1
+                : client(std::make_shared<HttpClient>(routerHost, routerHttpActiveConnections, 0, 2))
+                , loop(std::make_shared<MessageLoop>())
+            {
+                /* We do not want curl to add an extra "Expect: 100-continue" HTTP header
+                 * and then pay the cost of an extra HTTP roundtrip. Thus we remove this
+                 * header
+                 */
+                client->sendExpect100Continue(false);
+                loop->addSource("httpClient", client);
+            }
+
+            std::shared_ptr<HttpClient> client;
+            std::shared_ptr<MessageLoop> loop;
+        };
+
+        std::vector<Entry> entries;
+        mutable size_t index;
+    };
+
+    Loops loops;
+
     MessageLoop loop;
-    std::shared_ptr<HttpClient> httpClientRouter;
     std::shared_ptr<HttpClient> httpClientAdserverWins;
     std::shared_ptr<HttpClient> httpClientAdserverEvents;
     std::shared_ptr<HttpClient> httpClientAdserverErrors;
