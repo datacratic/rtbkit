@@ -94,6 +94,7 @@ struct PostAuctionEvent {
     UserIds uids;
     SegmentList channels;
     Date bidTimestamp;
+    Datacratic::Id eventId;
 
     Json::Value toJson() const;
 

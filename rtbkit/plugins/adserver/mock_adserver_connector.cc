@@ -89,7 +89,8 @@ HttpAdServerResponse MockAdServerConnector::handleEvent(PostAuctionEvent const &
                              event.adSpotId,
                              event.timestamp,
                              Json::Value(),
-                             event.uids);
+                             event.uids,
+                             event.eventId);
     }
     
     return response;
@@ -104,7 +105,7 @@ struct AtInit {
 					   [](std::string const & serviceName,
 					      std::shared_ptr<ServiceProxies> const & proxies,
 					      Json::Value const & json) {
-            return new MockAdServerConnector(serviceName, proxies);
+            return new MockAdServerConnector(serviceName, proxies, json);
         });
     }
 } atInit;

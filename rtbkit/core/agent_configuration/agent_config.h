@@ -58,6 +58,7 @@ struct Creative {
     /// Purely for information (used internally)
     std::string name;
     int id;
+    int tagId;
 
     /// Video creative information
     int32_t duration;

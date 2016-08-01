@@ -85,7 +85,8 @@ public:
                                          const std::string & timestamp,
                                          const std::string & bidRequestId,
                                          const std::string & impId,
-                                         const std::string & userIds) {}
+                                         const std::string & userIds, 
+                                         const std::string& eventId) {}
 
     // USED IN OTHER ADSERVER CONNECTORS
     virtual void logAdserverEvent(const std::string & type,
@@ -101,7 +102,8 @@ public:
                                         const std::string & timestamp,
                                         const std::string & auctionId,
                                         const std::string & adSpotId,
-                                        const std::string & userId) {}
+                                        const std::string & userId, 
+                                        const std::string & eventId) {}
     virtual void logEventJson(const std::string & event,
                               const std::string & timestamp,
                               const std::string & json) {}

@@ -87,6 +87,8 @@ fromJson(const Json::Value & val)
             this->name = value.asString();
         else if (name == "id")
             id = value.asInt();
+        else if (name == "tagId")
+            tagId = value.asInt();
         else if (name == "dealId")
             dealId = val["dealId"].asString();
         else if (name == "providerConfig")

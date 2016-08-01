@@ -151,6 +151,8 @@ PostAuctionEvent(Json::Value const & json)
             channels = SegmentList::createFromJson(*it);
         else if (it.memberName() == "bidTimestamp")
             bidTimestamp = Date::fromSecondsSinceEpoch(it->asDouble());
+        else if (it.memberName() == "eventId")
+            eventId.parse(it->asString());
         else throw ML::Exception("unknown location field " + it.memberName());
     }
 }
@@ -171,6 +173,7 @@ toJson() const
     result["uids"] = uids.toJson();
     result["channels"] = channels.toJson();
     result["bidTimestamp"] = bidTimestamp.secondsSinceEpoch();
+    result["eventId"] = eventId.toString();
     return result;
 }
 
@@ -183,6 +186,7 @@ serialize(ML::DB::Store_Writer & store) const
     store << version << type;
     if (type == PAE_CAMPAIGN_EVENT) {
         store << label;
+        store << eventId;
     }
     store << auctionId << adSpotId << timestamp
           << metadata << account << winPrice
@@ -208,6 +212,7 @@ reconstitute(ML::DB::Store_Reader & store)
         store >> type;
         if (type == PAE_CAMPAIGN_EVENT) {
             store >> label;
+            store >> eventId;
         }
         store >> auctionId >> adSpotId >> timestamp
               >> metadata >> account;
@@ -291,6 +296,7 @@ PostAuctionEventDescription() {
     addField("uids", &PostAuctionEvent::uids, "");
     addField("channels", &PostAuctionEvent::channels, "");
     addField("bidTimestamp", &PostAuctionEvent::bidTimestamp, "");
+    addField("eventId", &PostAuctionEvent::eventId, "");
 }
 
 
