@@ -63,3 +63,13 @@ BOOST_AUTO_TEST_CASE(test_utf8_round_trip_streaming_ascii)
         BOOST_CHECK_EQUAL(str, str2);
     }
 }
+
+BOOST_AUTO_TEST_CASE(test_null_utf8string)
+{
+    {
+        string in("null");
+        StringJsonParsingContext context(in);
+        Utf8String str = context.expectStringUtf8();
+        BOOST_CHECK_EQUAL(str, Utf8String(""));
+    }
+}

@@ -30,6 +30,9 @@ StreamingJsonParsingContext::
 expectStringUtf8()
 {
     skipJsonWhitespace((*context));
+    if (context->match_literal("null")) {
+        return Utf8String();
+    }
     context->expect_literal('"');
 
     char internalBuffer[4096];
