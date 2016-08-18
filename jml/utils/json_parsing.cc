@@ -141,7 +141,7 @@ bool matchJsonString(Parse_Context & context, std::string & str)
 
 std::string expectJsonStringAsciiPermissive(Parse_Context & context, char sub)
 {
-    skipJsonWhitespace(context);
+    if (matchJsonNull(context)) return "";
     context.expect_literal('"');
 
     char internalBuffer[4096];
@@ -196,7 +196,7 @@ std::string expectJsonStringAsciiPermissive(Parse_Context & context, char sub)
 
 std::string expectJsonString(Parse_Context & context)
 {
-    skipJsonWhitespace(context);
+    if (matchJsonNull(context)) return "";
     context.expect_literal('"');
 
     char internalBuffer[4096];
@@ -296,11 +296,17 @@ std::string expectJsonString(Parse_Context & context)
 
 ssize_t expectJsonStringAscii(Parse_Context & context, char * buffer, size_t maxLength)
 {
-    skipJsonWhitespace(context);
-    context.expect_literal('"');
 
     size_t bufferSize = maxLength - 1;
     size_t pos = 0;
+    if (matchJsonNull(context)) {
+        if (pos == bufferSize) {
+            return -1;
+        }
+        buffer[pos] = 0;
+        return pos;
+    }
+    context.expect_literal('"');
 
     // Try multiple times to make it fit
     while (!context.match_literal('"')) {
@@ -343,7 +349,7 @@ ssize_t expectJsonStringAscii(Parse_Context & context, char * buffer, size_t max
 
 std::string expectJsonStringAscii(Parse_Context & context)
 {
-    skipJsonWhitespace(context);
+    if (matchJsonNull(context)) return "";
     context.expect_literal('"');
 
     char internalBuffer[4096];
