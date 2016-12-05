@@ -13,6 +13,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "jml/utils/parse_context.h"
 #include "jml/db/persistent_fwd.h"
+#include <time.h>
 
 struct ACE_Time_Value;
 
