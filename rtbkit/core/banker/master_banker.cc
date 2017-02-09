@@ -189,11 +189,6 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                 const string & key = keys[i];
                 const Accounts::AccountInfo & bankerAccount
                     = toSave.getAccount(key);
-                if (toSave.isAccountOutOfSync(key)) {
-                    LOG(trace) << "account '" << key
-                               << "' is out of sync and will not be saved" << endl;
-                    continue;
-                }
                 Json::Value bankerValue = bankerAccount.toJson();
                 bool saveAccount(false);
 
@@ -241,6 +236,9 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                         /* TODO: the list of inconsistent account should be
                            stored in the db */
                         badAccounts.append(Json::Value(key));
+                        LOG(error) << "Bad Account: " << key << "\n"
+                            << "Banker Account:\n" << bankerAccount << "\n"
+                            << "Redis Account:\n" << storageAccount << endl;
                     }
                 }
                 else {
@@ -256,18 +254,7 @@ saveAll(const Accounts & toSave, OnSavedCallback onSaved)
                 }
             }
 
-            if (badAccounts.size() > 0) {
-                /* For now we do not save any account when at least one has
-                   been detected as inconsistent. */
-                saveResult.status = DATA_INCONSISTENCY;
-                const Date now = Date::now();
-                saveResult.recordLatency(
-                        "inPhase1TimeMs", latencyBetween(afterPhase1Time, now));
-                saveResult.recordLatency(
-                        "totalTimeMs", latencyBetween(begin, now));
-                onSaved(saveResult, boost::trim_copy(badAccounts.toString()));
-            }
-            else if (storeCommands.size() > 1) {
+            if (storeCommands.size() > 1) {
                  storeCommands.push_back(EXEC);
                  
                  const Date beforePhase2Time = Date::now();
